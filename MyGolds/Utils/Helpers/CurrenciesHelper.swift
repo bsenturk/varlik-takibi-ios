@@ -1,0 +1,233 @@
+//
+//  CurrenciesHelper.swift
+//  MyGolds
+//
+//  Created by Burak Ahmet Şentürk on 14.03.2024.
+//
+
+enum Currencies: String {
+    case usd
+    case euro
+    case aux
+    case gbp
+    case agx
+    
+    var imageName: String {
+        switch self {
+        case .usd:
+            return "dollarsign"
+        case .euro:
+            return "eurosign"
+        case .aux, .agx:
+            return "diamond.fill"
+        case .gbp:
+            return "sterlingsign"
+        }
+    }
+}
+
+enum CurrenciesMarket: String {
+    case usd
+    case eur
+    case gbp
+    case chf
+    case cad
+    case rub
+    case aed
+    case aud
+    case dkk
+    case sek
+    case nok
+    case jpy
+    case kwd
+    case zar
+    case bhd
+    case lyd
+    case sar
+    case iqd
+    case ils
+    case irr
+    case inr
+    case mxn
+    case huf
+    case nzd
+    case brl
+    case idr
+    case czk
+    case pln
+    case ron
+    case cny
+    case ars
+    case all
+    case azn
+    case bam
+    case clp
+    case cop
+    case crc
+    case dzd
+    case egp
+    case hkd
+    case isk
+    case hrk
+    case jod
+    case krw
+    case kzt
+    case lbp
+    case lkr
+    case mad
+    case mdl
+    case mkd
+    case myr
+    case omr
+    case pen
+    case php
+    case pkr
+    case qar
+    case rsd
+    case sgd
+    case syp
+    case thb
+    case twd
+    case uah
+    case uyu
+    case gel
+    case tnd
+    case bgn
+    
+    var imageName: String {
+        switch self {
+        case .usd:
+            return "usaIcon"
+        case .eur:
+            return "euIcon"
+        case .gbp:
+            return "ukIcon"
+        case .chf:
+            return "swissIcon"
+        case .cad:
+            return "canadaIcon"
+        case .rub:
+            return "russiaIcon"
+        case .aed:
+            return "uaeIcon"
+        case .aud:
+            return "ausIcon"
+        case .dkk:
+            return "denmarkIcon"
+        case .sek:
+            return "swedenIcon"
+        case .nok:
+            return "norwayIcon"
+        case .jpy:
+            return "japanIcon"
+        case .kwd:
+            return "kuwaitIcon"
+        case .zar:
+            return "southAfricaIcon"
+        case .bhd:
+            return "bahrainIcon"
+        case .lyd:
+            return "libyaIcon"
+        case .sar:
+            return "saudiArabiaIcon"
+        case .iqd:
+            return "iraqIcon"
+        case .ils:
+            return "israelIcon"
+        case .irr:
+            return "iranIcon"
+        case .inr:
+            return "indiaIcon"
+        case .mxn:
+            return "mexicoIcon"
+        case .huf:
+            return "hungaryIcon"
+        case .nzd:
+            return "newzeelandIcon"
+        case .brl:
+            return "brasilIcon"
+        case .idr:
+            return "indonesiaIcon"
+        case .czk:
+            return "czechIcon"
+        case .pln:
+            return "polandIcon"
+        case .ron:
+            return "romaniaIcon"
+        case .cny:
+            return "chinaIcon"
+        case .ars:
+            return "argentinaIcon"
+        case .all:
+            return "albaniaIcon"
+        case .azn:
+            return "azerbaijanIcon"
+        case .bam:
+            return "bosniaIcon"
+        case .clp:
+            return "chileIcon"
+        case .cop:
+            return "colombiaIcon"
+        case .crc:
+            return "costaRicaIcon"
+        case .dzd:
+            return "algeriaIcon"
+        case .egp:
+            return "egyptIcon"
+        case .hkd:
+            return "hongkongIcon"
+        case .isk:
+            return "icelandIcon"
+        case .hrk:
+            return "croatiaIcon"
+        case .jod:
+            return "jordanIcon"
+        case .krw:
+            return "southKoreaIcon"
+        case .kzt:
+            return "kazakhstanIcon"
+        case .lbp:
+            return "lebanonIcon"
+        case .lkr:
+            return "srilankaIcon"
+        case .mad:
+            return "moroccoIcon"
+        case .mdl:
+            return "moldovaIcon"
+        case .mkd:
+            return "macedoniaIcon"
+        case .myr:
+            return "malaysiaIcon"
+        case .omr:
+            return "omanIcon"
+        case .pen:
+            return "peruIcon"
+        case .php:
+            return "philippinesIcon"
+        case .pkr:
+            return "pakistanIcon"
+        case .qar:
+            return "qatarIcon"
+        case .rsd:
+            return "serbiaIcon"
+        case .sgd:
+            return "singaporeIcon"
+        case .syp:
+            return "syriaIcon"
+        case .thb:
+            return "thailandIcon"
+        case .twd:
+            return "taiwanIcon"
+        case .uah:
+            return "ukraineIcon"
+        case .uyu:
+            return "uruguayIcon"
+        case .gel:
+            return "georgiaIcon"
+        case .tnd:
+            return "tunusiaIcon"
+        case .bgn:
+            return "bulgariaIcon"
+        }
+    }
+}
