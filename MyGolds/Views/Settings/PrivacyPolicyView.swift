@@ -36,10 +36,10 @@ struct PrivacyPolicyView: View {
                             content: "Tüm verileriniz cihazınızda şifrelenerek saklanır. Verilerinize sadece siz erişebilirsiniz ve hiçbir üçüncü tarafla paylaşılmaz."
                         )
                         
-                        privacySection(
-                            title: "Kur Bilgileri",
-                            content: "Güncel kur bilgileri, kur.doviz.com ve altin.doviz.com sitelerinden anonim olarak çekilir. Bu işlem sırasında hiçbir kişisel bilginiz paylaşılmaz."
-                        )
+//                        privacySection(
+//                            title: "Kur Bilgileri",
+//                            content: "Güncel kur bilgileri, kur.doviz.com ve altin.doviz.com sitelerinden anonim olarak çekilir. Bu işlem sırasında hiçbir kişisel bilginiz paylaşılmaz."
+//                        )
                         
                         privacySection(
                             title: "Analitik",
