@@ -2,143 +2,327 @@
 //  AssetsView.swift
 //  MyGolds
 //
-//  Created by Burak Ahmet Şentürk on 16.02.2024.
+//  Created by Burak Şentürk on 27.06.2025.
 //
 
 import SwiftUI
+import SwiftData
 
 struct AssetsView: View {
-    
-    @Environment(\.managedObjectContext) var viewContext
-    @State var addAssetViewNavigate = false
-    @State var isShowingPopupForRemovingAsset = false
+    @Environment(\.modelContext) private var modelContext
+    @Query private var assets: [Asset]
     @StateObject private var viewModel = AssetsViewModel()
-    @State private var selectedAsset: AssetEntity?
+    @StateObject private var portfolioManager = PortfolioManager.shared
+    @State private var showingAddAsset = false
+    @State private var showingAnalytics = false
+    @State private var showingDeletePopup = false
+    @State private var assetToDelete: Asset?
     
     var body: some View {
-        NavigationStack {
+        NavigationView {
             ZStack {
-                Color.primaryBrown
-                VStack {
-                    HStack {
-                        Text(viewModel.totalAssetValue)
-                            .foregroundStyle(.white)
-                            .padding(.leading)
-                            .font(.workSansBold(size: 28))
+                VStack(spacing: 0) {
+                    if assets.isEmpty {
+                        emptyStateView
+                    } else {
+                        totalValueHeader
+                        assetsListView
+                    }
+                }
+                .navigationBarHidden(true)
+                
+                // Sticky Add Button (Only visible when there are assets)
+                if !assets.isEmpty {
+                    VStack {
                         Spacer()
-                    }
-                    Spacer()
-                    
-                    List {
-                        ForEach(viewModel.assets, id: \.self) { asset in
-                            NavigationLink {
-                                AddAssetView(viewModel: AddAssetViewModel(
-                                    selectedAsset: asset.currencyName ?? "",
-                                    assetQuantity: String(asset.quantity), 
-                                    assetEntity: asset
-                                )
-                                )
-                                .toolbar(.hidden, for: .tabBar)
-                            } label: {
-                                AssetRow(
-                                    currency: Binding.constant(asset.currencySymbol ?? ""),
-                                    assetName: Binding.constant(asset.currencyName ?? ""),
-                                    assetQuantity: Binding.constant(String(asset.quantity)),
-                                    assetTotalValue: Binding.constant(viewModel.calculateAssetValue(asset: asset))
-                                )
-                                .swipeActions {
-                                    Button(role: .destructive) {
-                                        withAnimation {
-                                            isShowingPopupForRemovingAsset.toggle()
-                                        }
-                                        self.selectedAsset = asset
-                                    } label: {
-                                        Image(systemName: "trash")
-                                    }
-                                    .tint(Color.red)
-                                }
-                            }
-                            .overlay {
-                                HStack {
-                                    Spacer()
-                                    Circle()
-                                        .foregroundStyle(Color.primaryBrown)
-                                        .frame(width: 20, height: 20)
-                                }
-                            }
-                            .listRowSeparator(.hidden)
-                            .listRowInsets(EdgeInsets(top: 10, leading: 5, bottom: 5, trailing: 5))
-                            .frame(maxWidth: .infinity)
-                            .listRowBackground(Color.primaryBrown)
-                        }
-                    }
-                    .scrollContentBackground(.hidden)
-                    .listStyle(.plain)
-                    .toolbar {
-                        ToolbarItem(placement: .topBarTrailing) {
-                            Button(action: {
-                                addAssetViewNavigate = true
-                            }, label: {
-                                Image(systemName: "plus")
-                                    .tint(.white)
-                            })
-                        }
-                    }
-                    .navigationDestination(isPresented: $addAssetViewNavigate) {
-                        AddAssetView(viewModel: AddAssetViewModel())
-                            .toolbar(.hidden, for: .tabBar)
-                    }
-                }
-                if viewModel.isLoaderShown {
-                    LoaderView()
-                }
-                
-                if CoreDataStack.shared.fetch(entityName: "AssetEntity").isEmpty {
-                    EmptyView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .toolbar(.hidden, for: .navigationBar)
-                        .toolbar(.hidden, for: .tabBar)
-                        .transition(.opacity)
-                }
-                
-                if isShowingPopupForRemovingAsset {
-                    PopupView(
-                        title: "Uyarı",
-                        message: "Varlığınızı silmek istediğinizden emin misiniz?",
-                        firstButtonTitle: "Evet",
-                        secondButtonTitle: "Vazgeç",
-                        firstAction: { 
-                            guard let selectedAsset else { return }
-                            withAnimation {
-                                isShowingPopupForRemovingAsset.toggle()
-                            }
+                        HStack {
+                            Spacer()
                             
-                            viewModel.removeAsset(asset: selectedAsset)
-                            viewModel.viewOnAppear()
-                        },
-                        secondAction: {
-                            withAnimation {
-                                isShowingPopupForRemovingAsset.toggle()
+                            Button(action: { showingAddAsset = true }) {
+                                Image(systemName: "plus")
+                                    .font(.title2.weight(.semibold))
+                                    .foregroundColor(.white)
+                                    .frame(width: 56, height: 56)
+                                    .background(.blue)
+                                    .clipShape(Circle())
+                                    .shadow(color: .blue.opacity(0.4), radius: 12, x: 0, y: 6)
+                            }
+                            .padding(.trailing, 20)
+                            .padding(.bottom, 50)
+                        }
+                    }
+                    .transition(.asymmetric(
+                        insertion: .scale.combined(with: .opacity),
+                        removal: .scale.combined(with: .opacity)
+                    ))
+                }
+                
+                // Custom Delete Popup
+                if showingDeletePopup {
+                    CustomDeletePopup(
+                        assetName: assetToDelete?.name ?? "",
+                        isPresented: $showingDeletePopup,
+                        onDelete: {
+                            if let asset = assetToDelete {
+                                deleteAsset(asset)
                             }
                         }
                     )
-                    .transition(.scale)
+                    .zIndex(1000)
                 }
             }
-            .navigationTitle("Varlıklarım")
-            .navigationBarBackButtonHidden()
-            .navigationBarTitleDisplayMode(.large)
-            .navigationBarColor(.primaryBrown, .white)
+            .sheet(isPresented: $showingAddAsset) {
+                AssetFormView()
+            }
+            .sheet(isPresented: $showingAnalytics) {
+                AnalyticsView()
+            }
             .onAppear {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    viewModel.requestTrackingAuthorization()
+                NotificationManager.shared.requestNotificationPermission()
+                Task {
+                    await refreshDataAndUpdateAssets()
                 }
-                viewModel.viewOnAppear()
+            }
+            .onChange(of: assets) { _ in
+                updatePortfolioData()
+            }
+            .refreshable {
+                await refreshDataAndUpdateAssets()
             }
         }
     }
-}
-
-#Preview {
-    AssetsView()
+    
+    private var totalValueHeader: some View {
+        VStack(spacing: 16) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Toplam Varlık")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.9))
+                    
+                    Text(portfolioManager.currentTotalValue.formatAsCurrency())
+                        .font(.title.bold())
+                        .foregroundColor(.white)
+                    
+                    // Only show profit/loss if there's meaningful data
+                    if portfolioManager.totalInvestment > 0 &&
+                       portfolioManager.currentTotalValue > 0 &&
+                       abs(portfolioManager.profitLoss) > 0.01 {
+                        HStack(spacing: 4) {
+                            Image(systemName: portfolioManager.profitLoss >= 0 ? "chevron.up" : "chevron.down")
+                                .font(.caption)
+                            
+                            Text("\(abs(portfolioManager.profitLossPercentage), specifier: "%.2f")%")
+                                .font(.caption.weight(.medium))
+                            
+                            Text("(\(portfolioManager.profitLoss >= 0 ? "+" : "")\(portfolioManager.profitLoss.formatAsCurrency()))")
+                                .font(.caption2)
+                        }
+                        .foregroundColor(portfolioManager.profitLoss >= 0 ? .green.opacity(0.8) : .red.opacity(0.8))
+                    }
+                }
+                
+                Spacer()
+                
+                Button(action: { showingAnalytics = true }) {
+                    Image(systemName: "chart.line.uptrend.xyaxis")
+                        .font(.title2)
+                        .foregroundColor(.white)
+                        .frame(width: 44, height: 44)
+                        .background(.white.opacity(0.2))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+            }
+        }
+        .padding()
+        .background(
+            LinearGradient(
+                colors: [.blue, .purple],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+    }
+    
+    private var assetsListView: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("Varlıklarım")
+                    .font(.title2.bold())
+                    .foregroundColor(.primary)
+                
+                Spacer()
+                
+                Text("\(assets.count) varlık")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 16)
+            
+            ScrollView {
+                LazyVStack(spacing: 12) {
+                    ForEach(assets) { asset in
+                        AssetCardView(
+                            asset: asset,
+                            onDelete: {
+                                assetToDelete = asset
+                                showingDeletePopup = true
+                            }
+                        )
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .leading).combined(with: .opacity),
+                            removal: .move(edge: .trailing).combined(with: .opacity)
+                        ))
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 180) // Extra space for button + banner
+            }
+        }
+    }
+    
+    private var emptyStateView: some View {
+        VStack(spacing: 24) {
+            Spacer()
+            
+            ZStack {
+                Circle()
+                    .fill(Color.blue.opacity(0.1))
+                    .frame(width: 100, height: 100)
+                
+                Image(systemName: "wallet.pass")
+                    .font(.system(size: 40))
+                    .foregroundColor(.blue)
+            }
+            
+            VStack(spacing: 12) {
+                Text("Henüz varlık eklenmemiş")
+                    .font(.title2.bold())
+                    .foregroundColor(.primary)
+                
+                Text("İlk varlığınızı ekleyerek portföy takibine başlayın. Altın, döviz ve diğer varlıklarınızı kolayca yönetebilirsiniz.")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+            }
+            
+            Button(action: { showingAddAsset = true }) {
+                HStack {
+                    Image(systemName: "plus.circle.fill")
+                    Text("İlk Varlığını Ekle")
+                }
+                .font(.headline)
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 50)
+                .background(
+                    LinearGradient(
+                        colors: [.blue, .blue.opacity(0.8)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(16)
+                .shadow(color: .blue.opacity(0.3), radius: 8, x: 0, y: 4)
+            }
+            .padding(.horizontal, 40)
+            .padding(.top, 8)
+            
+            Spacer()
+        }
+        .padding(.top, 40)
+    }
+    
+    // MARK: - Helper Functions
+    
+    @MainActor
+    private func refreshDataAndUpdateAssets() async {
+        await MarketDataManager.shared.refreshData()
+        await updateAssetValuesWithMarketData()
+        updatePortfolioData()
+    }
+    
+    private func updateAssetValuesWithMarketData() async {
+        let marketManager = MarketDataManager.shared
+        var hasChanges = false
+        
+        for asset in assets {
+            let oldPrice = asset.currentPrice
+            var newPrice: Double?
+            
+            switch asset.type {
+            case .gold:
+                newPrice = marketManager.goldPrices.first { $0.name.lowercased().contains("gram") }?.sellPrice.parseToDouble()
+            case .goldQuarter:
+                newPrice = marketManager.goldPrices.first { $0.name.lowercased().contains("çeyrek") }?.sellPrice.parseToDouble()
+            case .goldHalf:
+                newPrice = marketManager.goldPrices.first { $0.name.lowercased().contains("yarım") }?.sellPrice.parseToDouble()
+            case .goldFull:
+                newPrice = marketManager.goldPrices.first { $0.name.lowercased().contains("tam") }?.sellPrice.parseToDouble()
+            case .goldRepublic:
+                newPrice = marketManager.goldPrices.first { $0.name.lowercased().contains("cumhuriyet") }?.sellPrice.parseToDouble()
+            case .goldAta:
+                newPrice = marketManager.goldPrices.first { $0.name.lowercased().contains("ata") }?.sellPrice.parseToDouble()
+            case .goldResat:
+                newPrice = marketManager.goldPrices.first { $0.name.lowercased().contains("reşat") }?.sellPrice.parseToDouble()
+            case .goldHamit:
+                newPrice = marketManager.goldPrices.first { $0.name.lowercased().contains("hamit") }?.sellPrice.parseToDouble()
+            case .usd:
+                newPrice = marketManager.currencyRates.first { $0.code?.uppercased() == "USD" }?.sellPrice.parseToDouble()
+            case .eur:
+                newPrice = marketManager.currencyRates.first { $0.code?.uppercased() == "EUR" }?.sellPrice.parseToDouble()
+            case .gbp:
+                newPrice = marketManager.currencyRates.first { $0.code?.uppercased() == "GBP" }?.sellPrice.parseToDouble()
+            case .tl:
+                newPrice = 1.0
+            }
+            
+            if let price = newPrice, abs(price - oldPrice) > 0.01 {
+                asset.currentPrice = price
+                asset.lastUpdated = Date()
+                hasChanges = true
+            }
+        }
+        
+        if hasChanges {
+            do {
+                try modelContext.save()
+                print("✅ Asset values updated with market data")
+            } catch {
+                print("❌ Failed to save updated asset values: \(error)")
+            }
+        }
+    }
+    
+    private func updatePortfolioData() {
+        portfolioManager.updatePortfolio(with: assets)
+    }
+    
+    private func deleteAsset(_ asset: Asset) {
+        withAnimation(.easeInOut(duration: 0.4)) {
+            // Remove purchase price from PortfolioManager
+            PortfolioManager.shared.removePurchasePrice(for: asset.id)
+            
+            modelContext.delete(asset)
+            
+            do {
+                try modelContext.save()
+                
+                // Force immediate portfolio update after deletion
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    let remainingAssets = (try? self.modelContext.fetch(FetchDescriptor<Asset>())) ?? []
+                    PortfolioManager.shared.forceUpdate(with: remainingAssets)
+                }
+                
+                let impactFeedback = UIImpactFeedbackGenerator(style: .heavy)
+                impactFeedback.impactOccurred()
+                
+            } catch {
+                print("Delete error: \(error)")
+            }
+        }
+    }
 }

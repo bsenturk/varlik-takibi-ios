@@ -10,6 +10,7 @@ import FirebaseCore
 import GoogleMobileAds
 import FirebaseCrashlytics
 import AppTrackingTransparency
+import SwiftData
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(
@@ -23,42 +24,31 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 }
 
 @main
-struct MyGoldsApp: App {
-    @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
-    @StateObject private var coreDataStack = CoreDataStack.shared
-    @State private var selection = 0
+struct VarlikDefterimApp: App {
+    @StateObject private var coordinator = AppCoordinator()
+    @StateObject private var adManager = AdMobManager.shared
     
+    var sharedModelContainer: ModelContainer = {
+         let schema = Schema([
+             Asset.self,
+         ])
+         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+         do {
+             return try ModelContainer(for: schema, configurations: [modelConfiguration])
+         } catch {
+             fatalError("Could not create ModelContainer: \(error)")
+         }
+     }()
+
     var body: some Scene {
         WindowGroup {
-            TabView {
-                AssetsView()
-                    .environment(\.managedObjectContext, coreDataStack.persistentContainer.viewContext)
-                    .tabItem {
-                        Label("Varlıklarım", systemImage: "bag.circle")
-                    }
-                    .tag(0)
-                
-                CurrenciesView()
-                    .tabItem {
-                        Label("Piyasalar", systemImage: "chart.line.uptrend.xyaxis")
-                    }
-                    .tag(1)
-                
-                SettingsView()
-                    .tabItem {
-                        Label("Ayarlar", systemImage: "gearshape")
-                    }
-                    .tag(2)
-            }
-            .onAppear {
-                UITabBar.appearance().unselectedItemTintColor = .gray
-                let tabBarAppearance = UITabBarAppearance()
-                tabBarAppearance.configureWithOpaqueBackground()
-                tabBarAppearance.backgroundColor = .secondaryBrown
-                UITabBar.appearance().scrollEdgeAppearance = tabBarAppearance
-                UITabBar.appearance().standardAppearance = tabBarAppearance
-            }
-            .tint(Color.white)
+            coordinator.start()
+                .environmentObject(coordinator)
+                .modelContainer(sharedModelContainer)
+                .onAppear {
+                    adManager.showBannerAd()
+                }
         }
     }
 }
+
