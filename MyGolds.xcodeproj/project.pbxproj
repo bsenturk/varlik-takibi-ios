@@ -83,6 +83,7 @@
 		D8581F872E11524E00E48444 /* AppLifecycleObserver.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F862E11524E00E48444 /* AppLifecycleObserver.swift */; };
 		D8581F892E1171E000E48444 /* FirebaseAnalyticsHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F882E1171DF00E48444 /* FirebaseAnalyticsHelper.swift */; };
 		D8581F8B2E11770E00E48444 /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F8A2E11770A00E48444 /* Logger.swift */; };
+		D8581F8D2E1183B700E48444 /* ActivityViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F8C2E1183B600E48444 /* ActivityViewController.swift */; };
 		D8B22AAF2E0DF74F0058B883 /* SDWebImageSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = D8B22AAE2E0DF74F0058B883 /* SDWebImageSwiftUI */; };
 /* End PBXBuildFile section */
 
@@ -136,6 +137,7 @@
 		D8581F862E11524E00E48444 /* AppLifecycleObserver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLifecycleObserver.swift; sourceTree = "<group>"; };
 		D8581F882E1171DF00E48444 /* FirebaseAnalyticsHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseAnalyticsHelper.swift; sourceTree = "<group>"; };
 		D8581F8A2E11770A00E48444 /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
+		D8581F8C2E1183B600E48444 /* ActivityViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -372,6 +374,7 @@
 		D8581F5E2E0EE02400E48444 /* Helpers */ = {
 			isa = PBXGroup;
 			children = (
+				D8581F8C2E1183B600E48444 /* ActivityViewController.swift */,
 				D8581F8A2E11770A00E48444 /* Logger.swift */,
 				D8581F882E1171DF00E48444 /* FirebaseAnalyticsHelper.swift */,
 				D8581F802E0FFF2E00E48444 /* PortfolioManager.swift */,
@@ -567,6 +570,7 @@
 				D8581F702E0F5ACC00E48444 /* AssetsFormViewModel.swift in Sources */,
 				D8581F292E0ED7E600E48444 /* AssetCardView.swift in Sources */,
 				D8581F832E1004D000E48444 /* StringExtension.swift in Sources */,
+				D8581F8D2E1183B700E48444 /* ActivityViewController.swift in Sources */,
 				D8581F272E0ED7B600E48444 /* AssetFormView.swift in Sources */,
 				D8581F462E0EDCAB00E48444 /* AssetType.swift in Sources */,
 				D8581F2D2E0EDACD00E48444 /* RateCardView.swift in Sources */,

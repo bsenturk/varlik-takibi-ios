@@ -12,6 +12,14 @@ struct SettingsView: View {
     @State private var showingFeedback = false
     @State private var showingShare = false
     @State private var showingPrivacyPolicy = false
+    @State private var shareItem: ShareItem?
+    
+    // Share için struct
+    struct ShareItem: Identifiable {
+        let id = UUID()
+        let text: String
+        let url: URL?
+    }
     
     // Debug için
     @StateObject private var appOpenAdManager = AppOpenAdManager.shared
@@ -32,10 +40,10 @@ struct SettingsView: View {
                     .padding(.top, 20)
                     
                     // DEBUG SECTION - Sadece debug modda görünür
-#if DEBUG
+                    #if DEBUG
                     debugSection
                     notificationDebugSection
-#endif
+                    #endif
                     
                     // Settings Items
                     VStack(spacing: 12) {
@@ -63,30 +71,19 @@ struct SettingsView: View {
                             action: { showingFeedback = true }
                         )
                         
-                        // Share için modern approach
-                        if #available(iOS 16.0, *) {
-                            ShareLink(
-                                item: URL(string: "https://apps.apple.com/us/app/varlık-takibi/id6479618311")!,
-                                subject: Text("Varlık Takibi"),
-                                message: Text("Varlık Takibi uygulamasını keşfedin! Altın ve döviz varlıklarınızı kolayca takip edin.")
-                            ) {
-                                SettingsItemView(
-                                    icon: "square.and.arrow.up.fill",
-                                    iconColor: .green,
-                                    title: "Uygulamayı Paylaş",
-                                    subtitle: "Arkadaşlarınızla paylaşın",
-                                    action: { }
+                        // Direkt iOS Native Share Sheet
+                        SettingsItemView(
+                            icon: "square.and.arrow.up.fill",
+                            iconColor: .green,
+                            title: "Uygulamayı Paylaş",
+                            subtitle: "Arkadaşlarınızla paylaşın",
+                            action: {
+                                shareItem = ShareItem(
+                                    text: "Varlık Takibi uygulamasını keşfedin! Altın ve döviz varlıklarınızı kolayca takip edin.",
+                                    url: URL(string: "https://apps.apple.com/app/id6479618311")
                                 )
                             }
-                        } else {
-                            SettingsItemView(
-                                icon: "square.and.arrow.up.fill",
-                                iconColor: .green,
-                                title: "Uygulamayı Paylaş",
-                                subtitle: "Arkadaşlarınızla paylaşın",
-                                action: { showingShare = true }
-                            )
-                        }
+                        )
                         
                         SettingsItemView(
                             icon: "shield.fill",
@@ -124,15 +121,19 @@ struct SettingsView: View {
         .sheet(isPresented: $showingFeedback) {
             FeedbackView()
         }
-        .sheet(isPresented: $showingShare) {
-            ShareView()
-        }
         .sheet(isPresented: $showingPrivacyPolicy) {
             PrivacyPolicyView()
         }
+        .sheet(item: $shareItem) { item in
+            if let url = item.url {
+                ActivityViewController(activityItems: [item.text, url])
+            } else {
+                ActivityViewController(activityItems: [item.text])
+            }
+        }
     }
     
-#if DEBUG
+    #if DEBUG
     private var debugSection: some View {
         VStack(spacing: 12) {
             Text("🐛 DEBUG - App Open Ad Test")
@@ -269,7 +270,7 @@ struct SettingsView: View {
         .cornerRadius(12)
         .padding(.horizontal, 24)
     }
-#endif
+    #endif
     
     private func openNotificationSettings() {
         guard let settingsURL = URL(string: UIApplication.openNotificationSettingsURLString) else {

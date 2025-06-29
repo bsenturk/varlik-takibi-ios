@@ -48,11 +48,11 @@ struct MainTabView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             
 //             AdMob Banner - Only show if should show
-//            if adManager.shouldShowBanner {
-//                SmartAdBannerView()
-//                    .transition(.move(edge: .bottom).combined(with: .opacity))
-//                    .animation(.easeInOut(duration: 0.3), value: adManager.shouldShowBanner)
-//            }
+            if adManager.shouldShowBanner {
+                SmartAdBannerView()
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .animation(.easeInOut(duration: 0.3), value: adManager.shouldShowBanner)
+            }
             
             // Custom TabBar
             customTabBar
