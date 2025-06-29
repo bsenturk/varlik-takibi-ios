@@ -81,6 +81,8 @@
 		D8581F832E1004D000E48444 /* StringExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F822E1004CD00E48444 /* StringExtension.swift */; };
 		D8581F852E11522A00E48444 /* AppOpenAdManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F842E11522900E48444 /* AppOpenAdManager.swift */; };
 		D8581F872E11524E00E48444 /* AppLifecycleObserver.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F862E11524E00E48444 /* AppLifecycleObserver.swift */; };
+		D8581F892E1171E000E48444 /* FirebaseAnalyticsHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F882E1171DF00E48444 /* FirebaseAnalyticsHelper.swift */; };
+		D8581F8B2E11770E00E48444 /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F8A2E11770A00E48444 /* Logger.swift */; };
 		D8B22AAF2E0DF74F0058B883 /* SDWebImageSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = D8B22AAE2E0DF74F0058B883 /* SDWebImageSwiftUI */; };
 /* End PBXBuildFile section */
 
@@ -132,6 +134,8 @@
 		D8581F822E1004CD00E48444 /* StringExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StringExtension.swift; sourceTree = "<group>"; };
 		D8581F842E11522900E48444 /* AppOpenAdManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppOpenAdManager.swift; sourceTree = "<group>"; };
 		D8581F862E11524E00E48444 /* AppLifecycleObserver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLifecycleObserver.swift; sourceTree = "<group>"; };
+		D8581F882E1171DF00E48444 /* FirebaseAnalyticsHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseAnalyticsHelper.swift; sourceTree = "<group>"; };
+		D8581F8A2E11770A00E48444 /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -368,6 +372,8 @@
 		D8581F5E2E0EE02400E48444 /* Helpers */ = {
 			isa = PBXGroup;
 			children = (
+				D8581F8A2E11770A00E48444 /* Logger.swift */,
+				D8581F882E1171DF00E48444 /* FirebaseAnalyticsHelper.swift */,
 				D8581F802E0FFF2E00E48444 /* PortfolioManager.swift */,
 				D8581F782E0FF34000E48444 /* Admob */,
 				D8581F732E0FE06C00E48444 /* UserDefaultsManager.swift */,
@@ -571,9 +577,11 @@
 				D8581F852E11522A00E48444 /* AppOpenAdManager.swift in Sources */,
 				D8581F772E0FEB5D00E48444 /* CustomDeletePopup.swift in Sources */,
 				D8581F3E2E0EDBD600E48444 /* MainTabView.swift in Sources */,
+				D8581F8B2E11770E00E48444 /* Logger.swift in Sources */,
 				D8581F722E0F5E6000E48444 /* AssetFormDisplayModel.swift in Sources */,
 				D8581F252E0ED6DC00E48444 /* NotificationPermissionView.swift in Sources */,
 				D8581F3C2E0EDBA100E48444 /* AnalyticsView.swift in Sources */,
+				D8581F892E1171E000E48444 /* FirebaseAnalyticsHelper.swift in Sources */,
 				D8581F6C2E0F44DA00E48444 /* RatesViewModel.swift in Sources */,
 				D8581F6E2E0F467400E48444 /* RateDisplayModel.swift in Sources */,
 				D8581F5D2E0EDF8100E48444 /* RatesView.swift in Sources */,

@@ -21,7 +21,7 @@ struct ShareView: View {
                 Text("Uygulamayı Paylaş")
                     .font(.title2.bold())
                 
-                Text("Arkadaşlarınızla Varlık Defterim'i paylaşın ve onların da varlıklarını takip etmelerini sağlayın.")
+                Text("Arkadaşlarınızla Varlık Takibi uygulamasını'ı paylaşın ve onların da varlıklarını takip etmelerini sağlayın.")
                     .font(.body)
                     .multilineTextAlignment(.center)
                     .foregroundColor(.secondary)
@@ -39,7 +39,7 @@ struct ShareView: View {
                         .cornerRadius(12)
                     
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Varlık Defterim")
+                        Text("Varlık Takibi")
                             .font(.headline)
                         Text("Altın ve döviz takip uygulaması")
                             .font(.caption)
@@ -73,7 +73,9 @@ struct ShareView: View {
     }
     
     private func shareApp() {
-        let text = "Varlık Defterim uygulamasını keşfedin! Altın ve döviz varlıklarınızı kolayca takip edin. https://apps.apple.com/us/app/varlık-defterim/id6479618311"
+        //dismiss()
+        
+        let text = "Varlık Takibi uygulamasını keşfedin! Altın ve döviz varlıklarınızı kolayca takip edin. https://apps.apple.com/us/app/varlık-defterim/id6479618311"
         
         let activityController = UIActivityViewController(activityItems: [text], applicationActivities: nil)
         
@@ -81,7 +83,5 @@ struct ShareView: View {
            let window = windowScene.windows.first {
             window.rootViewController?.present(activityController, animated: true)
         }
-        
-        dismiss()
     }
 }

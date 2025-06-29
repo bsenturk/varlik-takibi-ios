@@ -91,7 +91,7 @@ struct NotificationPermissionView: View {
         
         for (index, message) in messages.enumerated() {
             let content = UNMutableNotificationContent()
-            content.title = "Varlık Defterim"
+            content.title = "Varlık Takibi"
             content.body = message
             content.sound = .default
             

@@ -137,7 +137,7 @@ class Parser: ObservableObject {
             }
             
         } catch {
-            print("Altın parsing hatası: \(error)")
+            Logger.log("Altın parsing hatası: \(error)")
         }
         
         return goldPrices
@@ -201,7 +201,7 @@ class Parser: ObservableObject {
             }
             
         } catch {
-            print("Döviz parsing hatası: \(error)")
+            Logger.log("Döviz parsing hatası: \(error)")
         }
         
         return currencyRates

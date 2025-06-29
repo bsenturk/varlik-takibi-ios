@@ -28,7 +28,7 @@ struct PrivacyPolicyView: View {
                     VStack(alignment: .leading, spacing: 20) {
                         privacySection(
                             title: "Veri Toplama",
-                            content: "Varlık Defterim uygulaması, sadece sizin eklediğiniz varlık bilgilerini cihazınızda saklar. Hiçbir kişisel bilginiz sunucularımıza gönderilmez."
+                            content: "Varlık Takibi uygulaması, sadece sizin eklediğiniz varlık bilgilerini cihazınızda saklar. Hiçbir kişisel bilginiz sunucularımıza gönderilmez."
                         )
                         
                         privacySection(

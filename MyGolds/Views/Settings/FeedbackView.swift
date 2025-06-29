@@ -94,7 +94,7 @@ struct FeedbackView: View {
     }
     
     private func sendFeedback() {
-        let subject = "Varlık Defterim - \(selectedCategory)"
+        let subject = "Varlık Takibi - \(selectedCategory)"
         let body = feedbackText
         let encoded = "mailto:buraksenturktr@icloud.com?subject=\(subject)&body=\(body)"
             .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""

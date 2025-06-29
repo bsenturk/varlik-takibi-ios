@@ -50,27 +50,31 @@ struct AdMobBannerView: UIViewRepresentable {
         }
         
         func bannerViewDidReceiveAd(_ bannerView: GADBannerView) {
-            print("Banner ad loaded successfully")
+            FirebaseAnalyticsHelper.shared.logBannerAdLoaded()
         }
         
         func bannerView(_ bannerView: GADBannerView, didFailToReceiveAdWithError error: Error) {
-            print("Banner ad failed to load: \(error.localizedDescription)")
+            FirebaseAnalyticsHelper.shared.logBannerAdLoadFailed(error: error.localizedDescription)
         }
         
         func bannerViewDidRecordImpression(_ bannerView: GADBannerView) {
-            print("Banner ad impression recorded")
+            FirebaseAnalyticsHelper.shared.logBannerAdImpression()
         }
         
         func bannerViewWillPresentScreen(_ bannerView: GADBannerView) {
-            print("Banner ad will present screen")
+            FirebaseAnalyticsHelper.shared.logBannerAdWillPresentScreen()
         }
         
         func bannerViewWillDismissScreen(_ bannerView: GADBannerView) {
-            print("Banner ad will dismiss screen")
+            FirebaseAnalyticsHelper.shared.logBannerAdWillDismissScreen()
         }
         
         func bannerViewDidDismissScreen(_ bannerView: GADBannerView) {
-            print("Banner ad did dismiss screen")
+            FirebaseAnalyticsHelper.shared.logBannerAdDidDismissScreen()
+        }
+        
+        func bannerViewDidRecordClick(_ bannerView: GADBannerView) {
+            FirebaseAnalyticsHelper.shared.logBannerAdClicked()
         }
     }
 }

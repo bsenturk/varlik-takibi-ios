@@ -290,9 +290,9 @@ struct AssetsView: View {
         if hasChanges {
             do {
                 try modelContext.save()
-                print("✅ Asset values updated with market data")
+                Logger.log("✅ Asset values updated with market data")
             } catch {
-                print("❌ Failed to save updated asset values: \(error)")
+                Logger.log("❌ Failed to save updated asset values: \(error)")
             }
         }
     }
@@ -321,7 +321,7 @@ struct AssetsView: View {
                 impactFeedback.impactOccurred()
                 
             } catch {
-                print("Delete error: \(error)")
+                Logger.log("Delete error: \(error)")
             }
         }
     }

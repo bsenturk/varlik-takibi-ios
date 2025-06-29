@@ -16,7 +16,7 @@ struct OnboardingView: View {
     private let steps = [
         OnboardingStep(
             icon: "wallet.pass.fill",
-            title: "Varlık Defterim'e Hoş Geldiniz",
+            title: "Varlık Takibi'ne Hoş Geldiniz",
             description: "Altın, döviz ve diğer varlıklarınızı kolayca takip edin. Güncel kurlarla toplam değerinizi anında görün.",
             gradientColors: [.blue, .purple]
         ),
