@@ -83,7 +83,7 @@ struct AssetsView: View {
                     await refreshDataAndUpdateAssets()
                 }
             }
-            .onChange(of: assets) { _ in
+            .onChange(of: assets) { _, _ in
                 updatePortfolioData()
             }
             .refreshable {

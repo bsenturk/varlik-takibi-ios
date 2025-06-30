@@ -61,7 +61,7 @@ struct VarlikDefterimApp: App {
                 .environmentObject(notificationManager)
                 .modelContainer(sharedModelContainer)
                 .preferredColorScheme(userDefaults.darkModePreference.colorScheme) // Dark Mode desteği
-                .onChange(of: lifecycleObserver.scenePhase) { newPhase in
+                .onChange(of: lifecycleObserver.scenePhase) { newPhase, _ in
                     handleScenePhaseChange(newPhase)
                 }
         }

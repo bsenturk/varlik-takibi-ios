@@ -196,6 +196,7 @@ class Parser: ObservableObject {
                         }
                     }
                 } catch {
+                    Logger.log("Currency row parsing error: \(error)")
                     continue
                 }
             }

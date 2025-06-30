@@ -552,7 +552,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run\n";
+			shellScript = "# Improved Crashlytics Upload Script\n# dSYM dosyalarını kontrol eden ve upload eden gelişmiş script\n\necho \"🔍 Starting Crashlytics dSYM upload process...\"\n\n# Debug modda skip et\nif [ \"${CONFIGURATION}\" = \"Debug\" ]; then\n    echo \"⚠️ Skipping Crashlytics upload for Debug build\"\n    mkdir -p \"${DERIVED_FILE_DIR}\"\n    touch \"${DERIVED_FILE_DIR}/crashlytics-upload-symbols\"\n    exit 0\nfi\n\n# dSYM klasörünün varlığını kontrol et\nif [ ! -d \"${DWARF_DSYM_FOLDER_PATH}\" ]; then\n    echo \"❌ dSYM folder not found at: ${DWARF_DSYM_FOLDER_PATH}\"\n    exit 1\nfi\n\necho \"📁 dSYM folder found: ${DWARF_DSYM_FOLDER_PATH}\"\n\n# Ana dSYM dosyasının varlığını kontrol et\nMAIN_DSYM=\"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}\"\nif [ ! -d \"${MAIN_DSYM}\" ]; then\n    echo \"❌ Main dSYM not found: ${MAIN_DSYM}\"\n    exit 1\nfi\n\necho \"✅ Main dSYM found: ${MAIN_DSYM}\"\n\n# Crashlytics script'ini bul\nCRASHLYTICS_SCRIPT=\"${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run\"\n\nif [ ! -f \"${CRASHLYTICS_SCRIPT}\" ]; then\n    echo \"❌ Crashlytics script not found at: ${CRASHLYTICS_SCRIPT}\"\n    \n    # Alternatif konumları dene\n    ALT_SCRIPT=\"${SRCROOT}/Pods/FirebaseCrashlytics/run\"\n    if [ -f \"${ALT_SCRIPT}\" ]; then\n        CRASHLYTICS_SCRIPT=\"${ALT_SCRIPT}\"\n        echo \"✅ Found alternative Crashlytics script: ${ALT_SCRIPT}\"\n    else\n        echo \"❌ Crashlytics script not found in any location\"\n        exit 1\n    fi\nfi\n\necho \"🚀 Running Crashlytics upload script...\"\necho \"📋 Configuration: ${CONFIGURATION}\"\necho \"📱 Product Name: ${PRODUCT_NAME}\"\necho \"🗂️ dSYM Path: ${MAIN_DSYM}\"\n\n# Crashlytics upload'ı çalıştır\n\"${CRASHLYTICS_SCRIPT}\" -gsp \"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleService-Info.plist\" -p ios \"${MAIN_DSYM}\"\n\nUPLOAD_RESULT=$?\n\nif [ $UPLOAD_RESULT -eq 0 ]; then\n    echo \"✅ Crashlytics dSYM upload completed successfully\"\nelse\n    echo \"⚠️ Crashlytics upload completed with warnings (code: $UPLOAD_RESULT)\"\nfi\n\n# Output dosyası oluştur\nmkdir -p \"${DERIVED_FILE_DIR}\"\necho \"Crashlytics upload completed at $(date) with result: $UPLOAD_RESULT\" > \"${DERIVED_FILE_DIR}/crashlytics-upload-symbols\"\n\necho \"🎉 Crashlytics script execution finished\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -739,11 +739,13 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEPLOYMENT_POSTPROCESSING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"MyGolds/Preview Content\"";
 				DEVELOPMENT_TEAM = ADPP457ME6;
 				ENABLE_PREVIEWS = YES;
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MyGolds/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Varlık Defterim";
@@ -779,10 +781,12 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
+				DEPLOYMENT_POSTPROCESSING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"MyGolds/Preview Content\"";
 				DEVELOPMENT_TEAM = ADPP457ME6;
 				ENABLE_PREVIEWS = YES;
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MyGolds/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Varlık Defterim";

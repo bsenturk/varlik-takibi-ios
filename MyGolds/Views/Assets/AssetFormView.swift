@@ -163,7 +163,7 @@ struct AssetFormView: View {
                     .focused($isAmountFocused)
                     .font(.title2)
                     .textFieldStyle(PlainTextFieldStyle())
-                    .onChange(of: amount) { newValue in
+                    .onChange(of: amount) { newValue, _ in
                         // Mevcut basit filtrelerine ek olarak decimal control ekle
                         var processedValue = newValue.replacingOccurrences(of: ",", with: ".")
                         
