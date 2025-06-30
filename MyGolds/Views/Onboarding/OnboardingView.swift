@@ -107,7 +107,10 @@ struct OnboardingView: View {
                     
                     if currentStep < steps.count - 1 {
                         Button(action: {
-                            coordinator.onboardingCompleted()
+                            showATTPermission = ATTrackingManager.trackingAuthorizationStatus == .notDetermined
+                            if !showATTPermission {
+                                coordinator.onboardingCompleted()
+                            }
                         }) {
                             Text("Atla")
                                 .font(.subheadline)

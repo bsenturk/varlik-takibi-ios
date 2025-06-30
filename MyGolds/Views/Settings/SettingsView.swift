@@ -12,7 +12,9 @@ struct SettingsView: View {
     @State private var showingFeedback = false
     @State private var showingShare = false
     @State private var showingPrivacyPolicy = false
+    @State private var showingDarkModeSettings = false
     @State private var shareItem: ShareItem?
+    @StateObject private var userDefaults = UserDefaultsManager.shared
     
     // Share için struct
     struct ShareItem: Identifiable {
@@ -47,6 +49,14 @@ struct SettingsView: View {
                     
                     // Settings Items
                     VStack(spacing: 12) {
+                        SettingsItemView(
+                            icon: getCurrentThemeIcon(),
+                            iconColor: .indigo,
+                            title: "Görünüm Modu",
+                            subtitle: getCurrentThemeDescription(),
+                            action: { showingDarkModeSettings = true }
+                        )
+                        
                         SettingsItemView(
                             icon: "message.fill",
                             iconColor: .purple,
@@ -124,6 +134,9 @@ struct SettingsView: View {
         .sheet(isPresented: $showingPrivacyPolicy) {
             PrivacyPolicyView()
         }
+        .sheet(isPresented: $showingDarkModeSettings) {
+            DarkModeSettingsView()
+        }
         .sheet(item: $shareItem) { item in
             if let url = item.url {
                 ActivityViewController(activityItems: [item.text, url])
@@ -131,6 +144,16 @@ struct SettingsView: View {
                 ActivityViewController(activityItems: [item.text])
             }
         }
+    }
+    
+    // MARK: - Dark Mode Helper Methods
+    
+    private func getCurrentThemeIcon() -> String {
+        return userDefaults.darkModePreference.iconName
+    }
+    
+    private func getCurrentThemeDescription() -> String {
+        return "\(userDefaults.darkModePreference.displayName) tema aktif"
     }
     
     #if DEBUG

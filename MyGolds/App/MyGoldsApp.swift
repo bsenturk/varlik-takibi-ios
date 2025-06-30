@@ -37,6 +37,7 @@ struct VarlikDefterimApp: App {
     @StateObject private var appOpenAdManager = AppOpenAdManager.shared
     @StateObject private var lifecycleObserver = AppLifecycleObserver.shared
     @StateObject private var notificationManager = NotificationManager.shared
+    @StateObject private var userDefaults = UserDefaultsManager.shared
     
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
@@ -59,6 +60,7 @@ struct VarlikDefterimApp: App {
                 .environmentObject(lifecycleObserver)
                 .environmentObject(notificationManager)
                 .modelContainer(sharedModelContainer)
+                .preferredColorScheme(userDefaults.darkModePreference.colorScheme) // Dark Mode desteği
                 .onChange(of: lifecycleObserver.scenePhase) { newPhase in
                     handleScenePhaseChange(newPhase)
                 }
