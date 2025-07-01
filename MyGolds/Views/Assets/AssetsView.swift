@@ -111,13 +111,14 @@ struct AssetsView: View {
                        abs(portfolioManager.profitLoss) > 0.01 {
                         HStack(spacing: 4) {
                             Image(systemName: portfolioManager.profitLoss >= 0 ? "chevron.up" : "chevron.down")
-                                .font(.caption)      
-                            Text(formatProfitLossPercentage(portfolioManager.profitLossPercentage, profitLoss: portfolioManager.profitLoss))
                                 .font(.caption)
-                                .fontWeight(.medium)
+                            Text(formatProfitLossPercentage(portfolioManager.profitLossPercentage, profitLoss: portfolioManager.profitLoss))
+                                .font(.subheadline)
+                                .fontWeight(.bold)
                             
                             Text("(\(portfolioManager.profitLoss >= 0 ? "+" : "")\(portfolioManager.profitLoss.formatAsCurrency()))")
-                                .font(.caption2)
+                                .font(.subheadline)
+                                .fontWeight(.bold)
                         }
                         .foregroundColor(portfolioManager.profitLoss >= 0 ? .green.opacity(0.8) : .red.opacity(0.8))
                     }

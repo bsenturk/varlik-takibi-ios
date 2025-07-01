@@ -740,7 +740,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEPLOYMENT_POSTPROCESSING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"MyGolds/Preview Content\"";
@@ -749,7 +749,7 @@
 				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MyGolds/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Varlık Defterim";
+				INFOPLIST_KEY_CFBundleDisplayName = "Varlık Takibi";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				INFOPLIST_KEY_NSUserTrackingUsageDescription = "Bu izin size kişiselleştirilmiş reklamlar sunmak için kullanılacaktır.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -782,7 +782,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEPLOYMENT_POSTPROCESSING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"MyGolds/Preview Content\"";
 				DEVELOPMENT_TEAM = ADPP457ME6;
@@ -790,7 +790,7 @@
 				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MyGolds/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Varlık Defterim";
+				INFOPLIST_KEY_CFBundleDisplayName = "Varlık Takibi";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				INFOPLIST_KEY_NSUserTrackingUsageDescription = "Bu izin size kişiselleştirilmiş reklamlar sunmak için kullanılacaktır.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
