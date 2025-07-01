@@ -14,7 +14,7 @@ struct SmartAdBannerView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            if adManager.showBanner {
+            if adManager.showBanner, !adManager.adError {
                 AdMobBannerView()
                     .frame(height: bannerHeight)
                     .background(Color(.systemGray6))

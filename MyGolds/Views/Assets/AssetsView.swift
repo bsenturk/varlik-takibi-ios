@@ -83,7 +83,8 @@ struct AssetsView: View {
                     await refreshDataAndUpdateAssets()
                 }
             }
-            .onChange(of: assets) { _, _ in
+            // iOS 17.0+ için yeni onChange syntax
+            .onChange(of: assets) { oldAssets, newAssets in
                 updatePortfolioData()
             }
             .refreshable {
@@ -110,10 +111,10 @@ struct AssetsView: View {
                        abs(portfolioManager.profitLoss) > 0.01 {
                         HStack(spacing: 4) {
                             Image(systemName: portfolioManager.profitLoss >= 0 ? "chevron.up" : "chevron.down")
+                                .font(.caption)      
+                            Text(formatProfitLossPercentage(portfolioManager.profitLossPercentage, profitLoss: portfolioManager.profitLoss))
                                 .font(.caption)
-                            
-                            Text("\(abs(portfolioManager.profitLossPercentage), specifier: "%.2f")%")
-                                .font(.caption.weight(.medium))
+                                .fontWeight(.medium)
                             
                             Text("(\(portfolioManager.profitLoss >= 0 ? "+" : "")\(portfolioManager.profitLoss.formatAsCurrency()))")
                                 .font(.caption2)
@@ -237,6 +238,25 @@ struct AssetsView: View {
     }
     
     // MARK: - Helper Functions
+    
+    // Kar/zarar yüzdesi formatlama - AnalyticsView ile aynı mantık
+    private func formatProfitLossPercentage(_ percentage: Double, profitLoss: Double) -> String {
+        let absPercentage = abs(percentage)
+        
+        // Debug logging
+        Logger.log("📊 AssetsView: Formatting percentage=\(percentage), profitLoss=\(profitLoss), absPercentage=\(absPercentage)")
+        
+        if absPercentage < 0.01 && profitLoss != 0 {
+            let result = "\(profitLoss >= 0 ? "+" : "")<0,01%"
+            Logger.log("📊 AssetsView: Small percentage detected, returning: \(result)")
+            return result
+        } else {
+            let sign = profitLoss >= 0 ? "+" : ""
+            let result = "\(sign)\(String(format: "%.2f", percentage))%"
+            Logger.log("📊 AssetsView: Normal percentage, returning: \(result)")
+            return result
+        }
+    }
     
     @MainActor
     private func refreshDataAndUpdateAssets() async {

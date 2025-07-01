@@ -9,6 +9,7 @@ import SwiftUI
 import GoogleMobileAds
 
 struct AdMobBannerView: UIViewRepresentable {
+    @ObservedObject var adManager = AdMobManager.shared
     var adUnitID: String {
         #if DEBUG
         return "ca-app-pub-3940256099942544/2934735716"
@@ -58,6 +59,7 @@ struct AdMobBannerView: UIViewRepresentable {
         
         func bannerView(_ bannerView: GADBannerView, didFailToReceiveAdWithError error: Error) {
             FirebaseAnalyticsHelper.shared.logBannerAdLoadFailed(error: error.localizedDescription)
+            parent.adManager.adError = true
         }
         
         func bannerViewDidRecordImpression(_ bannerView: GADBannerView) {

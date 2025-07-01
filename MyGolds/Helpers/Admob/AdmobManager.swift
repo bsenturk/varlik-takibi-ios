@@ -11,6 +11,7 @@ class AdMobManager: ObservableObject {
     static let shared = AdMobManager()
     
     @Published var showBanner = true
+    @Published var adError = false
     @Published var bannerHeight: CGFloat = 50
     @Published var isAppOpenAdShowing = false
     

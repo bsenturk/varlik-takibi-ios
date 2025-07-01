@@ -51,7 +51,7 @@ struct AnalyticsView: View {
     private var hasProfitLossData: Bool {
         return portfolioManager.totalInvestment > 0 &&
                portfolioManager.currentTotalValue > 0 &&
-               abs(portfolioManager.profitLoss) > 0.01 // Small threshold to avoid showing tiny differences
+               abs(portfolioManager.profitLoss) > 0.01
     }
     
     private var totalPortfolioCard: some View {
@@ -71,7 +71,8 @@ struct AnalyticsView: View {
                         .font(.caption)
                         .foregroundColor(portfolioManager.profitLoss >= 0 ? .green : .red)
                     
-                    Text("\(portfolioManager.profitLoss >= 0 ? "+" : "")\(abs(portfolioManager.profitLossPercentage), specifier: "%.2f")%")
+                    // Düzeltilmiş yüzde gösterimi
+                    Text(formatProfitLossPercentage(portfolioManager.profitLossPercentage, profitLoss: portfolioManager.profitLoss))
                         .font(.subheadline.weight(.medium))
                         .foregroundColor(portfolioManager.profitLoss >= 0 ? .green : .red)
                     
@@ -192,7 +193,8 @@ struct AnalyticsView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                         
-                        Text("\(portfolioManager.profitLoss >= 0 ? "+" : "")\(portfolioManager.profitLossPercentage, specifier: "%.2f")%")
+                        // Düzeltilmiş getiri oranı gösterimi
+                        Text(formatProfitLossPercentage(portfolioManager.profitLossPercentage, profitLoss: portfolioManager.profitLoss))
                             .font(.subheadline.weight(.semibold))
                             .foregroundColor(portfolioManager.profitLoss >= 0 ? .green : .red)
                     }
@@ -262,8 +264,8 @@ struct AnalyticsView: View {
             
             Spacer()
             
-            // Percentage
-            Text("%\(percentage, specifier: "%.1f")")
+            // Düzeltilmiş yüzde gösterimi
+            Text(formatDistributionPercentage(percentage))
                 .font(.subheadline.weight(.medium))
                 .foregroundColor(.primary)
         }
@@ -283,23 +285,136 @@ struct AnalyticsView: View {
         return max(40, min(120, height)) // Min 40, Max 120
     }
     
+    // Kar/zarar yüzdesi formatlama
+    private func formatProfitLossPercentage(_ percentage: Double, profitLoss: Double) -> String {
+        let absPercentage = abs(percentage)
+        
+        if absPercentage < 0.01 && profitLoss != 0 {
+            return "\(profitLoss >= 0 ? "+" : "")<0,01%"
+        } else {
+            let sign = profitLoss >= 0 ? "+" : ""
+            return "\(sign)\(String(format: "%.2f", percentage))%"
+        }
+    }
+    
+    // Varlık dağılım yüzdesi formatlama - düzeltilmiş
+    private func formatDistributionPercentage(_ percentage: Double) -> String {
+        if percentage < 0.01 && percentage > 0 {
+            return "<0,01%"
+        } else if percentage >= 99.99 && percentage < 100 {
+            return "99,99%"
+        } else {
+            return "\(String(format: "%.2f", percentage))%"
+        }
+    }
+    
     private func getAssetDistribution() -> [AssetDistribution] {
         let totalValue = portfolioManager.currentTotalValue
-        guard totalValue > 0 else { return [] }
         
+        // Toplam değer 0 veya negatifse, empty array döndür
+        guard totalValue > 0 else {
+            Logger.log("⚠️ Total portfolio value is zero or negative: \(totalValue)")
+            return []
+        }
+        
+        // Varlıkları type'a göre grupla
         let groupedAssets = Dictionary(grouping: assets) { $0.type }
         
-        return groupedAssets.map { (type, assets) in
-            let totalValueForType = assets.reduce(0) { $0 + $1.totalValue }
-            let percentage = (totalValueForType / totalValue) * 100
+        Logger.log("📊 Calculating asset distribution:")
+        Logger.log("📊 Total portfolio value: \(totalValue)")
+        Logger.log("📊 Number of asset groups: \(groupedAssets.count)")
+        
+        var distributions: [AssetDistribution] = []
+        
+        // Her varlık türü için hesaplama yap
+        for (type, assetsOfType) in groupedAssets {
+            // Bu type'daki tüm varlıkların toplam değeri
+            let totalValueForType = assetsOfType.reduce(0) { partialResult, asset in
+                let assetValue = asset.totalValue
+                Logger.log("📊 Asset: \(asset.name), Amount: \(asset.amount), Price: \(asset.currentPrice), Total: \(assetValue)")
+                return partialResult + assetValue
+            }
             
-            return AssetDistribution(
+            // Değer 0 veya negatifse skip et
+            guard totalValueForType > 0 else {
+                Logger.log("⚠️ Skipping \(type.displayName) - zero or negative value: \(totalValueForType)")
+                continue
+            }
+            
+            // TAM HASSAS yüzde hesaplama - Double precision kullan
+            let exactPercentage = (totalValueForType / totalValue) * 100.0
+            
+            Logger.log("📊 \(type.displayName): Value=\(totalValueForType), TotalValue=\(totalValue), ExactPercentage=\(exactPercentage)%")
+            
+            let distribution = AssetDistribution(
                 name: type.displayName,
                 value: totalValueForType,
-                percentage: percentage,
+                percentage: exactPercentage,
                 color: type.color
             )
-        }.sorted { $0.value > $1.value }
+            
+            distributions.append(distribution)
+        }
+        
+        // Değere göre büyükten küçüğe sırala
+        distributions.sort { $0.value > $1.value }
+        
+        // Validation - toplam yüzde kontrolü
+        let totalCalculatedPercentage = distributions.reduce(0) { $0 + $1.percentage }
+        Logger.log("📊 Total calculated percentage: \(totalCalculatedPercentage)%")
+        
+        // Eğer sadece 2 varlık varsa ve toplam 100'e yakınsa, hassas düzeltme yap
+        if distributions.count == 2 && abs(totalCalculatedPercentage - 100.0) < 0.1 {
+            Logger.log("📊 Applying precise adjustment for 2 assets")
+            
+            let largestAsset = distributions[0]
+            let smallestAsset = distributions[1]
+            
+            // Küçük varlığın gerçek yüzdesini hesapla
+            let smallPercentage = (smallestAsset.value / totalValue) * 100.0
+            let largePercentage = 100.0 - smallPercentage
+            
+            distributions = [
+                AssetDistribution(
+                    name: largestAsset.name,
+                    value: largestAsset.value,
+                    percentage: largePercentage,
+                    color: largestAsset.color
+                ),
+                AssetDistribution(
+                    name: smallestAsset.name,
+                    value: smallestAsset.value,
+                    percentage: smallPercentage,
+                    color: smallestAsset.color
+                )
+            ]
+            
+            Logger.log("📊 Adjusted percentages:")
+            Logger.log("📊 \(largestAsset.name): \(largePercentage)%")
+            Logger.log("📊 \(smallestAsset.name): \(smallPercentage)%")
+        }
+        // Genel normalizasyon (3+ varlık için)
+        else if abs(totalCalculatedPercentage - 100.0) > 0.01 && !distributions.isEmpty {
+            Logger.log("📊 Normalizing percentages to total 100%...")
+            
+            let normalizationFactor = 100.0 / totalCalculatedPercentage
+            distributions = distributions.map { distribution in
+                let normalizedPercentage = distribution.percentage * normalizationFactor
+                Logger.log("📊 \(distribution.name): \(distribution.percentage)% -> \(normalizedPercentage)%")
+                return AssetDistribution(
+                    name: distribution.name,
+                    value: distribution.value,
+                    percentage: normalizedPercentage,
+                    color: distribution.color
+                )
+            }
+        }
+        
+        // Final verification
+        let finalTotal = distributions.reduce(0) { $0 + $1.percentage }
+        Logger.log("📊 Final total percentage: \(finalTotal)%")
+        
+        return distributions
     }
 }
 

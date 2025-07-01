@@ -30,9 +30,33 @@ final class Asset {
         self.lastUpdated = Date()
         self.currentRate = currentRate
         self.currentPrice = currentPrice
+        
+        Logger.log("💰 Asset created: \(name), Amount: \(amount), Price: \(currentPrice)")
     }
     
     var totalValue: Double {
-        amount * currentPrice
+        let calculatedValue = amount * currentPrice
+        
+        // Debug logging
+        if calculatedValue <= 0 {
+            Logger.log("⚠️ Asset \(name) has zero or negative value: amount=\(amount), price=\(currentPrice), total=\(calculatedValue)")
+        } else {
+            Logger.log("💎 Asset \(name) value: amount=\(amount), price=\(currentPrice), total=\(calculatedValue)")
+        }
+        
+        return max(0, calculatedValue) // Negatif değerleri önle
+    }
+    
+    // Debugging helper
+    var debugDescription: String {
+        return """
+        Asset Debug Info:
+        - Name: \(name)
+        - Type: \(type.displayName)
+        - Amount: \(amount)
+        - Current Price: \(currentPrice)
+        - Total Value: \(totalValue)
+        - Last Updated: \(lastUpdated)
+        """
     }
 }
