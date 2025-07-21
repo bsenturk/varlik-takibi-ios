@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct AssetCardView: View {
+    @Environment(\.colorScheme) var colorScheme
     let asset: Asset
     let onDelete: () -> Void
     @State private var showingFormSheet = false
@@ -72,7 +73,16 @@ struct AssetCardView: View {
             }
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(colorScheme == .dark ? Color(.systemGray6) : Color(.systemBackground))
+                .shadow(
+                    color: colorScheme == .dark ? .white.opacity(0.1) : .black.opacity(0.15),
+                    radius: colorScheme == .dark ? 4 : 2,
+                    x: 0,
+                    y: 1
+                )
+        )
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
         .scaleEffect(isDeleting ? 0.95 : 1.0)

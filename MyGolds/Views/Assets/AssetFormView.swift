@@ -11,6 +11,7 @@ import SwiftData
 struct AssetFormView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.colorScheme) var colorScheme
     
     @State private var selectedAssetType: AssetType
     @State private var amount: String
@@ -145,7 +146,10 @@ struct AssetFormView: View {
                         .font(.caption)
                 }
                 .padding()
-                .background(Color(.systemGray6))
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(colorScheme == .dark ? Color(.systemGray4) : Color(.systemGray6))
+                )
                 .cornerRadius(12)
             }
         }
@@ -193,7 +197,10 @@ struct AssetFormView: View {
                     .fontWeight(.medium)
             }
             .padding()
-            .background(Color(.systemGray6))
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(colorScheme == .dark ? Color(.systemGray4) : Color(.systemGray6))
+            )
             .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
@@ -249,7 +256,9 @@ struct AssetFormView: View {
         .padding()
         .background(
             LinearGradient(
-                colors: [Color.blue.opacity(0.05), Color.purple.opacity(0.05)],
+                colors: colorScheme == .dark ?
+                [Color.blue.opacity(0.15), Color.purple.opacity(0.15)] :
+                [Color.blue.opacity(0.05), Color.purple.opacity(0.05)],
                 startPoint: .leading,
                 endPoint: .trailing
             )
@@ -257,7 +266,7 @@ struct AssetFormView: View {
         .cornerRadius(12)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.blue.opacity(0.2), lineWidth: 1)
+                .stroke(Color.blue.opacity(colorScheme == .dark ? 0.4 : 0.2), lineWidth: 1)
         )
     }
     

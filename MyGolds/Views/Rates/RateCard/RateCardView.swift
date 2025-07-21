@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct RateCardView: View {
+    @Environment(\.colorScheme) var colorScheme
     let title: String
     let iconName: String
     let iconColor: Color
@@ -59,7 +60,16 @@ struct RateCardView: View {
             }
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(colorScheme == .dark ? Color(.systemGray6) : Color(.systemBackground))
+                .shadow(
+                    color: colorScheme == .dark ? .white.opacity(0.1) : .black.opacity(0.15),
+                    radius: colorScheme == .dark ? 4 : 2,
+                    x: 0,
+                    y: 1
+                )
+        )
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
     }

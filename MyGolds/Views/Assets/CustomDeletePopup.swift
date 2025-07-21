@@ -7,6 +7,7 @@
 import SwiftUI
 
 struct CustomDeletePopup: View {
+    @Environment(\.colorScheme) var colorScheme
     let assetName: String
     @Binding var isPresented: Bool
     let onDelete: () -> Void
@@ -25,7 +26,7 @@ struct CustomDeletePopup: View {
             VStack(spacing: 24) {
                 ZStack {
                     Circle()
-                        .fill(Color.red.opacity(0.1))
+                        .fill(Color.red.opacity(colorScheme == .dark ? 0.2 : 0.1))
                         .frame(width: 60, height: 60)
                     
                     Image(systemName: "exclamationmark.triangle.fill")
@@ -75,11 +76,11 @@ struct CustomDeletePopup: View {
                             .foregroundColor(.blue)
                             .frame(maxWidth: .infinity)
                             .frame(height: 50)
-                            .background(Color.blue.opacity(0.1))
+                            .background(Color.blue.opacity(colorScheme == .dark ? 0.2 : 0.1))
                             .cornerRadius(12)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                                    .stroke(Color.blue.opacity(colorScheme == .dark ? 0.5 : 0.3), lineWidth: 1)
                             )
                     }
                 }
@@ -87,8 +88,13 @@ struct CustomDeletePopup: View {
             .padding(24)
             .background(
                 RoundedRectangle(cornerRadius: 20)
-                    .fill(Color(.systemBackground))
-                    .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: 10)
+                    .fill(colorScheme == .dark ? Color(.systemGray5) : Color(.systemBackground))
+                    .shadow(
+                        color: colorScheme == .dark ? .white.opacity(0.1) : .black.opacity(0.15),
+                        radius: 20,
+                        x: 0,
+                        y: 10
+                    )
             )
             .padding(.horizontal, 40)
             .scaleEffect(scale)

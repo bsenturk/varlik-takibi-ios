@@ -9,6 +9,7 @@ import SwiftUI
 import SwiftData
 
 struct AnalyticsView: View {
+    @Environment(\.colorScheme) var colorScheme
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query private var assets: [Asset]
@@ -83,7 +84,16 @@ struct AnalyticsView: View {
             }
         }
         .padding(24)
-        .background(Color(.systemBackground))
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(colorScheme == .dark ? Color(.systemGray5) : Color(.systemBackground))
+                .shadow(
+                    color: colorScheme == .dark ? .white.opacity(0.1) : .black.opacity(0.15),
+                    radius: colorScheme == .dark ? 8 : 8,
+                    x: 0,
+                    y: 2
+                )
+        )
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 2)
     }
@@ -204,7 +214,16 @@ struct AnalyticsView: View {
             .padding(.top, 8)
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(colorScheme == .dark ? Color(.systemGray5) : Color(.systemBackground))
+                .shadow(
+                    color: colorScheme == .dark ? .white.opacity(0.1) : .black.opacity(0.15),
+                    radius: colorScheme == .dark ? 8 : 8,
+                    x: 0,
+                    y: 2
+                )
+        )
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 2)
     }
@@ -235,7 +254,16 @@ struct AnalyticsView: View {
             }
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(colorScheme == .dark ? Color(.systemGray5) : Color(.systemBackground))
+                .shadow(
+                    color: colorScheme == .dark ? .white.opacity(0.1) : .black.opacity(0.15),
+                    radius: colorScheme == .dark ? 8 : 8,
+                    x: 0,
+                    y: 2
+                )
+        )
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 2)
     }
