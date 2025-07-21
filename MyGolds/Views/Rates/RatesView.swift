@@ -1,5 +1,5 @@
 //
-//  RatesView.swift
+//  RatesView.swift - Pull to Refresh Fixed v2
 //  MyGolds
 //
 //  Created by Burak Şentürk on 27.06.2025.
@@ -9,6 +9,7 @@ import SwiftUI
 
 struct RatesView: View {
     @StateObject private var viewModel = RatesViewModel()
+    @State private var isManuallyRefreshing = false
     
     var body: some View {
         NavigationView {
@@ -45,24 +46,47 @@ struct RatesView: View {
             }
             .navigationTitle("Güncel Kurlar")
             .refreshable {
-                await viewModel.refreshRates()
+                await performRefresh()
             }
             .overlay {
-                if viewModel.isRefreshing && viewModel.currencyRates.isEmpty {
+                if (viewModel.isRefreshing || isManuallyRefreshing) && viewModel.currencyRates.isEmpty {
                     ProgressView("Kurlar yükleniyor...")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(Color(UIColor.systemBackground))
                 }
             }
-            .alert("Hata", isPresented: .constant(viewModel.errorMessage != nil)) {
+            .alert("Hata", isPresented: Binding<Bool>(
+                get: { viewModel.errorMessage != nil },
+                set: { _ in viewModel.clearError() }
+            )) {
                 Button("Tamam") {
-                    viewModel.errorMessage = nil
+                    viewModel.clearError()
                 }
             } message: {
-                if let errorMessage = viewModel.errorMessage {
-                    Text(errorMessage)
+                Text(viewModel.errorMessage ?? "")
+            }
+            .task {
+                // Initial load if no data
+                if viewModel.currencyRates.isEmpty && viewModel.goldRates.isEmpty {
+                    await performRefresh()
                 }
             }
+        }
+    }
+    
+    @MainActor
+    private func performRefresh() async {
+        isManuallyRefreshing = true
+        defer { isManuallyRefreshing = false }
+        
+        Logger.log("📊 RatesView: Starting refresh")
+        
+        do {
+            await viewModel.refreshRates()
+            Logger.log("📊 RatesView: Refresh completed successfully")
+        } catch {
+            Logger.log("📊 RatesView: Refresh failed - \(error.localizedDescription)")
+            viewModel.setError("Kurlar güncellenirken hata oluştu: \(error.localizedDescription)")
         }
     }
 }

@@ -25,6 +25,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // Start AdMob (handled by AdMobManager)
         Logger.log("🔧 AdMob initialization will be handled by AdMobManager")
         
+        UNUserNotificationCenter.current().setBadgeCount(0) { _ in }
+        
         return true
     }
 }
@@ -39,6 +41,11 @@ struct VarlikDefterimApp: App {
     @StateObject private var notificationManager = NotificationManager.shared
     @StateObject private var userDefaults = UserDefaultsManager.shared
     
+    // State tracking için
+    @State private var lastScenePhase: ScenePhase = .active
+    @State private var hasInitialSetupCompleted = false
+    @State private var hasHandledInitialAuth = false
+    
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Asset.self,
@@ -50,7 +57,7 @@ struct VarlikDefterimApp: App {
             fatalError("Could not create ModelContainer: \(error)")
         }
     }()
-
+    
     var body: some Scene {
         WindowGroup {
             coordinator.start()
@@ -60,9 +67,19 @@ struct VarlikDefterimApp: App {
                 .environmentObject(lifecycleObserver)
                 .environmentObject(notificationManager)
                 .modelContainer(sharedModelContainer)
-                .preferredColorScheme(userDefaults.darkModePreference.colorScheme) // Dark Mode desteği
-                .onChange(of: lifecycleObserver.scenePhase) { newPhase, _ in
-                    handleScenePhaseChange(newPhase)
+                .preferredColorScheme(userDefaults.darkModePreference.colorScheme)
+                .onChange(of: lifecycleObserver.scenePhase) { oldPhase, newPhase in
+                    handleScenePhaseChange(oldPhase, newPhase)
+                }
+                .onChange(of: notificationManager.isAuthorized) { oldValue, newValue in
+                    if newValue && !hasHandledInitialAuth {
+                        Logger.log("🔔 Authorization granted, handling app launch")
+                        notificationManager.handleAppLaunch()
+                        hasHandledInitialAuth = true
+                    }
+                }
+                .onAppear {
+                    setupInitialState()
                 }
         }
     }
@@ -71,6 +88,9 @@ struct VarlikDefterimApp: App {
     
     private func setupInitialState() {
         Logger.log("🚀 App: Initial setup")
+        
+        // Clear badge on app launch
+        notificationManager.clearBadge()
         
         // Don't show banner immediately on first launch
         adManager.hideBanner()
@@ -82,35 +102,64 @@ struct VarlikDefterimApp: App {
         
         // Check notification status on app launch
         notificationManager.checkAuthorizationStatus()
+        
+        // Handle notification scheduling on app launch if already authorized
+        if notificationManager.isAuthorized {
+            notificationManager.handleAppLaunch()
+            hasHandledInitialAuth = true
+        }
+        
+        hasInitialSetupCompleted = true
     }
     
-    private func handleScenePhaseChange(_ newPhase: ScenePhase) {
-        Logger.log("🔄 Scene phase changed to: \(newPhase)")
-        lifecycleObserver.handleScenePhaseChange(newPhase)
+    private func handleScenePhaseChange(_ oldPhase: ScenePhase, _ newPhase: ScenePhase) {
         
-        switch newPhase {
-        case .active:
-            Logger.log("🔄 App became active")
+        guard hasInitialSetupCompleted else {
+            lastScenePhase = newPhase
+            return
+        }
+        
+        switch (lastScenePhase, newPhase) {
+        case (.active, .inactive):
+            Logger.log("🔄 App: Active → Inactive")
             
-            // App Open Ad'ı burada tetikle
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                Logger.log("🔄 Attempting to show App Open Ad due to scene phase change")
-                appOpenAdManager.showAdIfAvailable()
-            }
+        case (.inactive, .background):
+            Logger.log("🔄 App: Inactive → Background")
             
-            // Her uygulama açılışında bildirim schedule'ını güncelle
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                notificationManager.scheduleNextNotificationOnAppLaunch()
-            }
+        case (.background, .inactive):
+            Logger.log("🔄 App: Background → Inactive (returning)")
             
-        case .inactive:
-            Logger.log("🔄 App became inactive")
+        case (.inactive, .active):
+            Logger.log("🔄 App: Inactive → Active (returning from background)")
+            processAppReturn()
             
-        case .background:
-            Logger.log("🔄 App entered background")
+        case (.background, .active):
+            Logger.log("🔄 App: Background → Active (direct return)")
+            processAppReturn()
             
-        @unknown default:
-            break
+        default:
+            Logger.log("🔄 App: Ignored transition \(lastScenePhase) → \(newPhase)")
+        }
+        
+        lastScenePhase = newPhase
+        lifecycleObserver.handleScenePhaseChange(newPhase)
+    }
+    
+    private func processAppReturn() {
+        Logger.log("🔄 App: Processing return from background")
+        
+        // Clear badge when app returns
+        notificationManager.clearBadge()
+        
+        // Handle notification scheduling
+        if notificationManager.isAuthorized {
+            notificationManager.handleAppLaunch()
+        }
+        
+        // App Open Ad'ı göster (arka plandan dönüşte)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            Logger.log("🔄 Attempting to show App Open Ad due to background return")
+            appOpenAdManager.showAdIfAvailable()
         }
     }
 }

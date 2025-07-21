@@ -1,5 +1,5 @@
 //
-//  MarketDataManager.swift
+//  MarketDataManager.swift - Cancel Protection Fixed
 //  MyGolds
 //
 //  Created by Burak Şentürk on 28.06.2025.
@@ -23,6 +23,9 @@ class MarketDataManager: ObservableObject {
     private let updateInterval: TimeInterval = 60
     private var timer: Timer?
     
+    // Cancel protection
+    private var currentRefreshTask: Task<Void, Never>?
+    
     private init() {
         setupBindings()
         startAutoUpdate()
@@ -30,6 +33,7 @@ class MarketDataManager: ObservableObject {
     
     deinit {
         timer?.invalidate()
+        currentRefreshTask?.cancel()
     }
     
     // MARK: - Setup
@@ -58,10 +62,68 @@ class MarketDataManager: ObservableObject {
     }
     
     // MARK: - Public Methods
+    
     func refreshData() async {
-        await parser.fetchAllData()
+        // Cancel önceki task'ı
+        currentRefreshTask?.cancel()
+        
+        // Yeni task başlat
+        currentRefreshTask = Task {
+            await performRefresh()
+        }
+        
+        await currentRefreshTask?.value
+    }
+    
+    @MainActor
+    private func performRefresh() async {
+        Logger.log("📊 MarketDataManager: Starting data refresh")
+        
+        // Cancel check
+        guard !Task.isCancelled else {
+            Logger.log("📊 MarketDataManager: Refresh cancelled before start")
+            return
+        }
+        
+        errorMessage = nil
+        
+        do {
+            // Sequential loading to avoid conflicts
+            try await fetchDataSequentially()
+            lastUpdateTime = Date()
+            Logger.log("📊 MarketDataManager: Refresh completed successfully")
+        } catch {
+            if !Task.isCancelled {
+                errorMessage = "Veri güncellenirken hata oluştu: \(error.localizedDescription)"
+                Logger.log("📊 MarketDataManager: Refresh error - \(error.localizedDescription)")
+            } else {
+                Logger.log("📊 MarketDataManager: Refresh was cancelled")
+            }
+        }
+    }
+    
+    private func fetchDataSequentially() async throws {
+        // Cancel check
+        guard !Task.isCancelled else { return }
+        
+        // Önce döviz kurlarını çek
+        Logger.log("📊 MarketDataManager: Fetching currency rates")
+        let currencies = await parser.fetchCurrencyRates()
+        
+        // Cancel check
+        guard !Task.isCancelled else { return }
+        
+        // Sonra altın fiyatlarını çek
+        Logger.log("📊 MarketDataManager: Fetching gold prices")
+        let gold = await parser.fetchGoldPrices()
+        
+        // Cancel check
+        guard !Task.isCancelled else { return }
+        
+        // Update on main thread
         await MainActor.run {
-            self.lastUpdateTime = Date()
+            self.currencyRates = currencies
+            self.goldPrices = gold
         }
     }
     
@@ -77,6 +139,7 @@ class MarketDataManager: ObservableObject {
     func stopAutoUpdate() {
         timer?.invalidate()
         timer = nil
+        currentRefreshTask?.cancel()
     }
     
     // MARK: - Helper Methods

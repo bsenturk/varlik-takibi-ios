@@ -14,6 +14,8 @@ enum AssetType: String, CaseIterable, Codable {
     case goldAta = "gold_ata"
     case goldResat = "gold_resat"
     case goldHamit = "gold_hamit"
+    case goldFive = "gold_five"
+    case silver = "silver"
     case tl = "tl"
     case usd = "usd"
     case eur = "eur"
@@ -29,6 +31,8 @@ enum AssetType: String, CaseIterable, Codable {
         case .goldAta: return "Ata Altın"
         case .goldResat: return "Reşat Altın"
         case .goldHamit: return "Hamit Altın"
+        case .goldFive: return "Beşli Altın"
+        case .silver: return "Gram Gümüş"
         case .tl: return "Türk Lirası"
         case .usd: return "Dolar"
         case .eur: return "Euro"
@@ -38,8 +42,8 @@ enum AssetType: String, CaseIterable, Codable {
     
     var unit: String {
         switch self {
-        case .gold: return "gram"
-        case .goldQuarter, .goldHalf, .goldFull, .goldRepublic, .goldAta, .goldResat, .goldHamit:
+        case .gold, .silver: return "gram"
+        case .goldQuarter, .goldHalf, .goldFull, .goldRepublic, .goldAta, .goldResat, .goldHamit, .goldFive:
             return "adet"
         case .usd: return "USD"
         case .eur: return "EUR"
@@ -50,8 +54,10 @@ enum AssetType: String, CaseIterable, Codable {
     
     var iconName: String {
         switch self {
-        case .gold, .goldQuarter, .goldHalf, .goldFull, .goldRepublic, .goldAta, .goldResat, .goldHamit:
+        case .gold, .goldQuarter, .goldHalf, .goldFull, .goldRepublic, .goldAta, .goldResat, .goldHamit, .goldFive:
             return "circle.hexagongrid.circle"
+        case .silver:
+            return "soccerball.circle"
         case .usd: return "dollarsign.circle"
         case .eur: return "eurosign.circle"
         case .gbp: return "sterlingsign.circle"
@@ -61,8 +67,9 @@ enum AssetType: String, CaseIterable, Codable {
     
     var color: String {
         switch self {
-        case .gold, .goldQuarter, .goldHalf, .goldFull, .goldRepublic, .goldAta, .goldResat, .goldHamit:
+        case .gold, .goldQuarter, .goldHalf, .goldFull, .goldRepublic, .goldAta, .goldResat, .goldHamit, .goldFive:
             return "yellow"
+        case .silver: return "gray"
         case .usd: return "green"
         case .eur: return "blue"
         case .gbp: return "purple"

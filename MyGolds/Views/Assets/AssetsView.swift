@@ -291,6 +291,10 @@ struct AssetsView: View {
                 newPrice = marketManager.goldPrices.first { $0.name.lowercased().contains("reşat") }?.sellPrice.parseToDouble()
             case .goldHamit:
                 newPrice = marketManager.goldPrices.first { $0.name.lowercased().contains("hamit") }?.sellPrice.parseToDouble()
+            case .goldFive:
+                newPrice = marketManager.goldPrices.first { $0.name.lowercased().contains("beşli") }?.sellPrice.parseToDouble()
+            case .silver:
+                newPrice = marketManager.goldPrices.first { $0.name.lowercased().contains("gram gümüş") }?.sellPrice.parseToDouble()
             case .usd:
                 newPrice = marketManager.currencyRates.first { $0.code?.uppercased() == "USD" }?.sellPrice.parseToDouble()
             case .eur:

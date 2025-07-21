@@ -1,5 +1,5 @@
 //
-//  SettingsView.swift
+//  SettingsView.swift - Updated with Dynamic Version
 //  MyGolds
 //
 //  Created by Burak Şentürk on 27.06.2025.
@@ -105,13 +105,13 @@ struct SettingsView: View {
                     }
                     .padding(.horizontal, 24)
                     
-                    // App Info
+                    // App Info - Dynamic Version
                     VStack(spacing: 8) {
-                        Text("Varlık Takibi")
+                        Text(AppVersionHelper.appName)
                             .font(.headline)
                             .foregroundColor(.primary)
                         
-                        Text("Sürüm 2.0.0")
+                        Text(AppVersionHelper.displayVersionString)
                             .font(.caption)
                             .foregroundColor(.secondary)
                         
@@ -282,11 +282,26 @@ struct SettingsView: View {
                 .controlSize(.small)
             }
             
-            Button("🔄 Schedule Next") {
-                notificationManager.scheduleNextNotificationOnAppLaunch()
+            HStack(spacing: 12) {
+                Button("🔄 Schedule Next") {
+                    notificationManager.handleAppLaunch()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                
+                Button("🗑️ Remove All") {
+                    notificationManager.cancelAllPortfolioNotifications()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .foregroundColor(.red)
+                
+                Button("🧹 Cleanup Old") {
+                    notificationManager.cleanupOldNotifications()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
         }
         .padding()
         .background(Color.blue.opacity(0.1))

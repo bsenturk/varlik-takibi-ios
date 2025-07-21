@@ -96,6 +96,7 @@ struct AnalyticsView: View {
             
             HStack(alignment: .bottom, spacing: 30) {
                 // Investment Cost Bar (Maliyet)
+                Spacer()
                 VStack(spacing: 8) {
                     VStack(spacing: 4) {
                         Rectangle()

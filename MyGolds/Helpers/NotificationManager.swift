@@ -1,5 +1,5 @@
 //
-//  NotificationManager.swift
+//  NotificationManager.swift - Optimized Notification System
 //  MyGolds
 //
 //  Created by Burak Şentürk on 27.06.2025.
@@ -16,18 +16,22 @@ final class NotificationManager: ObservableObject {
     @Published var authorizationStatus: UNAuthorizationStatus = .notDetermined
     
     // UserDefaults Keys
-    private let permissionGrantDateKey = "notification_permission_grant_date"
-    private let lastScheduledNotificationDateKey = "last_scheduled_notification_date"
-    private let notificationIdentifierKey = "portfolio_reminder_notification"
+    private let lastAppOpenDateKey = "last_app_open_date"
+    private let nextNotificationDateKey = "next_notification_date"
+    private let notificationBaseIdentifier = "portfolio_reminder"
     
     // Notification settings
     private let notificationHour = 10 // Sabah 10:00
     private let notificationMinute = 0
-    private let initialDelayDays = 2 // İzin verildikten 2 gün sonra
-    private let recurringIntervalDays = 3 // Her 3 günde bir
+    private let intervalDays = 3 // Her 3 günde bir
     
     private init() {
         checkAuthorizationStatus()
+        setupNotificationDelegate()
+    }
+    
+    private func setupNotificationDelegate() {
+        UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
     }
     
     // MARK: - Authorization
@@ -37,13 +41,7 @@ final class NotificationManager: ObservableObject {
             DispatchQueue.main.async {
                 self.authorizationStatus = settings.authorizationStatus
                 self.isAuthorized = settings.authorizationStatus == .authorized
-                
-                if self.isAuthorized {
-                    // İzin varsa ve daha önce izin tarihi kaydedilmemişse, şimdi kaydet
-                    self.savePermissionGrantDateIfNeeded()
-                    // Her uygulama açılışında bildirim schedule'ını güncelle
-                    self.scheduleNextNotificationOnAppLaunch()
-                }
+                Logger.log("📱 Notification status: \(settings.authorizationStatus.rawValue)")
             }
         }
     }
@@ -55,12 +53,6 @@ final class NotificationManager: ObservableObject {
                     Logger.log("📱 Notification: Permission granted")
                     self?.isAuthorized = true
                     self?.authorizationStatus = .authorized
-                    
-                    // İzin verildiği tarihi kaydet
-                    self?.savePermissionGrantDate()
-                    
-                    // İlk bildirimi schedule et (2 gün sonra)
-                    self?.scheduleInitialNotification()
                 } else {
                     Logger.log("📱 Notification: Permission denied")
                     self?.isAuthorized = false
@@ -75,121 +67,83 @@ final class NotificationManager: ObservableObject {
         }
     }
     
-    // MARK: - Date Management
+    // MARK: - Smart Notification Scheduling
     
-    private func savePermissionGrantDate() {
-        let now = Date()
-        UserDefaults.standard.set(now, forKey: permissionGrantDateKey)
-        Logger.log("📱 Notification: Permission grant date saved: \(now)")
-    }
-    
-    private func savePermissionGrantDateIfNeeded() {
-        // Eğer daha önce kaydedilmemişse şimdi kaydet
-        if UserDefaults.standard.object(forKey: permissionGrantDateKey) == nil {
-            savePermissionGrantDate()
-        }
-    }
-    
-    private func getPermissionGrantDate() -> Date? {
-        return UserDefaults.standard.object(forKey: permissionGrantDateKey) as? Date
-    }
-    
-    private func getLastScheduledNotificationDate() -> Date? {
-        return UserDefaults.standard.object(forKey: lastScheduledNotificationDateKey) as? Date
-    }
-    
-    private func saveLastScheduledNotificationDate(_ date: Date) {
-        UserDefaults.standard.set(date, forKey: lastScheduledNotificationDateKey)
-        Logger.log("📱 Notification: Last scheduled date saved: \(date)")
-    }
-    
-    // MARK: - Scheduling Logic
-    
-    /// İlk bildirim - izin verildikten 2 gün sonra sabah 10:00
-    private func scheduleInitialNotification() {
-        guard let grantDate = getPermissionGrantDate() else {
-            Logger.log("📱 Notification: No grant date found")
-            return
-        }
-        
-        // 2 gün sonraki sabah 10:00'ı hesapla
-        let initialNotificationDate = calculateNotificationDate(from: grantDate, daysLater: initialDelayDays)
-        
-        // Mevcut bildirimleri temizle
-        cancelAllNotifications()
-        
-        // Yeni bildirimi schedule et
-        scheduleNotification(for: initialNotificationDate)
-        
-        // Schedule edilen tarihi kaydet
-        saveLastScheduledNotificationDate(initialNotificationDate)
-        
-        Logger.log("📱 Notification: Initial notification scheduled for: \(initialNotificationDate)")
-    }
-    
-    /// Her uygulama açılışında çağrılır - mevcut schedule'ın üzerine +3 gün ekler
-    func scheduleNextNotificationOnAppLaunch() {
+    func handleAppLaunch() {
         guard isAuthorized else {
-            Logger.log("📱 Notification: Not authorized, skipping schedule update")
+            Logger.log("📱 Notification: Not authorized, skipping schedule")
             return
         }
         
-        guard let lastScheduledDate = getLastScheduledNotificationDate() else {
-            Logger.log("📱 Notification: No previous notification found, scheduling initial")
-            scheduleInitialNotification()
-            return
-        }
+        let now = Date()
+        saveLastAppOpenDate(now)
         
-        // Son schedule edilen tarihten 3 gün sonrasını hesapla
-        let nextNotificationDate = calculateNotificationDate(from: lastScheduledDate, daysLater: recurringIntervalDays)
+        // Badge'i temizle (uygulama açıldığında)
+        clearBadge()
         
-        // Eğer yeni tarih gelecekte ise schedule et
-        if nextNotificationDate > Date() {
-            // Mevcut bildirimleri temizle
-            cancelAllNotifications()
-            
-            // Yeni bildirimi schedule et
-            scheduleNotification(for: nextNotificationDate)
-            
-            // Yeni tarihi kaydet
-            saveLastScheduledNotificationDate(nextNotificationDate)
-            
-            Logger.log("📱 Notification: Next notification scheduled for: \(nextNotificationDate)")
-        } else {
-            Logger.log("📱 Notification: Calculated date is in the past, rescheduling from now")
-            // Eğer hesaplanan tarih geçmişte kaldıysa, bugünden itibaren yeniden hesapla
-            let newDate = calculateNotificationDate(from: Date(), daysLater: recurringIntervalDays)
-            
-            cancelAllNotifications()
-            scheduleNotification(for: newDate)
-            saveLastScheduledNotificationDate(newDate)
-            
-            Logger.log("📱 Notification: Rescheduled notification for: \(newDate)")
-        }
+        // Akıllı bildirim schedule et
+        scheduleSmartNotification()
     }
     
-    /// Belirli bir tarihten X gün sonraki sabah 10:00'ı hesaplar
-    private func calculateNotificationDate(from baseDate: Date, daysLater: Int) -> Date {
+    private func scheduleSmartNotification() {
+        let now = Date()
         let calendar = Calendar.current
         
-        // Base tarihten X gün sonrası
-        guard let futureDate = calendar.date(byAdding: .day, value: daysLater, to: baseDate) else {
-            return baseDate
+        // En son schedule edilen tarihi al
+        if let lastScheduledDate = getNextNotificationDate() {
+            // En son schedule edilen tarihten 3 gün sonrasını hesapla
+            let nextNotificationDate = calendar.date(byAdding: .day, value: intervalDays, to: lastScheduledDate) ?? lastScheduledDate
+            
+            // Bu tarih için zaten bildirim var mı kontrol et
+            checkAndScheduleIfNeeded(for: nextNotificationDate)
+            
+            Logger.log("📱 Notification: Last scheduled was \(lastScheduledDate), next will be \(nextNotificationDate)")
+        } else {
+            // İlk kez schedule ediliyor - bugünden 3 gün sonrası
+            let todayAt10AM = calendar.date(bySettingHour: notificationHour, minute: notificationMinute, second: 0, of: now) ?? now
+            let firstNotificationDate = calendar.date(byAdding: .day, value: intervalDays, to: todayAt10AM) ?? todayAt10AM
+            
+            checkAndScheduleIfNeeded(for: firstNotificationDate)
+            
+            Logger.log("📱 Notification: First time scheduling for \(firstNotificationDate)")
         }
-        
-        // O günün sabah 10:00'ı
-        let components = DateComponents(
-            year: calendar.component(.year, from: futureDate),
-            month: calendar.component(.month, from: futureDate),
-            day: calendar.component(.day, from: futureDate),
-            hour: notificationHour,
-            minute: notificationMinute
-        )
-        
-        return calendar.date(from: components) ?? futureDate
     }
     
-    /// Belirli bir tarih için bildirim schedule eder
+    private func checkAndScheduleIfNeeded(for targetDate: Date) {
+        UNUserNotificationCenter.current().getPendingNotificationRequests { [weak self] requests in
+            guard let self = self else { return }
+            
+            let calendar = Calendar.current
+            let targetDateComponents = calendar.dateComponents([.year, .month, .day], from: targetDate)
+            
+            // Aynı günde pending bildirim var mı kontrol et
+            let hasSameDayNotification = requests.contains { request in
+                guard request.identifier.contains(self.notificationBaseIdentifier),
+                      let trigger = request.trigger as? UNCalendarNotificationTrigger,
+                      let triggerDate = trigger.nextTriggerDate() else {
+                    return false
+                }
+                
+                let triggerComponents = calendar.dateComponents([.year, .month, .day], from: triggerDate)
+                return targetDateComponents.year == triggerComponents.year &&
+                       targetDateComponents.month == triggerComponents.month &&
+                       targetDateComponents.day == triggerComponents.day
+            }
+            
+            if hasSameDayNotification {
+                Logger.log("📱 Notification: Same day notification already exists for \(targetDate), skipping")
+            } else {
+                DispatchQueue.main.async {
+                    self.scheduleNotification(for: targetDate)
+                    self.saveNextNotificationDate(targetDate)
+                    Logger.log("📱 Notification: Successfully scheduled new notification for \(targetDate)")
+                }
+            }
+        }
+    }
+    
+    // MARK: - Notification Scheduling
+    
     private func scheduleNotification(for date: Date) {
         let content = UNMutableNotificationContent()
         content.title = "Varlık Takibi"
@@ -197,14 +151,22 @@ final class NotificationManager: ObservableObject {
         content.sound = .default
         content.badge = 1
         
-        // Trigger oluştur
+        // Unique identifier with day stamp
         let calendar = Calendar.current
-        let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+        let dayStamp = calendar.dateComponents([.year, .month, .day], from: date)
+        let identifier = "\(notificationBaseIdentifier)_\(dayStamp.year ?? 0)_\(dayStamp.month ?? 0)_\(dayStamp.day ?? 0)"
+        
+        // Trigger oluştur - Her gün sabah 10:00 için
+        var components = calendar.dateComponents([.year, .month, .day], from: date)
+        components.hour = notificationHour
+        components.minute = notificationMinute
+        components.second = 0
+        
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
         
         // Request oluştur
         let request = UNNotificationRequest(
-            identifier: notificationIdentifierKey,
+            identifier: identifier,
             content: content,
             trigger: trigger
         )
@@ -214,12 +176,55 @@ final class NotificationManager: ObservableObject {
             if let error = error {
                 Logger.log("📱 Notification Error: \(error.localizedDescription)")
             } else {
-                Logger.log("📱 Notification: Successfully scheduled for \(date)")
+                Logger.log("📱 Notification: Successfully scheduled for \(date) at 10:00 AM with ID: \(identifier)")
+            }
+        }
+    }
+    
+    // MARK: - Date Management
+    
+    private func saveLastAppOpenDate(_ date: Date) {
+        UserDefaults.standard.set(date, forKey: lastAppOpenDateKey)
+        Logger.log("📱 Notification: Last app open date saved: \(date)")
+    }
+    
+    private func getLastAppOpenDate() -> Date? {
+        return UserDefaults.standard.object(forKey: lastAppOpenDateKey) as? Date
+    }
+    
+    private func saveNextNotificationDate(_ date: Date) {
+        UserDefaults.standard.set(date, forKey: nextNotificationDateKey)
+        Logger.log("📱 Notification: Next notification date saved: \(date)")
+    }
+    
+    private func getNextNotificationDate() -> Date? {
+        return UserDefaults.standard.object(forKey: nextNotificationDateKey) as? Date
+    }
+    
+    // MARK: - Badge Management
+    
+    func clearBadge() {
+        UNUserNotificationCenter.current().setBadgeCount(0) { error in
+            if let error = error {
+                Logger.log("📱 Notification: Badge clear error - \(error.localizedDescription)")
+            } else {
+                Logger.log("📱 Notification: Badge cleared")
+            }
+        }
+    }
+    
+    func setBadge(_ count: Int) {
+        UNUserNotificationCenter.current().setBadgeCount(count) { error in
+            if let error = error {
+                Logger.log("📱 Notification: Badge set error - \(error.localizedDescription)")
+            } else {
+                Logger.log("📱 Notification: Badge set to \(count)")
             }
         }
     }
     
     // MARK: - Notification Messages
+    
     private func getRandomNotificationMessage() -> String {
         let messages = [
             "💰 Varlıklarınızı takip edin! Güncel değerlerini kontrol etmeyi unutmayın.",
@@ -237,42 +242,71 @@ final class NotificationManager: ObservableObject {
     
     // MARK: - Utility Methods
     
-    /// Tüm bildirimleri iptal eder
-    private func cancelAllNotifications() {
-        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
-        Logger.log("📱 Notification: All pending notifications cancelled")
+    func cancelAllPortfolioNotifications() {
+        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
+            let portfolioNotificationIds = requests
+                .filter { $0.identifier.contains(self.notificationBaseIdentifier) }
+                .map { $0.identifier }
+            
+            UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: portfolioNotificationIds)
+            Logger.log("📱 Notification: Cancelled \(portfolioNotificationIds.count) portfolio notifications")
+            
+            // UserDefaults'u temizle
+            UserDefaults.standard.removeObject(forKey: self.nextNotificationDateKey)
+        }
     }
     
-    /// Sadece kendi bildirimlerimizi iptal eder
-    func cancelPortfolioNotifications() {
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [notificationIdentifierKey])
-        Logger.log("📱 Notification: Portfolio notifications cancelled")
+    func cleanupOldNotifications() {
+        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
+            let now = Date()
+            
+            let expiredIds = requests.compactMap { request -> String? in
+                guard request.identifier.contains(self.notificationBaseIdentifier),
+                      let trigger = request.trigger as? UNCalendarNotificationTrigger,
+                      let triggerDate = trigger.nextTriggerDate() else {
+                    return nil
+                }
+                
+                // Geçmiş tarihli bildirimleri temizle
+                return triggerDate < now ? request.identifier : nil
+            }
+            
+            if !expiredIds.isEmpty {
+                UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: expiredIds)
+                Logger.log("📱 Notification: Cleaned up \(expiredIds.count) expired notifications")
+            }
+        }
     }
     
     // MARK: - Debug Methods
     
     #if DEBUG
-    /// Debug için - pending notification'ları listeler
     func debugPendingNotifications() {
         UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
             DispatchQueue.main.async {
-                Logger.log("📱 Notification Debug: \(requests.count) pending notifications")
-                for request in requests {
+                let portfolioRequests = requests.filter { $0.identifier.contains(self.notificationBaseIdentifier) }
+                Logger.log("📱 Notification Debug: \(portfolioRequests.count) pending portfolio notifications")
+                
+                for request in portfolioRequests {
                     if let trigger = request.trigger as? UNCalendarNotificationTrigger,
                        let nextTriggerDate = trigger.nextTriggerDate() {
                         Logger.log("📱 Notification: \(request.identifier) scheduled for: \(nextTriggerDate)")
                     }
                 }
+                
+                if let nextDate = self.getNextNotificationDate() {
+                    Logger.log("📱 Notification: Stored next date: \(nextDate)")
+                }
             }
         }
     }
     
-    /// Debug için - manuel test bildirimi (5 saniye sonra)
     func scheduleTestNotification() {
         let content = UNMutableNotificationContent()
         content.title = "Test Bildirimi"
         content.body = "Bu bir test bildirimidir."
         content.sound = .default
+        content.badge = 1
         
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)
         let request = UNNotificationRequest(identifier: "test_notification", content: content, trigger: trigger)
@@ -286,28 +320,53 @@ final class NotificationManager: ObservableObject {
         }
     }
     
-    /// Debug için - bildirim durumunu yazdırır
     func debugNotificationStatus() {
         Logger.log("📱 === NOTIFICATION DEBUG STATUS ===")
         Logger.log("📱 Is Authorized: \(isAuthorized)")
         Logger.log("📱 Authorization Status: \(authorizationStatus)")
         
-        if let grantDate = getPermissionGrantDate() {
-            Logger.log("📱 Permission Grant Date: \(grantDate)")
+        if let lastOpen = getLastAppOpenDate() {
+            Logger.log("📱 Last App Open Date: \(lastOpen)")
         } else {
-            Logger.log("📱 Permission Grant Date: Not set")
+            Logger.log("📱 Last App Open Date: Not set")
         }
         
-        if let lastScheduled = getLastScheduledNotificationDate() {
-            Logger.log("📱 Last Scheduled Date: \(lastScheduled)")
+        if let nextDate = getNextNotificationDate() {
+            Logger.log("📱 Next Notification Date: \(nextDate)")
         } else {
-            Logger.log("📱 Last Scheduled Date: Not set")
+            Logger.log("📱 Next Notification Date: Not set")
         }
         
         debugPendingNotifications()
         Logger.log("📱 === END NOTIFICATION DEBUG ===")
     }
     #endif
+}
+
+// MARK: - Notification Delegate
+
+class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
+    static let shared = NotificationDelegate()
+    
+    private override init() {
+        super.init()
+    }
+    
+    // Bildirim gösterilirken çağrılır (uygulama foreground'da)
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        Logger.log("📱 Notification: Will present in foreground")
+        completionHandler([.list, .banner, .sound, .badge])
+    }
+    
+    // Bildirime tıklandığında çağrılır
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+        Logger.log("📱 Notification: User tapped notification")
+        
+        // Badge'i temizle
+        NotificationManager.shared.clearBadge()
+        
+        completionHandler()
+    }
 }
 
 // MARK: - Environment Support

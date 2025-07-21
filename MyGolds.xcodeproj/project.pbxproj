@@ -86,6 +86,7 @@
 		D8581F8D2E1183B700E48444 /* ActivityViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F8C2E1183B600E48444 /* ActivityViewController.swift */; };
 		D8581F902E133B7000E48444 /* DarkModeSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F8F2E133B6F00E48444 /* DarkModeSettingsView.swift */; };
 		D8B22AAF2E0DF74F0058B883 /* SDWebImageSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = D8B22AAE2E0DF74F0058B883 /* SDWebImageSwiftUI */; };
+		D8B50E512E2D3FC700C8F0E9 /* AppVersionHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8B50E502E2D3FC400C8F0E9 /* AppVersionHelper.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -140,6 +141,7 @@
 		D8581F8A2E11770A00E48444 /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
 		D8581F8C2E1183B600E48444 /* ActivityViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityViewController.swift; sourceTree = "<group>"; };
 		D8581F8F2E133B6F00E48444 /* DarkModeSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DarkModeSettingsView.swift; sourceTree = "<group>"; };
+		D8B50E502E2D3FC400C8F0E9 /* AppVersionHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppVersionHelper.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -377,6 +379,7 @@
 		D8581F5E2E0EE02400E48444 /* Helpers */ = {
 			isa = PBXGroup;
 			children = (
+				D8B50E502E2D3FC400C8F0E9 /* AppVersionHelper.swift */,
 				D8581F8C2E1183B600E48444 /* ActivityViewController.swift */,
 				D8581F8A2E11770A00E48444 /* Logger.swift */,
 				D8581F882E1171DF00E48444 /* FirebaseAnalyticsHelper.swift */,
@@ -567,6 +570,7 @@
 				9B0F50432B7FFCB300A03018 /* MyGoldsApp.swift in Sources */,
 				D8581F742E0FE07100E48444 /* UserDefaultsManager.swift in Sources */,
 				D8581F642E0F1FC500E48444 /* Parser.swift in Sources */,
+				D8B50E512E2D3FC700C8F0E9 /* AppVersionHelper.swift in Sources */,
 				D8581F592E0EDE1E00E48444 /* AppCoordinator.swift in Sources */,
 				D8581F302E0EDB0000E48444 /* SettingsView.swift in Sources */,
 				D8581F502E0EDD6300E48444 /* AssetsViewModel.swift in Sources */,

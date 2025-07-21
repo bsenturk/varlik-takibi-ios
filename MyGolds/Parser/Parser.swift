@@ -1,5 +1,5 @@
 //
-//  Parser.swift
+//  Parser.swift - Cancel Protection Added
 //  MyGolds
 //
 //  Created by Burak Şentürk on 27.06.2025.
@@ -16,12 +16,36 @@ class Parser: ObservableObject {
     private let goldURL = "https://altin.doviz.com"
     private let currencyURL = "https://kur.doviz.com"
     
+    // Cancel protection
+    private var currentFetchTask: Task<Void, Never>?
+    
     // MARK: - Public Methods
     
     func fetchAllData() async {
-        await MainActor.run {
-            isLoading = true
-            errorMessage = nil
+        // Cancel önceki task
+        currentFetchTask?.cancel()
+        
+        currentFetchTask = Task {
+            await performFetchAll()
+        }
+        
+        await currentFetchTask?.value
+    }
+    
+    @MainActor
+    private func performFetchAll() async {
+        isLoading = true
+        errorMessage = nil
+        
+        defer {
+            Task { @MainActor in
+                self.isLoading = false
+            }
+        }
+        
+        guard !Task.isCancelled else {
+            Logger.log("📊 Parser: Fetch cancelled before start")
+            return
         }
         
         async let goldData = fetchGoldPrices()
@@ -29,32 +53,60 @@ class Parser: ObservableObject {
         
         let (gold, currency) = await (goldData, currencyData)
         
-        await MainActor.run {
-            self.goldPrices = gold
-            self.currencyRates = currency
-            self.isLoading = false
+        guard !Task.isCancelled else {
+            Logger.log("📊 Parser: Fetch cancelled after completion")
+            return
         }
+        
+        self.goldPrices = gold
+        self.currencyRates = currency
     }
     
     func fetchGoldPrices() async -> [AssetsPrice] {
+        guard !Task.isCancelled else {
+            Logger.log("📊 Parser: Gold fetch cancelled")
+            return []
+        }
+        
         do {
             let htmlContent = try await fetchHTML(from: goldURL)
+            
+            guard !Task.isCancelled else {
+                Logger.log("📊 Parser: Gold fetch cancelled after HTML")
+                return []
+            }
+            
             return parseGoldPrices(html: htmlContent)
         } catch {
-            await MainActor.run {
-                self.errorMessage = "Altın fiyatları alınırken hata: \(error.localizedDescription)"
+            if !Task.isCancelled {
+                await MainActor.run {
+                    self.errorMessage = "Altın fiyatları alınırken hata: \(error.localizedDescription)"
+                }
             }
             return []
         }
     }
     
     func fetchCurrencyRates() async -> [AssetsPrice] {
+        guard !Task.isCancelled else {
+            Logger.log("📊 Parser: Currency fetch cancelled")
+            return []
+        }
+        
         do {
             let htmlContent = try await fetchHTML(from: currencyURL)
+            
+            guard !Task.isCancelled else {
+                Logger.log("📊 Parser: Currency fetch cancelled after HTML")
+                return []
+            }
+            
             return parseCurrencyRates(html: htmlContent)
         } catch {
-            await MainActor.run {
-                self.errorMessage = "Döviz kurları alınırken hata: \(error.localizedDescription)"
+            if !Task.isCancelled {
+                await MainActor.run {
+                    self.errorMessage = "Döviz kurları alınırken hata: \(error.localizedDescription)"
+                }
             }
             return []
         }
@@ -62,6 +114,10 @@ class Parser: ObservableObject {
     
     // MARK: - Private Methods
     private func fetchHTML(from urlString: String) async throws -> String {
+        guard !Task.isCancelled else {
+            throw URLError(.cancelled)
+        }
+        
         guard let url = URL(string: urlString) else {
             throw URLError(.badURL)
         }
@@ -71,8 +127,13 @@ class Parser: ObservableObject {
         request.setValue("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", forHTTPHeaderField: "Accept")
         request.setValue("gzip, deflate, br", forHTTPHeaderField: "Accept-Encoding")
         request.setValue("tr-TR,tr;q=0.9,en;q=0.8", forHTTPHeaderField: "Accept-Language")
+        request.timeoutInterval = 10 // 10 saniye timeout
         
         let (data, _) = try await URLSession.shared.data(for: request)
+        
+        guard !Task.isCancelled else {
+            throw URLError(.cancelled)
+        }
         
         guard let htmlString = String(data: data, encoding: .utf8) else {
             throw URLError(.cannotDecodeContentData)
@@ -82,6 +143,8 @@ class Parser: ObservableObject {
     }
     
     private func parseGoldPrices(html: String) -> [AssetsPrice] {
+        guard !Task.isCancelled else { return [] }
+        
         var goldPrices: [AssetsPrice] = []
         
         do {
@@ -95,11 +158,13 @@ class Parser: ObservableObject {
             let rows = try doc.select("\(tableSelector) tbody tr, table tr")
             
             for row in rows.array() {
+                guard !Task.isCancelled else { break }
+                
                 do {
                     let cells = try row.select("td")
                     
                     if cells.array().count >= 4 {
-                        let nameElement = try cells.get(0)
+                        let nameElement = cells.get(0)
                         let name = try nameElement.text().trimmingCharacters(in: .whitespacesAndNewlines)
                         
                         // Altın isimlerini filtrele
@@ -144,6 +209,8 @@ class Parser: ObservableObject {
     }
     
     private func parseCurrencyRates(html: String) -> [AssetsPrice] {
+        guard !Task.isCancelled else { return [] }
+        
         var currencyRates: [AssetsPrice] = []
         
         do {
@@ -156,11 +223,13 @@ class Parser: ObservableObject {
             let rows = try doc.select("\(tableSelector) tbody tr, table tr")
             
             for row in rows.array() {
+                guard !Task.isCancelled else { break }
+                
                 do {
                     let cells = try row.select("td")
                     
                     if cells.array().count >= 4 {
-                        let nameElement = try cells.get(0)
+                        let nameElement = cells.get(0)
                         let name = try nameElement.text().trimmingCharacters(in: .whitespacesAndNewlines)
                         
                         // Döviz isimlerini filtrele
@@ -212,7 +281,7 @@ class Parser: ObservableObject {
     private func isGoldName(_ name: String) -> Bool {
         let goldKeywords = [
             "gram altın", "çeyrek altın", "yarım altın", "tam altın",
-            "cumhuriyet altını", "ata altın", "beşli altın", "hamit altın", "reşat altın"
+            "cumhuriyet altını", "ata altın", "beşli altın", "hamit altın", "reşat altın", "gram gümüş"
         ]
         
         let lowercaseName = name.lowercased()

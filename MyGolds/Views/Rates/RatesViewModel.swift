@@ -1,5 +1,5 @@
 //
-//  RatesViewModel.swift
+//  RatesViewModel.swift - Error Handling Fixed
 //  MyGolds
 //
 //  Created by Burak Şentürk on 28.06.2025.
@@ -17,6 +17,9 @@ class RatesViewModel: ObservableObject {
     
     init() {
         setupBindings()
+        // Initial load with existing data
+        updateCurrencyRates(rate: MarketDataManager.shared.currencyRates)
+        updateGoldRates(rate: MarketDataManager.shared.goldPrices)
     }
     
     private func setupBindings() {
@@ -42,23 +45,54 @@ class RatesViewModel: ObservableObject {
         
         MarketDataManager.shared.$errorMessage
             .receive(on: DispatchQueue.main)
-            .assign(to: \.errorMessage, on: self)
+            .sink { [weak self] error in
+                if let error = error {
+                    self?.setError(error)
+                }
+            }
             .store(in: &cancellables)
     }
     
     @MainActor
     func refreshRates() async {
-        await MarketDataManager.shared.refreshData()
+        Logger.log("📊 RatesViewModel: Starting rates refresh")
+        errorMessage = nil
+        
+        do {
+            await MarketDataManager.shared.refreshData()
+            Logger.log("📊 RatesViewModel: Rates refreshed successfully")
+        } catch {
+            let errorMsg = "Kurlar güncellenirken hata oluştu: \(error.localizedDescription)"
+            setError(errorMsg)
+            Logger.log("📊 RatesViewModel: Refresh error - \(errorMsg)")
+        }
+    }
+    
+    func setError(_ message: String) {
+        DispatchQueue.main.async {
+            self.errorMessage = message
+            Logger.log("❌ RatesViewModel Error: \(message)")
+        }
+    }
+    
+    func clearError() {
+        DispatchQueue.main.async {
+            self.errorMessage = nil
+        }
     }
     
     func updateCurrencyRates(rate: [AssetsPrice]) {
         let currencyNames: [String: String] = ["USD": "Dolar", "EUR": "Euro", "GBP": "Sterlin"]
         let currenciesIconName: [String: String] = ["USD": "dollarsign.circle", "EUR": "eurosign.circle", "GBP": "sterlingsign.circle"]
         let currenciesColor: [String: Color] = ["USD": .green, "EUR": .blue, "GBP": .purple]
-        currencyRates = rate.map { price -> RateDisplayModel  in
-            let title = currencyNames[price.code ?? ""] ?? price.name
-            let iconName = currenciesIconName[price.code ?? ""] ?? ""
-            let iconColor = currenciesColor[price.code ?? ""] ?? .clear
+        
+        currencyRates = rate.compactMap { price -> RateDisplayModel? in
+            guard let code = price.code, !code.isEmpty else { return nil }
+            
+            let title = currencyNames[code] ?? price.name
+            let iconName = currenciesIconName[code] ?? "questionmark.circle"
+            let iconColor = currenciesColor[code] ?? .gray
+            
             return RateDisplayModel(
                 title: title,
                 iconName: iconName,
@@ -72,7 +106,7 @@ class RatesViewModel: ObservableObject {
     }
     
     func updateGoldRates(rate: [AssetsPrice]) {
-        goldRates = rate.map { price -> RateDisplayModel  in
+        goldRates = rate.map { price -> RateDisplayModel in
             return RateDisplayModel(
                 title: price.name,
                 iconName: "circle.hexagongrid.circle",
@@ -97,10 +131,7 @@ class RatesViewModel: ObservableObject {
     }
     
     private func isRateChangePercentagePositive(from string: String) -> Bool {
-        if string.contains("-") {
-            return false
-        }
-        return true
+        return !string.contains("-")
     }
     
     private func configureRateChangePercantage(from string: String) -> String {
@@ -108,6 +139,6 @@ class RatesViewModel: ObservableObject {
             .replacingOccurrences(of: "-", with: "")
             .replacingOccurrences(of: "+", with: "")
         
-        return cleanString
+        return cleanString.isEmpty ? "0.00" : cleanString
     }
 }
