@@ -7,7 +7,7 @@
 
 import UserNotifications
 import Foundation
-import SwiftUICore
+import SwiftUI
 
 final class NotificationManager: ObservableObject {
     static let shared = NotificationManager()

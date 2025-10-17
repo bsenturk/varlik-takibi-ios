@@ -15,12 +15,29 @@ final class AssetsViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     
+    private let repository: RatesRepositoryProtocol
+    
+    init(repository: RatesRepositoryProtocol) {
+        self.repository = repository
+    }
+    
+    func fetchRates() {
+        Task {
+            let request = RatesRequest.today
+            do {
+                let rates = try await repository.today(with: request)
+                print(rates)
+            } catch {
+                print(error.localizedDescription)
+            }
+        }
+    }
+    
     var totalValue: Double {
         assets.reduce(0) { $0 + $1.totalValue }
     }
     
     var percentageChange: Double {
-        // Mock calculation - gerçek uygulamada önceki değerle karşılaştırılacak
         Double.random(in: -5...5)
     }
 }

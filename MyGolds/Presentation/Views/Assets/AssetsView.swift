@@ -11,7 +11,7 @@ import SwiftData
 struct AssetsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var assets: [Asset]
-    @StateObject private var viewModel = AssetsViewModel()
+    @StateObject private var viewModel = AssetsViewModel(repository: RatesRepository(client: APIClient()))
     @StateObject private var portfolioManager = PortfolioManager.shared
     @State private var showingAddAsset = false
     @State private var showingAnalytics = false
@@ -31,7 +31,6 @@ struct AssetsView: View {
                 }
                 .navigationBarHidden(true)
                 
-                // Sticky Add Button (Only visible when there are assets)
                 if !assets.isEmpty {
                     VStack {
                         Spacer()
@@ -79,16 +78,13 @@ struct AssetsView: View {
             }
             .onAppear {
                 NotificationManager.shared.requestNotificationPermission()
-                Task {
-                    await refreshDataAndUpdateAssets()
-                }
+                viewModel.fetchRates()
             }
-            // iOS 17.0+ için yeni onChange syntax
             .onChange(of: assets) { oldAssets, newAssets in
                 updatePortfolioData()
             }
             .refreshable {
-                await refreshDataAndUpdateAssets()
+                viewModel.fetchRates()
             }
         }
     }
