@@ -11,8 +11,9 @@ import SwiftData
 struct AssetsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var assets: [Asset]
-    @StateObject private var viewModel = AssetsViewModel(repository: RatesRepository(client: APIClient()))
+    @StateObject private var viewModel = AssetsViewModel()
     @StateObject private var portfolioManager = PortfolioManager.shared
+    @StateObject private var marketDataManager = MarketDataManager.shared
     @State private var showingAddAsset = false
     @State private var showingAnalytics = false
     @State private var showingDeletePopup = false
@@ -56,7 +57,6 @@ struct AssetsView: View {
                     ))
                 }
                 
-                // Custom Delete Popup
                 if showingDeletePopup {
                     CustomDeletePopup(
                         assetName: assetToDelete?.name ?? "",
@@ -78,13 +78,15 @@ struct AssetsView: View {
             }
             .onAppear {
                 NotificationManager.shared.requestNotificationPermission()
-                viewModel.fetchRates()
+                Task {
+                    await refreshDataAndUpdateAssets()
+                }
             }
             .onChange(of: assets) { oldAssets, newAssets in
                 updatePortfolioData()
             }
             .refreshable {
-                viewModel.fetchRates()
+                await refreshDataAndUpdateAssets()
             }
         }
     }
@@ -101,7 +103,6 @@ struct AssetsView: View {
                         .font(.title.bold())
                         .foregroundColor(.white)
                     
-                    // Only show profit/loss if there's meaningful data
                     if portfolioManager.totalInvestment > 0 &&
                        portfolioManager.currentTotalValue > 0 &&
                        abs(portfolioManager.profitLoss) > 0.01 {
@@ -176,7 +177,7 @@ struct AssetsView: View {
                     }
                 }
                 .padding(.horizontal, 20)
-                .padding(.bottom, 180) // Extra space for button + banner
+                .padding(.bottom, 180)
             }
         }
     }
@@ -236,34 +237,27 @@ struct AssetsView: View {
     
     // MARK: - Helper Functions
     
-    // Kar/zarar yüzdesi formatlama - AnalyticsView ile aynı mantık
     private func formatProfitLossPercentage(_ percentage: Double, profitLoss: Double) -> String {
         let absPercentage = abs(percentage)
         
-        // Debug logging
-        Logger.log("📊 AssetsView: Formatting percentage=\(percentage), profitLoss=\(profitLoss), absPercentage=\(absPercentage)")
-        
         if absPercentage < 0.01 && profitLoss != 0 {
             let result = "\(profitLoss >= 0 ? "+" : "")<0,01%"
-            Logger.log("📊 AssetsView: Small percentage detected, returning: \(result)")
             return result
         } else {
             let sign = profitLoss >= 0 ? "+" : ""
             let result = "\(sign)\(String(format: "%.2f", percentage))%"
-            Logger.log("📊 AssetsView: Normal percentage, returning: \(result)")
             return result
         }
     }
     
     @MainActor
     private func refreshDataAndUpdateAssets() async {
-        await MarketDataManager.shared.refreshData()
+        await marketDataManager.refreshData()
         await updateAssetValuesWithMarketData()
         updatePortfolioData()
     }
     
     private func updateAssetValuesWithMarketData() async {
-        let marketManager = MarketDataManager.shared
         var hasChanges = false
         
         for asset in assets {
@@ -272,31 +266,41 @@ struct AssetsView: View {
             
             switch asset.type {
             case .gold:
-                newPrice = marketManager.goldPrices.first { $0.name.lowercased().contains("gram") }?.sellPrice.parseToDouble()
+                newPrice = marketDataManager.goldPrices.first { $0.name.lowercased().contains("gram") }?.sellPrice.parseToDouble()
             case .goldQuarter:
-                newPrice = marketManager.goldPrices.first { $0.name.lowercased().contains("çeyrek") }?.sellPrice.parseToDouble()
+                newPrice = marketDataManager.goldPrices.first { $0.name.lowercased().contains("çeyrek") }?.sellPrice.parseToDouble()
             case .goldHalf:
-                newPrice = marketManager.goldPrices.first { $0.name.lowercased().contains("yarım") }?.sellPrice.parseToDouble()
+                newPrice = marketDataManager.goldPrices.first { $0.name.lowercased().contains("yarım") }?.sellPrice.parseToDouble()
             case .goldFull:
-                newPrice = marketManager.goldPrices.first { $0.name.lowercased().contains("tam") }?.sellPrice.parseToDouble()
+                newPrice = marketDataManager.goldPrices.first { $0.name.lowercased().contains("tam") }?.sellPrice.parseToDouble()
             case .goldRepublic:
-                newPrice = marketManager.goldPrices.first { $0.name.lowercased().contains("cumhuriyet") }?.sellPrice.parseToDouble()
+                newPrice = marketDataManager.goldPrices.first { $0.name.lowercased().contains("cumhuriyet") }?.sellPrice.parseToDouble()
             case .goldAta:
-                newPrice = marketManager.goldPrices.first { $0.name.lowercased().contains("ata") }?.sellPrice.parseToDouble()
+                newPrice = marketDataManager.goldPrices.first { $0.name.lowercased().contains("ata") }?.sellPrice.parseToDouble()
             case .goldResat:
-                newPrice = marketManager.goldPrices.first { $0.name.lowercased().contains("reşat") }?.sellPrice.parseToDouble()
+                newPrice = marketDataManager.goldPrices.first { $0.name.lowercased().contains("reşat") }?.sellPrice.parseToDouble()
             case .goldHamit:
-                newPrice = marketManager.goldPrices.first { $0.name.lowercased().contains("hamit") }?.sellPrice.parseToDouble()
+                newPrice = marketDataManager.goldPrices.first { $0.name.lowercased().contains("hamit") }?.sellPrice.parseToDouble()
             case .goldFive:
-                newPrice = marketManager.goldPrices.first { $0.name.lowercased().contains("beşli") }?.sellPrice.parseToDouble()
+                newPrice = marketDataManager.goldPrices.first { $0.name.lowercased().contains("beşli") }?.sellPrice.parseToDouble()
+            case .goldGremse:
+                newPrice = marketDataManager.goldPrices.first { $0.name.lowercased().contains("gremse") }?.sellPrice.parseToDouble()
+            case .goldFourteen:
+                newPrice = marketDataManager.goldPrices.first { $0.name.lowercased().contains("14 ayar") }?.sellPrice.parseToDouble()
+            case .goldEighteen:
+                newPrice = marketDataManager.goldPrices.first { $0.name.lowercased().contains("18 ayar") }?.sellPrice.parseToDouble()
+            case .goldTwoAndHalf:
+                newPrice = marketDataManager.goldPrices.first { $0.name.lowercased().contains("iki buçuk") }?.sellPrice.parseToDouble()
+            case .goldTwentyTwoBracelet:
+                newPrice = marketDataManager.goldPrices.first { $0.name.lowercased().contains("22 ayar") }?.sellPrice.parseToDouble()
             case .silver:
-                newPrice = marketManager.goldPrices.first { $0.name.lowercased().contains("gram gümüş") }?.sellPrice.parseToDouble()
+                newPrice = marketDataManager.goldPrices.first { $0.name.lowercased().contains("gram gümüş") }?.sellPrice.parseToDouble()
             case .usd:
-                newPrice = marketManager.currencyRates.first { $0.code?.uppercased() == "USD" }?.sellPrice.parseToDouble()
+                newPrice = marketDataManager.currencyRates.first { $0.code?.uppercased() == "USD" }?.sellPrice.parseToDouble()
             case .eur:
-                newPrice = marketManager.currencyRates.first { $0.code?.uppercased() == "EUR" }?.sellPrice.parseToDouble()
+                newPrice = marketDataManager.currencyRates.first { $0.code?.uppercased() == "EUR" }?.sellPrice.parseToDouble()
             case .gbp:
-                newPrice = marketManager.currencyRates.first { $0.code?.uppercased() == "GBP" }?.sellPrice.parseToDouble()
+                newPrice = marketDataManager.currencyRates.first { $0.code?.uppercased() == "GBP" }?.sellPrice.parseToDouble()
             case .tl:
                 newPrice = 1.0
             }
@@ -311,7 +315,6 @@ struct AssetsView: View {
         if hasChanges {
             do {
                 try modelContext.save()
-                Logger.log("✅ Asset values updated with market data")
             } catch {
                 Logger.log("❌ Failed to save updated asset values: \(error)")
             }
@@ -324,7 +327,6 @@ struct AssetsView: View {
     
     private func deleteAsset(_ asset: Asset) {
         withAnimation(.easeInOut(duration: 0.4)) {
-            // Remove purchase price from PortfolioManager
             PortfolioManager.shared.removePurchasePrice(for: asset.id)
             
             modelContext.delete(asset)
@@ -332,7 +334,6 @@ struct AssetsView: View {
             do {
                 try modelContext.save()
                 
-                // Force immediate portfolio update after deletion
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     let remainingAssets = (try? self.modelContext.fetch(FetchDescriptor<Asset>())) ?? []
                     PortfolioManager.shared.forceUpdate(with: remainingAssets)

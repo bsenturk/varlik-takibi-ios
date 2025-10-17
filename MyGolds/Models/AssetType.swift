@@ -15,6 +15,11 @@ enum AssetType: String, CaseIterable, Codable {
     case goldResat = "gold_resat"
     case goldHamit = "gold_hamit"
     case goldFive = "gold_five"
+    case goldGremse = "gold_gremse"
+    case goldFourteen = "gold_fourteen"
+    case goldEighteen = "gold_eighteen"
+    case goldTwoAndHalf = "gold_twoandhalf"
+    case goldTwentyTwoBracelet = "gold_twentytwo_bracelet"
     case silver = "silver"
     case tl = "tl"
     case usd = "usd"
@@ -32,7 +37,12 @@ enum AssetType: String, CaseIterable, Codable {
         case .goldResat: return "Reşat Altın"
         case .goldHamit: return "Hamit Altın"
         case .goldFive: return "Beşli Altın"
+        case .goldGremse: return "Gremse Altın"
         case .silver: return "Gram Gümüş"
+        case .goldFourteen: return "14 Ayar Altın"
+        case .goldEighteen: return "18 Ayar Altın"
+        case .goldTwoAndHalf: return "İki Buçuk Altın"
+        case .goldTwentyTwoBracelet: return "22 Ayar Bilezik"
         case .tl: return "Türk Lirası"
         case .usd: return "Dolar"
         case .eur: return "Euro"
@@ -43,7 +53,7 @@ enum AssetType: String, CaseIterable, Codable {
     var unit: String {
         switch self {
         case .gold, .silver: return "gram"
-        case .goldQuarter, .goldHalf, .goldFull, .goldRepublic, .goldAta, .goldResat, .goldHamit, .goldFive:
+        case .goldQuarter, .goldHalf, .goldFull, .goldRepublic, .goldAta, .goldResat, .goldHamit, .goldFive, .goldGremse, .goldFourteen, .goldEighteen, .goldTwoAndHalf, .goldTwentyTwoBracelet:
             return "adet"
         case .usd: return "USD"
         case .eur: return "EUR"
@@ -54,7 +64,7 @@ enum AssetType: String, CaseIterable, Codable {
     
     var iconName: String {
         switch self {
-        case .gold, .goldQuarter, .goldHalf, .goldFull, .goldRepublic, .goldAta, .goldResat, .goldHamit, .goldFive:
+        case .gold, .goldQuarter, .goldHalf, .goldFull, .goldRepublic, .goldAta, .goldResat, .goldHamit, .goldFive, .goldGremse, .goldFourteen, .goldEighteen, .goldTwoAndHalf, .goldTwentyTwoBracelet:
             return "circle.hexagongrid.circle"
         case .silver:
             return "soccerball.circle"
@@ -67,7 +77,7 @@ enum AssetType: String, CaseIterable, Codable {
     
     var color: String {
         switch self {
-        case .gold, .goldQuarter, .goldHalf, .goldFull, .goldRepublic, .goldAta, .goldResat, .goldHamit, .goldFive:
+        case .gold, .goldQuarter, .goldHalf, .goldFull, .goldRepublic, .goldAta, .goldResat, .goldHamit, .goldFive, .goldGremse, .goldFourteen, .goldEighteen, .goldTwoAndHalf, .goldTwentyTwoBracelet:
             return "yellow"
         case .silver: return "gray"
         case .usd: return "green"

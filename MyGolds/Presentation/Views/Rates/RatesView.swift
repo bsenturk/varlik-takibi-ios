@@ -81,12 +81,9 @@ struct RatesView: View {
         
         Logger.log("📊 RatesView: Starting refresh")
         
-        do {
+        Task {
             await viewModel.refreshRates()
             Logger.log("📊 RatesView: Refresh completed successfully")
-        } catch {
-            Logger.log("📊 RatesView: Refresh failed - \(error.localizedDescription)")
-            viewModel.setError("Kurlar güncellenirken hata oluştu: \(error.localizedDescription)")
         }
     }
 }

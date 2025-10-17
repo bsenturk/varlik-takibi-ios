@@ -47,6 +47,7 @@
 		9BC2B60C2E9FB680009C4B5F /* RatesRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BC2B60B2E9FB67B009C4B5F /* RatesRequest.swift */; };
 		9BC2B60E2E9FB71D009C4B5F /* RatesRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BC2B60D2E9FB719009C4B5F /* RatesRepository.swift */; };
 		9BC2B6112E9FB959009C4B5F /* RatesResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BC2B6102E9FB955009C4B5F /* RatesResponse.swift */; };
+		9BC2B6B72EA2812F009C4B5F /* ParseModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F662E0F200500E48444 /* ParseModel.swift */; };
 		D8581F1F2E0ED65000E48444 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F1E2E0ED64D00E48444 /* OnboardingView.swift */; };
 		D8581F222E0ED67800E48444 /* ATTPermissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F212E0ED67700E48444 /* ATTPermissionView.swift */; };
 		D8581F252E0ED6DC00E48444 /* NotificationPermissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F242E0ED6DB00E48444 /* NotificationPermissionView.swift */; };
@@ -72,8 +73,6 @@
 		D8581F5D2E0EDF8100E48444 /* RatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F5C2E0EDF7E00E48444 /* RatesView.swift */; };
 		D8581F602E0EE03C00E48444 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F5F2E0EE02D00E48444 /* NotificationManager.swift */; };
 		D8581F622E0EEDAA00E48444 /* NotificationMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F612E0EEDAA00E48444 /* NotificationMessage.swift */; };
-		D8581F642E0F1FC500E48444 /* Parser.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F632E0F1FBE00E48444 /* Parser.swift */; };
-		D8581F672E0F200900E48444 /* ParseModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F662E0F200500E48444 /* ParseModel.swift */; };
 		D8581F692E0F40A400E48444 /* MarketDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F682E0F40A000E48444 /* MarketDataManager.swift */; };
 		D8581F6C2E0F44DA00E48444 /* RatesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F6B2E0F44D500E48444 /* RatesViewModel.swift */; };
 		D8581F6E2E0F467400E48444 /* RateDisplayModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F6D2E0F466F00E48444 /* RateDisplayModel.swift */; };
@@ -135,7 +134,6 @@
 		D8581F5C2E0EDF7E00E48444 /* RatesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RatesView.swift; sourceTree = "<group>"; };
 		D8581F5F2E0EE02D00E48444 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		D8581F612E0EEDAA00E48444 /* NotificationMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationMessage.swift; sourceTree = "<group>"; };
-		D8581F632E0F1FBE00E48444 /* Parser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Parser.swift; sourceTree = "<group>"; };
 		D8581F662E0F200500E48444 /* ParseModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParseModel.swift; sourceTree = "<group>"; };
 		D8581F682E0F40A000E48444 /* MarketDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketDataManager.swift; sourceTree = "<group>"; };
 		D8581F6B2E0F44D500E48444 /* RatesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RatesViewModel.swift; sourceTree = "<group>"; };
@@ -505,7 +503,6 @@
 			isa = PBXGroup;
 			children = (
 				D8581F662E0F200500E48444 /* ParseModel.swift */,
-				D8581F632E0F1FBE00E48444 /* Parser.swift */,
 			);
 			path = Parser;
 			sourceTree = "<group>";
@@ -678,10 +675,10 @@
 				D8581F382E0EDB6800E48444 /* ShareView.swift in Sources */,
 				9B0F50432B7FFCB300A03018 /* MyGoldsApp.swift in Sources */,
 				D8581F742E0FE07100E48444 /* UserDefaultsManager.swift in Sources */,
-				D8581F642E0F1FC500E48444 /* Parser.swift in Sources */,
 				D8B50E512E2D3FC700C8F0E9 /* AppVersionHelper.swift in Sources */,
 				D8581F592E0EDE1E00E48444 /* AppCoordinator.swift in Sources */,
 				D8581F302E0EDB0000E48444 /* SettingsView.swift in Sources */,
+				9BC2B6B72EA2812F009C4B5F /* ParseModel.swift in Sources */,
 				D8581F502E0EDD6300E48444 /* AssetsViewModel.swift in Sources */,
 				D8581F902E133B7000E48444 /* DarkModeSettingsView.swift in Sources */,
 				D8581F1F2E0ED65000E48444 /* OnboardingView.swift in Sources */,
@@ -720,7 +717,6 @@
 				D8581F442E0EDC6900E48444 /* OnboardingStep.swift in Sources */,
 				D8581F692E0F40A400E48444 /* MarketDataManager.swift in Sources */,
 				D8581F482E0EDCDD00E48444 /* AssetModel.swift in Sources */,
-				D8581F672E0F200900E48444 /* ParseModel.swift in Sources */,
 				D8581F7A2E0FF34D00E48444 /* AdMobBannerView.swift in Sources */,
 				D8581F222E0ED67800E48444 /* ATTPermissionView.swift in Sources */,
 				D8581F4D2E0EDD2D00E48444 /* ColorExtension.swift in Sources */,

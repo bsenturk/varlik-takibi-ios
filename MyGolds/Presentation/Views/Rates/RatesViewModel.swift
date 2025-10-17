@@ -58,13 +58,9 @@ class RatesViewModel: ObservableObject {
         Logger.log("📊 RatesViewModel: Starting rates refresh")
         errorMessage = nil
         
-        do {
+        Task {
             await MarketDataManager.shared.refreshData()
             Logger.log("📊 RatesViewModel: Rates refreshed successfully")
-        } catch {
-            let errorMsg = "Kurlar güncellenirken hata oluştu: \(error.localizedDescription)"
-            setError(errorMsg)
-            Logger.log("📊 RatesViewModel: Refresh error - \(errorMsg)")
         }
     }
     

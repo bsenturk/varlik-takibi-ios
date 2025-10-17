@@ -73,7 +73,6 @@ struct VarlikDefterimApp: App {
                 }
                 .onChange(of: notificationManager.isAuthorized) { oldValue, newValue in
                     if newValue && !hasHandledInitialAuth {
-                        Logger.log("🔔 Authorization granted, handling app launch")
                         notificationManager.handleAppLaunch()
                         hasHandledInitialAuth = true
                     }

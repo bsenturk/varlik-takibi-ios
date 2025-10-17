@@ -1,5 +1,5 @@
 //
-//  MarketDataManager.swift - Cancel Protection Fixed
+//  MarketDataManager.swift
 //  MyGolds
 //
 //  Created by Burak Şentürk on 28.06.2025.
@@ -9,7 +9,7 @@ import Foundation
 import SwiftUI
 import Combine
 
-class MarketDataManager: ObservableObject {
+final class MarketDataManager: ObservableObject {
     static let shared = MarketDataManager()
     
     @Published var goldPrices: [AssetsPrice] = []
@@ -18,16 +18,20 @@ class MarketDataManager: ObservableObject {
     @Published var lastUpdateTime: Date?
     @Published var errorMessage: String?
     
-    private let parser = Parser()
+    private let repository: RatesRepositoryProtocol
     private var cancellables = Set<AnyCancellable>()
     private let updateInterval: TimeInterval = 60
     private var timer: Timer?
-    
-    // Cancel protection
     private var currentRefreshTask: Task<Void, Never>?
     
     private init() {
-        setupBindings()
+        self.repository = RatesRepository(client: APIClient())
+        startAutoUpdate()
+    }
+    
+    // For dependency injection in tests or different configurations
+    init(repository: RatesRepositoryProtocol) {
+        self.repository = repository
         startAutoUpdate()
     }
     
@@ -36,38 +40,9 @@ class MarketDataManager: ObservableObject {
         currentRefreshTask?.cancel()
     }
     
-    // MARK: - Setup
-    
-    private func setupBindings() {
-        // Parser'dan gelen verileri dinle
-        parser.$goldPrices
-            .receive(on: DispatchQueue.main)
-            .assign(to: \.goldPrices, on: self)
-            .store(in: &cancellables)
-        
-        parser.$currencyRates
-            .receive(on: DispatchQueue.main)
-            .assign(to: \.currencyRates, on: self)
-            .store(in: &cancellables)
-        
-        parser.$isLoading
-            .receive(on: DispatchQueue.main)
-            .assign(to: \.isLoading, on: self)
-            .store(in: &cancellables)
-        
-        parser.$errorMessage
-            .receive(on: DispatchQueue.main)
-            .assign(to: \.errorMessage, on: self)
-            .store(in: &cancellables)
-    }
-    
-    // MARK: - Public Methods
-    
     func refreshData() async {
-        // Cancel önceki task'ı
         currentRefreshTask?.cancel()
         
-        // Yeni task başlat
         currentRefreshTask = Task {
             await performRefresh()
         }
@@ -77,54 +52,261 @@ class MarketDataManager: ObservableObject {
     
     @MainActor
     private func performRefresh() async {
-        Logger.log("📊 MarketDataManager: Starting data refresh")
-        
-        // Cancel check
         guard !Task.isCancelled else {
-            Logger.log("📊 MarketDataManager: Refresh cancelled before start")
             return
         }
         
         errorMessage = nil
+        isLoading = true
+        
+        defer {
+            isLoading = false
+        }
         
         do {
-            // Sequential loading to avoid conflicts
-            try await fetchDataSequentially()
-            lastUpdateTime = Date()
-            Logger.log("📊 MarketDataManager: Refresh completed successfully")
+            let response = try await repository.today(with: RatesRequest.today)
+            
+            guard !Task.isCancelled else {
+                return
+            }
+            
+            let currencies = mapCurrencyData(from: response)
+            let gold = mapGoldData(from: response)
+            
+            guard !Task.isCancelled else {
+                Logger.log("📊 MarketDataManager: Refresh cancelled after mapping")
+                return
+            }
+            
+            self.currencyRates = currencies
+            self.goldPrices = gold
+            self.lastUpdateTime = Date()
+            
         } catch {
             if !Task.isCancelled {
-                errorMessage = "Veri güncellenirken hata oluştu: \(error.localizedDescription)"
-                Logger.log("📊 MarketDataManager: Refresh error - \(error.localizedDescription)")
-            } else {
-                Logger.log("📊 MarketDataManager: Refresh was cancelled")
+                errorMessage = "Veriler alınırken hata oluştu: \(error.localizedDescription)"
             }
         }
     }
     
-    private func fetchDataSequentially() async throws {
-        // Cancel check
-        guard !Task.isCancelled else { return }
+    private func mapCurrencyData(from response: RatesResponse) -> [AssetsPrice] {
+        var currencies: [AssetsPrice] = []
         
-        // Önce döviz kurlarını çek
-        Logger.log("📊 MarketDataManager: Fetching currency rates")
-        let currencies = await parser.fetchCurrencyRates()
+        let rates = response.rates
         
-        // Cancel check
-        guard !Task.isCancelled else { return }
+        currencies.append(AssetsPrice(
+            name: "Dolar",
+            code: "USD",
+            buyPrice: formatPrice(rates.usd.buying),
+            sellPrice: formatPrice(rates.usd.selling),
+            change: "",
+            changePercent: formatChange(rates.usd.change),
+            lastUpdate: Date()
+        ))
         
-        // Sonra altın fiyatlarını çek
-        Logger.log("📊 MarketDataManager: Fetching gold prices")
-        let gold = await parser.fetchGoldPrices()
+        currencies.append(AssetsPrice(
+            name: "Euro",
+            code: "EUR",
+            buyPrice: formatPrice(rates.eur.buying),
+            sellPrice: formatPrice(rates.eur.selling),
+            change: "",
+            changePercent: formatChange(rates.eur.change),
+            lastUpdate: Date()
+        ))
         
-        // Cancel check
-        guard !Task.isCancelled else { return }
+        currencies.append(AssetsPrice(
+            name: "Sterlin",
+            code: "GBP",
+            buyPrice: formatPrice(rates.gbp.buying),
+            sellPrice: formatPrice(rates.gbp.selling),
+            change: "",
+            changePercent: formatChange(rates.gbp.change),
+            lastUpdate: Date()
+        ))
         
-        // Update on main thread
-        await MainActor.run {
-            self.currencyRates = currencies
-            self.goldPrices = gold
-        }
+        return currencies
+    }
+    
+    private func mapGoldData(from response: RatesResponse) -> [AssetsPrice] {
+        var goldPrices: [AssetsPrice] = []
+        
+        let rates = response.rates
+        
+        goldPrices.append(AssetsPrice(
+            name: "Gram Altın",
+            code: "GRA",
+            buyPrice: formatPrice(rates.gra.buying),
+            sellPrice: formatPrice(rates.gra.selling),
+            change: "",
+            changePercent: formatChange(rates.gra.change),
+            lastUpdate: Date()
+        ))
+        
+        goldPrices.append(AssetsPrice(
+            name: "Çeyrek Altın",
+            code: "CEYREK",
+            buyPrice: formatPrice(rates.quarterGold.buying),
+            sellPrice: formatPrice(rates.quarterGold.selling),
+            change: "",
+            changePercent: formatChange(rates.quarterGold.change),
+            lastUpdate: Date()
+        ))
+        
+        goldPrices.append(AssetsPrice(
+            name: "Yarım Altın",
+            code: "YARIM",
+            buyPrice: formatPrice(rates.halfGold.buying),
+            sellPrice: formatPrice(rates.halfGold.selling),
+            change: "",
+            changePercent: formatChange(rates.halfGold.change),
+            lastUpdate: Date()
+        ))
+        
+        goldPrices.append(AssetsPrice(
+            name: "Tam Altın",
+            code: "TAM",
+            buyPrice: formatPrice(rates.fullGold.buying),
+            sellPrice: formatPrice(rates.fullGold.selling),
+            change: "",
+            changePercent: formatChange(rates.fullGold.change),
+            lastUpdate: Date()
+        ))
+        
+        goldPrices.append(AssetsPrice(
+            name: "Cumhuriyet Altını",
+            code: "HAS",
+            buyPrice: formatPrice(rates.has.buying),
+            sellPrice: formatPrice(rates.has.selling),
+            change: "",
+            changePercent: formatChange(rates.has.change),
+            lastUpdate: Date()
+        ))
+        
+        goldPrices.append(AssetsPrice(
+            name: "Ata Altın",
+            code: "ATA",
+            buyPrice: formatPrice(rates.ataGold.buying),
+            sellPrice: formatPrice(rates.ataGold.selling),
+            change: "",
+            changePercent: formatChange(rates.ataGold.change),
+            lastUpdate: Date()
+        ))
+        
+        goldPrices.append(AssetsPrice(
+            name: "Reşat Altın",
+            code: "RESAT",
+            buyPrice: formatPrice(rates.resatGold.buying),
+            sellPrice: formatPrice(rates.resatGold.selling),
+            change: "",
+            changePercent: formatChange(rates.resatGold.change),
+            lastUpdate: Date()
+        ))
+        
+        goldPrices.append(AssetsPrice(
+            name: "Hamit Altın",
+            code: "HAMIT",
+            buyPrice: formatPrice(rates.hamitGold.buying),
+            sellPrice: formatPrice(rates.hamitGold.selling),
+            change: "",
+            changePercent: formatChange(rates.hamitGold.change),
+            lastUpdate: Date()
+        ))
+        
+        goldPrices.append(AssetsPrice(
+            name: "Beşli Altın",
+            code: "BESLI",
+            buyPrice: formatPrice(rates.fiveRateGold.buying),
+            sellPrice: formatPrice(rates.fiveRateGold.selling),
+            change: "",
+            changePercent: formatChange(rates.fiveRateGold.change),
+            lastUpdate: Date()
+        ))
+        
+        goldPrices.append(AssetsPrice(
+            name: "Gram Gümüş",
+            code: "GUMUS",
+            buyPrice: formatPrice(rates.silver.buying),
+            sellPrice: formatPrice(rates.silver.selling),
+            change: "",
+            changePercent: formatChange(rates.silver.change),
+            lastUpdate: Date()
+        ))
+        
+        goldPrices.append(
+            AssetsPrice(
+                name: "Gremse Altın",
+                code: "GREMSE",
+                buyPrice: formatPrice(rates.gremseGold.buying),
+                sellPrice: formatPrice(rates.gremseGold.selling),
+                change: "",
+                changePercent: formatChange(rates.gremseGold.change),
+                lastUpdate: Date()
+            )
+        )
+        
+        goldPrices.append(
+            AssetsPrice(
+                name: "14 Ayar Altın",
+                code: "14AYAR",
+                buyPrice: formatPrice(rates.fourteenRateGold.buying),
+                sellPrice: formatPrice(rates.fourteenRateGold.selling),
+                change: "",
+                changePercent: formatChange(rates.fourteenRateGold.change),
+                lastUpdate: Date()
+            )
+        )
+        
+        goldPrices.append(
+            AssetsPrice(
+                name: "18 Ayar Altın",
+                code: "18AYAR",
+                buyPrice: formatPrice(rates.eighteenRateGold.buying),
+                sellPrice: formatPrice(rates.eighteenRateGold.selling),
+                change: "",
+                changePercent: formatChange(rates.eighteenRateGold.change),
+                lastUpdate: Date()
+            )
+        )
+        
+        goldPrices.append(
+            AssetsPrice(
+                name: "İki Buçuk Altın",
+                code: "IKIBUCUK",
+                buyPrice: formatPrice(rates.twoAndHalfRateGold.buying),
+                sellPrice: formatPrice(rates.twoAndHalfRateGold.selling),
+                change: "",
+                changePercent: formatChange(rates.twoAndHalfRateGold.change),
+                lastUpdate: Date()
+            )
+        )
+        
+        goldPrices.append(
+            AssetsPrice(
+                name: "22 Ayar Bilezik",
+                code: "22AYARBILEZIK",
+                buyPrice: formatPrice(rates.twentyTwoRateBracelet.buying),
+                sellPrice: formatPrice(rates.twentyTwoRateBracelet.selling),
+                change: "",
+                changePercent: formatChange(rates.twentyTwoRateBracelet.change),
+                lastUpdate: Date()
+            )
+        )
+        
+        return goldPrices
+    }
+    
+    // Helper functions
+    private func formatPrice(_ price: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+        formatter.locale = Locale(identifier: "tr_TR")
+        return formatter.string(from: NSNumber(value: price)) ?? "0,00"
+    }
+    
+    private func formatChange(_ change: Double) -> String {
+        return String(format: "%.2f", change)
     }
     
     func startAutoUpdate() {
@@ -141,8 +323,6 @@ class MarketDataManager: ObservableObject {
         timer = nil
         currentRefreshTask?.cancel()
     }
-    
-    // MARK: - Helper Methods
     
     func getGoldPrice(by name: String) -> AssetsPrice? {
         return goldPrices.first { $0.name.lowercased().contains(name.lowercased()) }
@@ -162,7 +342,6 @@ class MarketDataManager: ObservableObject {
 }
 
 // MARK: - Environment Key
-
 struct MarketDataManagerKey: EnvironmentKey {
     static let defaultValue = MarketDataManager.shared
 }
@@ -171,38 +350,5 @@ extension EnvironmentValues {
     var marketDataManager: MarketDataManager {
         get { self[MarketDataManagerKey.self] }
         set { self[MarketDataManagerKey.self] = newValue }
-    }
-}
-
-// MARK: - Global Access Extension
-
-extension MarketDataManager {
-    // Static methods for easy access
-    static var goldPrices: [AssetsPrice] {
-        return shared.goldPrices
-    }
-    
-    static var currencyRates: [AssetsPrice] {
-        return shared.currencyRates
-    }
-    
-    static var isLoading: Bool {
-        return shared.isLoading
-    }
-    
-    static var lastUpdateTime: Date? {
-        return shared.lastUpdateTime
-    }
-    
-    static func refreshData() async {
-        await shared.refreshData()
-    }
-    
-    static func getGoldPrice(by name: String) -> AssetsPrice? {
-        return shared.getGoldPrice(by: name)
-    }
-    
-    static func getCurrencyRate(by code: String) -> AssetsPrice? {
-        return shared.getCurrencyRate(by: code)
     }
 }

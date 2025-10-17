@@ -80,10 +80,8 @@ struct MainTabView: View {
     
     private func handleAppOpenAdStateChange(isShowing: Bool) {
         if isShowing {
-            Logger.log("🔄 MainTab: App Open Ad showing, hiding banner")
             adManager.hideBanner()
         } else {
-            Logger.log("🔄 MainTab: App Open Ad dismissed, showing banner after delay")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 adManager.showBannerAd()
             }
