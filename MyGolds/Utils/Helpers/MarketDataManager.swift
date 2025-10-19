@@ -175,10 +175,10 @@ final class MarketDataManager: ObservableObject {
         goldPrices.append(AssetsPrice(
             name: "Cumhuriyet Altını",
             code: "HAS",
-            buyPrice: formatPrice(rates.has.buying),
-            sellPrice: formatPrice(rates.has.selling),
+            buyPrice: formatPrice(rates.republicGold.buying),
+            sellPrice: formatPrice(rates.republicGold.selling),
             change: "",
-            changePercent: formatChange(rates.has.change),
+            changePercent: formatChange(rates.republicGold.change),
             lastUpdate: Date()
         ))
         
@@ -219,16 +219,6 @@ final class MarketDataManager: ObservableObject {
             sellPrice: formatPrice(rates.fiveRateGold.selling),
             change: "",
             changePercent: formatChange(rates.fiveRateGold.change),
-            lastUpdate: Date()
-        ))
-        
-        goldPrices.append(AssetsPrice(
-            name: "Gram Gümüş",
-            code: "GUMUS",
-            buyPrice: formatPrice(rates.silver.buying),
-            sellPrice: formatPrice(rates.silver.selling),
-            change: "",
-            changePercent: formatChange(rates.silver.change),
             lastUpdate: Date()
         ))
         
@@ -292,6 +282,16 @@ final class MarketDataManager: ObservableObject {
             )
         )
         
+        goldPrices.append(AssetsPrice(
+            name: "Gram Gümüş",
+            code: "GUMUS",
+            buyPrice: formatPrice(rates.silver.buying),
+            sellPrice: formatPrice(rates.silver.selling),
+            change: "",
+            changePercent: formatChange(rates.silver.change),
+            lastUpdate: Date()
+        ))
+        
         return goldPrices
     }
     
@@ -306,7 +306,7 @@ final class MarketDataManager: ObservableObject {
     }
     
     private func formatChange(_ change: Double) -> String {
-        return String(format: "%.2f", change)
+        return String(change)
     }
     
     func startAutoUpdate() {

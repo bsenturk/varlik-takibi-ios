@@ -15,9 +15,11 @@ struct AssetFormView: View {
     
     @State private var selectedAssetType: AssetType
     @State private var amount: String
+    @State private var purchasePrice: String = ""
     @State private var showingAlert = false
     @State private var alertMessage = ""
     @FocusState private var isAmountFocused: Bool
+    @FocusState private var isPurchasePriceFocused: Bool // Yeni eklenen
     @StateObject private var viewModel = AssetsFormViewModel()
     
     // Edit mode properties
@@ -50,6 +52,12 @@ struct AssetFormView: View {
             amountString = String(format: "%.2f", asset.amount).replacingOccurrences(of: ".00", with: "")
         }
         self._amount = State(initialValue: amountString)
+        
+        // Load purchase price if available
+        if let storedPrice = PortfolioManager.shared.assetPurchasePrices[asset.id] {
+            let priceString = String(format: "%.2f", storedPrice).replacingOccurrences(of: ".00", with: "")
+            self._purchasePrice = State(initialValue: priceString)
+        }
     }
     
     var body: some View {
@@ -63,6 +71,9 @@ struct AssetFormView: View {
                 
                 // Amount Input
                 amountInputSection
+                
+                // Purchase Price Input (Opsiyonel)
+                purchasePriceSection
                 
                 currentRateSection(rate: viewModel.getSelectedAsset(from: selectedAssetType.displayName)?.sellPrice ?? "")
                 
@@ -168,16 +179,13 @@ struct AssetFormView: View {
                     .font(.title2)
                     .textFieldStyle(PlainTextFieldStyle())
                     .onChange(of: amount) { newValue, _ in
-                        // Mevcut basit filtrelerine ek olarak decimal control ekle
                         var processedValue = newValue.replacingOccurrences(of: ",", with: ".")
                         
-                        // Tek decimal point kontrolü
                         let components = processedValue.components(separatedBy: ".")
                         if components.count > 2 {
                             processedValue = components[0] + "." + components[1]
                         }
                         
-                        // 3 hane küsurat limiti
                         if let dotIndex = processedValue.firstIndex(of: ".") {
                             let afterDot = processedValue.distance(from: dotIndex, to: processedValue.endIndex) - 1
                             if afterDot > 3 {
@@ -207,6 +215,82 @@ struct AssetFormView: View {
                     .stroke(isAmountFocused ? .blue : .clear, lineWidth: 2)
                     .animation(.easeInOut(duration: 0.2), value: isAmountFocused)
             )
+        }
+    }
+    
+    // MARK: - Purchase Price Section (YENİ)
+    
+    private var purchasePriceSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Satın Alınan Kur")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                
+                Text("(Opsiyonel)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            HStack {
+                TextField("", text: $purchasePrice)
+                    .keyboardType(.decimalPad)
+                    .focused($isPurchasePriceFocused)
+                    .font(.body)
+                    .textFieldStyle(PlainTextFieldStyle())
+                    .onChange(of: purchasePrice) { newValue, _ in
+                        var processedValue = newValue.replacingOccurrences(of: ",", with: ".")
+                        
+                        let components = processedValue.components(separatedBy: ".")
+                        if components.count > 2 {
+                            processedValue = components[0] + "." + components[1]
+                        }
+                        
+                        if let dotIndex = processedValue.firstIndex(of: ".") {
+                            let afterDot = processedValue.distance(from: dotIndex, to: processedValue.endIndex) - 1
+                            if afterDot > 2 {
+                                let endIndex = processedValue.index(dotIndex, offsetBy: 3)
+                                processedValue = String(processedValue[..<endIndex])
+                            }
+                        }
+                        
+                        if processedValue != newValue {
+                            purchasePrice = processedValue
+                        }
+                    }
+                
+                if !purchasePrice.isEmpty {
+                    Button(action: {
+                        purchasePrice = ""
+                        isPurchasePriceFocused = false
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(colorScheme == .dark ? Color(.systemGray4) : Color(.systemGray6))
+            )
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isPurchasePriceFocused ? .blue : .clear, lineWidth: 2)
+                    .animation(.easeInOut(duration: 0.2), value: isPurchasePriceFocused)
+            )
+            
+            // Info text
+            HStack(spacing: 4) {
+                Image(systemName: "info.circle")
+                    .font(.caption)
+                    .foregroundColor(.blue)
+                
+                Text("Bu alan boş bırakılırsa varlık eklenirken güncel kur kullanılır")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
         }
     }
     
@@ -348,6 +432,12 @@ struct AssetFormView: View {
                     asset.currentPrice = priceValue
                 }
                 
+                // Update purchase price if provided
+                if !purchasePrice.isEmpty,
+                   let customPurchasePrice = Double(purchasePrice.replacingOccurrences(of: ",", with: ".")) {
+                    PortfolioManager.shared.storePurchasePrice(for: asset.id, price: customPurchasePrice)
+                }
+                
                 try modelContext.save()
                 
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -367,6 +457,15 @@ struct AssetFormView: View {
                     let currentPriceString = viewModel.getSelectedAsset(from: selectedAssetType.displayName)?.sellPrice ?? "0"
                     let currentPrice = currentPriceString.parseToDouble() ?? 0.0
                     
+                    // Determine purchase price to use
+                    let priceToUse: Double
+                    if !purchasePrice.isEmpty,
+                       let customPurchasePrice = Double(purchasePrice.replacingOccurrences(of: ",", with: ".")) {
+                        priceToUse = customPurchasePrice
+                    } else {
+                        priceToUse = currentPrice
+                    }
+                    
                     // Store old amount for weighted average calculation
                     let oldAmount = existingAsset.amount
                     
@@ -375,7 +474,7 @@ struct AssetFormView: View {
                         for: existingAsset.id,
                         oldAmount: oldAmount,
                         newAmount: oldAmount + amountValue,
-                        newPrice: currentPrice
+                        newPrice: priceToUse
                     )
                     
                     // Add new amount to existing asset
@@ -399,6 +498,15 @@ struct AssetFormView: View {
                     let currentPriceString = viewModel.getSelectedAsset(from: selectedAssetType.displayName)?.sellPrice ?? "0"
                     let currentPrice = currentPriceString.parseToDouble() ?? 0.0
                     
+                    // Determine purchase price to use
+                    let priceToUse: Double
+                    if !purchasePrice.isEmpty,
+                       let customPurchasePrice = Double(purchasePrice.replacingOccurrences(of: ",", with: ".")) {
+                        priceToUse = customPurchasePrice
+                    } else {
+                        priceToUse = currentPrice
+                    }
+                    
                     let newAsset = Asset(
                         type: selectedAssetType,
                         amount: amountValue,
@@ -407,7 +515,7 @@ struct AssetFormView: View {
                     )
                     
                     // Store purchase price for new asset
-                    PortfolioManager.shared.storePurchasePrice(for: newAsset.id, price: currentPrice)
+                    PortfolioManager.shared.storePurchasePrice(for: newAsset.id, price: priceToUse)
                     
                     modelContext.insert(newAsset)
                     try modelContext.save()

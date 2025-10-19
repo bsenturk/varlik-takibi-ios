@@ -15,14 +15,14 @@ struct AnalyticsView: View {
     @Query private var assets: [Asset]
     @StateObject private var portfolioManager = PortfolioManager.shared
     
+    @AppStorage("selectedCurrency") private var selectedCurrency: Currency = .TRY
+    
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 24) {
-                    // Real Total Portfolio Value
                     totalPortfolioCard
                     
-                    // Comparison Chart (Only show if there's profit/loss data)
                     if hasProfitLossData {
                         comparisonChart
                     }
@@ -37,7 +37,7 @@ struct AnalyticsView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: { dismiss() }) {
-                        Image(systemName: "chevron.left")
+                        Image(systemName: "xmark")
                             .font(.headline)
                     }
                 }
@@ -61,7 +61,7 @@ struct AnalyticsView: View {
                 .font(.subheadline)
                 .foregroundColor(.secondary)
             
-            Text(portfolioManager.currentTotalValue.formatAsCurrency())
+            Text(convertedTotalValue.formatAsCurrency(currency: selectedCurrency))
                 .font(.largeTitle.bold())
                 .foregroundColor(.primary)
             
@@ -72,12 +72,11 @@ struct AnalyticsView: View {
                         .font(.caption)
                         .foregroundColor(portfolioManager.profitLoss >= 0 ? .green : .red)
                     
-                    // Düzeltilmiş yüzde gösterimi
                     Text(formatProfitLossPercentage(portfolioManager.profitLossPercentage, profitLoss: portfolioManager.profitLoss))
                         .font(.subheadline.weight(.medium))
                         .foregroundColor(portfolioManager.profitLoss >= 0 ? .green : .red)
                     
-                    Text("(\(portfolioManager.profitLoss >= 0 ? "+" : "")\(portfolioManager.profitLoss.formatAsCurrency()))")
+                    Text("(\(portfolioManager.profitLoss >= 0 ? "+" : "")\(convertedProfitLoss.formatAsCurrency(currency: selectedCurrency)))")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -122,7 +121,7 @@ struct AnalyticsView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                         
-                        Text(portfolioManager.totalInvestment.formatAsCurrency())
+                        Text(convertedInvestment.formatAsCurrency(currency: selectedCurrency))
                             .font(.caption2.weight(.medium))
                             .foregroundColor(.blue)
                             .multilineTextAlignment(.center)
@@ -147,7 +146,7 @@ struct AnalyticsView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                         
-                        Text(portfolioManager.currentTotalValue.formatAsCurrency())
+                        Text(convertedTotalValue.formatAsCurrency(currency: selectedCurrency))
                             .font(.caption2.weight(.medium))
                             .foregroundColor(portfolioManager.profitLoss >= 0 ? .green : .red)
                             .multilineTextAlignment(.center)
@@ -166,7 +165,7 @@ struct AnalyticsView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                         
-                        Text(portfolioManager.totalInvestment.formatAsCurrency())
+                        Text(convertedInvestment.formatAsCurrency(currency: selectedCurrency))
                             .font(.subheadline.weight(.semibold))
                             .foregroundColor(.blue)
                     }
@@ -178,7 +177,7 @@ struct AnalyticsView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                         
-                        Text(portfolioManager.currentTotalValue.formatAsCurrency())
+                        Text(convertedTotalValue.formatAsCurrency(currency: selectedCurrency))
                             .font(.subheadline.weight(.semibold))
                             .foregroundColor(.primary)
                     }
@@ -192,7 +191,7 @@ struct AnalyticsView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                         
-                        Text("\(portfolioManager.profitLoss >= 0 ? "+" : "")\(portfolioManager.profitLoss.formatAsCurrency())")
+                        Text("\(portfolioManager.profitLoss >= 0 ? "+" : "")\(convertedProfitLoss.formatAsCurrency(currency: selectedCurrency))")
                             .font(.subheadline.weight(.semibold))
                             .foregroundColor(portfolioManager.profitLoss >= 0 ? .green : .red)
                     }
@@ -204,7 +203,6 @@ struct AnalyticsView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                         
-                        // Düzeltilmiş getiri oranı gösterimi
                         Text(formatProfitLossPercentage(portfolioManager.profitLossPercentage, profitLoss: portfolioManager.profitLoss))
                             .font(.subheadline.weight(.semibold))
                             .foregroundColor(portfolioManager.profitLoss >= 0 ? .green : .red)
@@ -245,7 +243,7 @@ struct AnalyticsView: View {
                     ForEach(getAssetDistribution(), id: \.name) { distribution in
                         distributionItem(
                             name: distribution.name,
-                            amount: distribution.value.formatAsCurrency(),
+                            amount: convertedDistributionValue(distribution.value).formatAsCurrency(currency: selectedCurrency),
                             percentage: distribution.percentage,
                             color: Color(distribution.color)
                         )
@@ -298,6 +296,36 @@ struct AnalyticsView: View {
                 .font(.subheadline.weight(.medium))
                 .foregroundColor(.primary)
         }
+    }
+    
+    // MARK: - Computed Properties (Currency Conversion)
+    
+    private var convertedTotalValue: Double {
+        return portfolioManager.convertToTargetCurrency(
+            portfolioManager.currentTotalValue,
+            targetCurrency: selectedCurrency
+        )
+    }
+    
+    private var convertedInvestment: Double {
+        return portfolioManager.convertToTargetCurrency(
+            portfolioManager.totalInvestment,
+            targetCurrency: selectedCurrency
+        )
+    }
+    
+    private var convertedProfitLoss: Double {
+        return portfolioManager.convertToTargetCurrency(
+            portfolioManager.profitLoss,
+            targetCurrency: selectedCurrency
+        )
+    }
+    
+    private func convertedDistributionValue(_ value: Double) -> Double {
+        return portfolioManager.convertToTargetCurrency(
+            value,
+            targetCurrency: selectedCurrency
+        )
     }
     
     // MARK: - Helper Functions

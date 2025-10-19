@@ -17,7 +17,7 @@ class PortfolioManager: ObservableObject {
     @Published var profitLossPercentage: Double = 0.0
     
     // Store purchase prices for each asset to calculate cost basis
-    private var assetPurchasePrices: [UUID: Double] = [:]
+    var assetPurchasePrices: [UUID: Double] = [:]
     private let userDefaults = UserDefaults.standard
     private let assetPurchasePricesKey = "assetPurchasePrices"
     
@@ -146,4 +146,29 @@ class PortfolioManager: ObservableObject {
             return "\(sign)\(String(format: "%.2f", profitLossPercentage))%"
         }
     }
+    
+    func convertToTargetCurrency(_ amount: Double, targetCurrency: Currency) -> Double {
+         guard targetCurrency != .TRY else { return amount }
+         
+         let rates = MarketDataManager.shared.currencyRates
+         
+         switch targetCurrency {
+         case .TRY:
+             return amount
+         case .USD:
+             if let usdRate = rates.first(where: { $0.code == "USD" })?.sellPrice.parseToDouble() {
+                 return amount / usdRate
+             }
+         case .EUR:
+             if let eurRate = rates.first(where: { $0.code == "EUR" })?.sellPrice.parseToDouble() {
+                 return amount / eurRate
+             }
+         case .GBP:
+             if let gbpRate = rates.first(where: { $0.code == "GBP" })?.sellPrice.parseToDouble() {
+                 return amount / gbpRate
+             }
+         }
+         
+         return amount
+     }
 }

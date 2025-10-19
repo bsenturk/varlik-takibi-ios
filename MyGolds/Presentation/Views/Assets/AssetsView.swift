@@ -19,6 +19,8 @@ struct AssetsView: View {
     @State private var showingDeletePopup = false
     @State private var assetToDelete: Asset?
     
+    @AppStorage("selectedCurrency") private var selectedCurrency: Currency = .TRY
+    
     var body: some View {
         NavigationView {
             ZStack {
@@ -90,7 +92,7 @@ struct AssetsView: View {
             }
         }
     }
-    
+
     private var totalValueHeader: some View {
         VStack(spacing: 16) {
             HStack {
@@ -99,9 +101,45 @@ struct AssetsView: View {
                         .font(.caption)
                         .foregroundColor(.white.opacity(0.9))
                     
-                    Text(portfolioManager.currentTotalValue.formatAsCurrency())
-                        .font(.title.bold())
-                        .foregroundColor(.white)
+                    HStack(alignment: .center, spacing: 8) {
+                        Text(convertedTotalValue.formatAsCurrency(currency: selectedCurrency))
+                            .font(.title.bold())
+                            .foregroundColor(.white)
+                        
+                        // Currency Selector Menu - DÜZELTME
+                        Menu {
+                            ForEach(Currency.allCases, id: \.self) { currency in
+                                Button {
+                                    withAnimation(.easeInOut(duration: 0.3)) {
+                                        selectedCurrency = currency
+                                    }
+                                    
+                                    let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                                    impactFeedback.impactOccurred()
+                                } label: {
+                                    Label {
+                                        Text(currency.displayName)
+                                    } icon: {
+                                        if selectedCurrency == currency {
+                                            Image(systemName: "checkmark")
+                                        }
+                                    }
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(selectedCurrency.rawValue)
+                                    .font(.caption.weight(.semibold))
+                                Image(systemName: "chevron.down")
+                                    .font(.caption2)
+                            }
+                            .foregroundColor(.white.opacity(0.9))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(.white.opacity(0.2))
+                            .cornerRadius(8)
+                        }
+                    }
                     
                     if portfolioManager.totalInvestment > 0 &&
                        portfolioManager.currentTotalValue > 0 &&
@@ -113,7 +151,7 @@ struct AssetsView: View {
                                 .font(.subheadline)
                                 .fontWeight(.bold)
                             
-                            Text("(\(portfolioManager.profitLoss >= 0 ? "+" : "")\(portfolioManager.profitLoss.formatAsCurrency()))")
+                            Text("(\(portfolioManager.profitLoss >= 0 ? "+" : "")\(convertedProfitLoss.formatAsCurrency(currency: selectedCurrency)))")
                                 .font(.subheadline)
                                 .fontWeight(.bold)
                         }
@@ -233,6 +271,22 @@ struct AssetsView: View {
             Spacer()
         }
         .padding(.top, 40)
+    }
+    
+    // MARK: - Computed Properties
+    
+    private var convertedTotalValue: Double {
+        return portfolioManager.convertToTargetCurrency(
+            portfolioManager.currentTotalValue,
+            targetCurrency: selectedCurrency
+        )
+    }
+    
+    private var convertedProfitLoss: Double {
+        return portfolioManager.convertToTargetCurrency(
+            portfolioManager.profitLoss,
+            targetCurrency: selectedCurrency
+        )
     }
     
     // MARK: - Helper Functions

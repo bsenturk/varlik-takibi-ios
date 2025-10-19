@@ -17,7 +17,6 @@ class RatesViewModel: ObservableObject {
     
     init() {
         setupBindings()
-        // Initial load with existing data
         updateCurrencyRates(rate: MarketDataManager.shared.currencyRates)
         updateGoldRates(rate: MarketDataManager.shared.goldPrices)
     }
@@ -95,22 +94,25 @@ class RatesViewModel: ObservableObject {
                 iconColor: iconColor,
                 buyRate: price.buyPrice,
                 sellRate: price.sellPrice,
-                change: configureRateChangePercantage(from: price.change),
-                isChangeRatePositive: isRateChangePercentagePositive(from: price.change)
+                change: price.changePercent,
+                isChangeRatePositive: isRateChangePercentagePositive(from: price.changePercent)
             )
         }
     }
     
     func updateGoldRates(rate: [AssetsPrice]) {
         goldRates = rate.map { price -> RateDisplayModel in
+            let isSilver = price.code?.lowercased().contains("gumus") == true
+            let iconName = isSilver ? "soccerball.circle" : "circle.hexagongrid.circle"
+            let iconColor: Color = isSilver ? .gray : .yellow
             return RateDisplayModel(
                 title: price.name,
-                iconName: "circle.hexagongrid.circle",
-                iconColor: .yellow,
+                iconName: iconName,
+                iconColor: iconColor,
                 buyRate: price.buyPrice,
                 sellRate: price.sellPrice,
-                change: configureRateChangePercantage(from: price.change),
-                isChangeRatePositive: isRateChangePercentagePositive(from: price.change)
+                change: price.changePercent,
+                isChangeRatePositive: isRateChangePercentagePositive(from: price.changePercent)
             )
         }
     }
@@ -128,13 +130,5 @@ class RatesViewModel: ObservableObject {
     
     private func isRateChangePercentagePositive(from string: String) -> Bool {
         return !string.contains("-")
-    }
-    
-    private func configureRateChangePercantage(from string: String) -> String {
-        let cleanString = string.replacingOccurrences(of: "%", with: "")
-            .replacingOccurrences(of: "-", with: "")
-            .replacingOccurrences(of: "+", with: "")
-        
-        return cleanString.isEmpty ? "0.00" : cleanString
     }
 }

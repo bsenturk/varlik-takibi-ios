@@ -37,10 +37,10 @@ struct RateCardView: View {
                     .foregroundColor(.primary)
                 
                 HStack(spacing: 12) {
-                    Text("Alış: ₺\(buyRate)")
+                    Text("Alış: \n₺\(buyRate)")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    Text("Satış: ₺\(sellRate)")
+                    Text("Satış: \n₺\(sellRate)")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -48,7 +48,6 @@ struct RateCardView: View {
             
             Spacer()
             
-            // Change Indicator
             HStack(spacing: 4) {
                 Image(systemName: isChangeRatePositive ? "chevron.up" : "chevron.down")
                     .font(.caption)

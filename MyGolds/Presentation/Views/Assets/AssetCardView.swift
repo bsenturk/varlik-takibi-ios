@@ -15,6 +15,16 @@ struct AssetCardView: View {
     @State private var isDeleting = false
     
     var body: some View {
+        NavigationLink(destination: AssetDetailView(asset: asset)) {
+            cardContent
+        }
+        .buttonStyle(PlainButtonStyle())
+        .sheet(isPresented: $showingFormSheet) {
+            AssetFormView(asset: asset)
+        }
+    }
+    
+    private var cardContent: some View {
         HStack(spacing: 16) {
             ZStack {
                 Circle()
@@ -52,7 +62,9 @@ struct AssetCardView: View {
                     .foregroundColor(.primary)
                 
                 HStack(spacing: 4) {
-                    Button(action: { showingFormSheet = true }) {
+                    Button(action: {
+                        showingFormSheet = true
+                    }) {
                         Image(systemName: "pencil")
                             .font(.caption)
                             .foregroundColor(.blue)
@@ -60,6 +72,7 @@ struct AssetCardView: View {
                             .background(Color.blue.opacity(0.1))
                             .cornerRadius(8)
                     }
+                    .buttonStyle(PlainButtonStyle())
                     
                     Button(action: onDelete) {
                         Image(systemName: "trash")
@@ -69,6 +82,7 @@ struct AssetCardView: View {
                             .background(Color.red.opacity(0.1))
                             .cornerRadius(8)
                     }
+                    .buttonStyle(PlainButtonStyle())
                 }
             }
         }
@@ -84,12 +98,8 @@ struct AssetCardView: View {
                 )
         )
         .cornerRadius(12)
-        .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
         .scaleEffect(isDeleting ? 0.95 : 1.0)
         .opacity(isDeleting ? 0.5 : 1.0)
         .animation(.easeInOut(duration: 0.3), value: isDeleting)
-        .sheet(isPresented: $showingFormSheet) {
-            AssetFormView(asset: asset)
-        }
     }
 }

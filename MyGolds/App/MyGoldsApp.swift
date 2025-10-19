@@ -49,6 +49,7 @@ struct VarlikDefterimApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Asset.self,
+            AssetPriceHistory.self
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {
