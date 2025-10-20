@@ -53,7 +53,6 @@ class AppLifecycleObserver: ObservableObject {
     }
     
     @objc private func appDidBecomeActive() {
-        Logger.log("🔄 App: Did become active")
         DispatchQueue.main.async {
             self.isActive = true
             self.scenePhase = .active
@@ -62,11 +61,8 @@ class AppLifecycleObserver: ObservableObject {
         // Check if app was in background long enough to show ad
         if let backgroundTime = backgroundTime {
             let backgroundDuration = Date().timeIntervalSince(backgroundTime)
-            Logger.log("🔄 App: Was in background for \(backgroundDuration) seconds")
             
             if backgroundDuration >= minimumBackgroundTime {
-                // Show app open ad after a short delay
-                Logger.log("🔄 App: Background duration sufficient, will show App Open Ad")
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     self.appOpenAdManager.showAdIfAvailable()
                 }
@@ -74,8 +70,6 @@ class AppLifecycleObserver: ObservableObject {
                 Logger.log("🔄 App: Background duration too short (\(backgroundDuration)s < \(minimumBackgroundTime)s)")
             }
         } else {
-            // First app launch, don't show ad immediately
-            Logger.log("🔄 App: First launch, preloading ad")
             appOpenAdManager.preloadAd()
         }
         
@@ -83,7 +77,6 @@ class AppLifecycleObserver: ObservableObject {
     }
     
     @objc private func appWillResignActive() {
-        Logger.log("🔄 App: Will resign active")
         DispatchQueue.main.async {
             self.isActive = false
             self.scenePhase = .inactive
@@ -91,7 +84,6 @@ class AppLifecycleObserver: ObservableObject {
     }
     
     @objc private func appDidEnterBackground() {
-        Logger.log("🔄 App: Did enter background")
         backgroundTime = Date()
         DispatchQueue.main.async {
             self.scenePhase = .background
@@ -99,7 +91,6 @@ class AppLifecycleObserver: ObservableObject {
     }
     
     @objc private func appWillEnterForeground() {
-        Logger.log("🔄 App: Will enter foreground")
         DispatchQueue.main.async {
             self.scenePhase = .inactive
         }

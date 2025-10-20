@@ -49,6 +49,7 @@ struct VarlikDefterimApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Asset.self,
+            AssetPriceHistory.self
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {
@@ -73,7 +74,6 @@ struct VarlikDefterimApp: App {
                 }
                 .onChange(of: notificationManager.isAuthorized) { oldValue, newValue in
                     if newValue && !hasHandledInitialAuth {
-                        Logger.log("🔔 Authorization granted, handling app launch")
                         notificationManager.handleAppLaunch()
                         hasHandledInitialAuth = true
                     }
