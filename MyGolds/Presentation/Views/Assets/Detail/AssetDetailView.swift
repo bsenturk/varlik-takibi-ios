@@ -11,11 +11,13 @@ import Charts
 struct AssetDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.modelContext) private var modelContext
     let asset: Asset
     
     @State private var selectedPeriod: ChartPeriod = .daily
     @State private var showPeriodSheet = false
-    @State private var priceHistory: [PriceHistoryEntry] = []
+    @State private var priceHistory: [AssetPriceHistory] = []
+    @State private var transactionHistory: [AssetTransactionHistory] = []
     
     enum ChartPeriod: String, CaseIterable {
         case daily = "Günlük"
@@ -29,6 +31,14 @@ struct AssetDetailView: View {
             case .monthly: return "calendar.circle"
             }
         }
+        
+        var days: Int {
+            switch self {
+            case .daily: return 7
+            case .weekly: return 30
+            case .monthly: return 90
+            }
+        }
     }
     
     var body: some View {
@@ -39,6 +49,9 @@ struct AssetDetailView: View {
                 
                 // Price Summary Card
                 priceSummaryCard
+                
+                // Transaction History (Varlık Geçmişi)
+                transactionHistorySection
                 
                 // Price History List
                 priceHistoryList
@@ -53,6 +66,7 @@ struct AssetDetailView: View {
         }
         .onAppear {
             loadPriceHistory()
+            loadTransactionHistory()
         }
     }
     
@@ -144,13 +158,19 @@ struct AssetDetailView: View {
                 .font(.system(size: 40))
                 .foregroundColor(.secondary)
             
-            Text("Şuan grafik göstermek için yeterli veri yok")
+            Text("Grafik göstermek için yeterli veri yok")
                 .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+            
+            Text("Her giriş yaptığınızda fiyat geçmişi kaydedilir")
+                .font(.caption)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
         }
         .frame(height: 200)
         .frame(maxWidth: .infinity)
+        .padding()
     }
     
     // MARK: - Price Summary Card
@@ -215,6 +235,122 @@ struct AssetDetailView: View {
         )
     }
 
+    // MARK: - Transaction History Section
+    
+    private var transactionHistorySection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Varlık Geçmişi")
+                .font(.headline)
+                .foregroundColor(.primary)
+                .padding(.horizontal)
+            
+            if transactionHistory.isEmpty {
+                emptyTransactionHistoryView
+            } else {
+                VStack(spacing: 12) {
+                    ForEach(transactionHistory) { transaction in
+                        transactionHistoryRow(transaction: transaction)
+                    }
+                }
+            }
+        }
+        .padding(.vertical)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(colorScheme == .dark ? Color(.systemGray5) : Color(.systemBackground))
+                .shadow(
+                    color: colorScheme == .dark ? .white.opacity(0.1) : .black.opacity(0.15),
+                    radius: colorScheme == .dark ? 8 : 8,
+                    x: 0,
+                    y: 2
+                )
+        )
+    }
+    
+    private func transactionHistoryRow(transaction: AssetTransactionHistory) -> some View {
+        HStack(spacing: 16) {
+            // Transaction Type Icon
+            ZStack {
+                Circle()
+                    .fill(Color(transaction.transactionType.color).opacity(0.1))
+                    .frame(width: 44, height: 44)
+                
+                Image(systemName: transaction.transactionType.icon)
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(Color(transaction.transactionType.color))
+            }
+            
+            // Transaction Info
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Text(transaction.transactionType.displayName)
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    
+                    if transaction.transactionType == .add || transaction.transactionType == .remove {
+                        Text(transaction.formattedAmount)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(transaction.transactionType == .add ? .green : .red)
+                    }
+                }
+                
+                HStack(spacing: 4) {
+                    Text(transaction.formattedDate)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    Text("•")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    if transaction.totalAmount.truncatingRemainder(dividingBy: 1) == 0 {
+                        Text("Toplam: \(String(format: "%.0f", transaction.totalAmount)) \(asset.unit)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text("Toplam: \(String(format: "%.2f", transaction.totalAmount)) \(asset.unit)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            
+            Spacer()
+            
+            // Total Value
+            VStack(alignment: .trailing, spacing: 4) {
+                Text(transaction.totalValue.formatAsCurrency())
+                    .font(.headline.weight(.semibold))
+                    .foregroundColor(.primary)
+                
+                Text("Birim: \(transaction.price.formatAsCurrency())")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.horizontal)
+    }
+    
+    private var emptyTransactionHistoryView: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "doc.text.magnifyingglass")
+                .font(.system(size: 40))
+                .foregroundColor(.secondary)
+            
+            Text("Henüz işlem geçmişi bulunmuyor")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            
+            Text("Varlık eklemeleri ve güncellemeleri burada görünür")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
+        .padding(.horizontal)
+    }
+
     // MARK: - Price History List
 
     private var priceHistoryList: some View {
@@ -225,8 +361,7 @@ struct AssetDetailView: View {
                 .padding(.horizontal)
             
             if priceHistory.isEmpty {
-                // Sadece ilk ekleme bilgisini göster
-                initialPriceHistoryView
+                emptyHistoryView
             } else {
                 VStack(spacing: 12) {
                     ForEach(Array(priceHistory.enumerated()), id: \.element.id) { index, entry in
@@ -248,61 +383,13 @@ struct AssetDetailView: View {
         )
     }
 
-    // MARK: - Initial Price History View (Geçmiş yoksa)
-
-    private var initialPriceHistoryView: some View {
-        HStack(spacing: 16) {
-            // Date Circle
-            ZStack {
-                Circle()
-                    .fill(Color.blue.opacity(0.1))
-                    .frame(width: 44, height: 44)
-                
-                VStack(spacing: 0) {
-                    Text(asset.dateAdded.dayString)
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.blue)
-                    
-                    Text(asset.dateAdded.monthString)
-                        .font(.system(size: 8, weight: .medium))
-                        .foregroundColor(.blue)
-                }
-            }
-            
-            // Price Info
-            VStack(alignment: .leading, spacing: 4) {
-                Text(initialPrice.formatAsCurrency())
-                    .font(.headline)
-                    .foregroundColor(.primary)
-                
-                Text(asset.dateAdded.formattedDateTime)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            
-            Spacer()
-            
-            // "İlk Ekleme" Badge
-            Text("İlk Ekleme")
-                .font(.caption.weight(.semibold))
-                .foregroundColor(.blue)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color.blue.opacity(0.1))
-                )
-        }
-        .padding(.horizontal)
-    }
-
     // MARK: - Helper Properties
 
     private var hasPriceChange: Bool {
-        return abs(priceChangePercentage) >= 0.01 // 0.01%'den fazla değişim varsa göster
+        return abs(priceChangePercentage) >= 0.01
     }
     
-    private func priceHistoryRow(entry: PriceHistoryEntry, index: Int) -> some View {
+    private func priceHistoryRow(entry: AssetPriceHistory, index: Int) -> some View {
         HStack(spacing: 16) {
             // Date Circle
             ZStack {
@@ -337,12 +424,23 @@ struct AssetDetailView: View {
             // Change Badge
             if index > 0 {
                 changeIndicator(currentEntry: entry, previousEntry: priceHistory[index - 1])
+            } else {
+                // First entry badge
+                Text("İlk Kayıt")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(.blue)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.blue.opacity(0.1))
+                    )
             }
         }
         .padding(.horizontal)
     }
     
-    private func changeIndicator(currentEntry: PriceHistoryEntry, previousEntry: PriceHistoryEntry) -> some View {
+    private func changeIndicator(currentEntry: AssetPriceHistory, previousEntry: AssetPriceHistory) -> some View {
         let change = ((currentEntry.price - previousEntry.price) / previousEntry.price) * 100
         
         return HStack(spacing: 4) {
@@ -370,9 +468,15 @@ struct AssetDetailView: View {
             Text("Henüz fiyat geçmişi bulunmuyor")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
+            
+            Text("Varlığınız her app açılışında otomatik kaydedilir")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
+        .padding(.horizontal)
     }
     
     // MARK: - Period Selection Sheet
@@ -460,25 +564,12 @@ struct AssetDetailView: View {
         return ((asset.currentPrice - initialPrice) / initialPrice) * 100
     }
     
-    private var filteredPriceHistory: [PriceHistoryEntry] {
+    private var filteredPriceHistory: [AssetPriceHistory] {
         let calendar = Calendar.current
         let now = Date()
+        let startDate = calendar.date(byAdding: .day, value: -selectedPeriod.days, to: now)!
         
-        switch selectedPeriod {
-        case .daily:
-            return priceHistory.filter {
-                calendar.isDate($0.date, inSameDayAs: now) ||
-                calendar.dateComponents([.day], from: $0.date, to: now).day ?? 0 <= 7
-            }
-        case .weekly:
-            return priceHistory.filter {
-                calendar.dateComponents([.weekOfYear], from: $0.date, to: now).weekOfYear ?? 0 <= 4
-            }
-        case .monthly:
-            return priceHistory.filter {
-                calendar.dateComponents([.month], from: $0.date, to: now).month ?? 0 <= 6
-            }
-        }
+        return priceHistory.filter { $0.date >= startDate }
     }
     
     private var hasChartData: Bool {
@@ -508,25 +599,6 @@ struct AssetDetailView: View {
         return lowerBound...upperBound
     }
     
-    private var xAxisStride: Calendar.Component {
-        switch selectedPeriod {
-        case .daily: return .hour
-        case .weekly: return .day
-        case .monthly: return .weekOfYear
-        }
-    }
-    
-    private var xAxisDateFormat: Date.FormatStyle {
-        switch selectedPeriod {
-        case .daily:
-            return .dateTime.hour()
-        case .weekly:
-            return .dateTime.day().month(.abbreviated)
-        case .monthly:
-            return .dateTime.month(.abbreviated)
-        }
-    }
-    
     private func formatPercentage(_ value: Double) -> String {
         let absValue = abs(value)
         
@@ -539,55 +611,33 @@ struct AssetDetailView: View {
     }
     
     private func loadPriceHistory() {
-        let calendar = Calendar.current
-        let now = Date()
+        // Gerçek history verilerini SwiftData'dan yükle
+        priceHistory = AssetHistoryManager.shared.getHistory(
+            for: asset.type,
+            context: modelContext
+        )
         
-        let daysSinceAdded = calendar.dateComponents([.day], from: asset.dateAdded, to: now).day ?? 0
+        Logger.log("📊 AssetDetailView: Loaded \(priceHistory.count) history entries for \(asset.name)")
+    }
+    
+    private func loadTransactionHistory() {
+        // İşlem geçmişini SwiftData'dan yükle
+        transactionHistory = AssetHistoryManager.shared.getTransactionHistory(
+            for: asset.type,
+            context: modelContext
+        )
         
-        if daysSinceAdded == 0 {
-            priceHistory = [
-                PriceHistoryEntry(
-                    date: asset.dateAdded,
-                    price: initialPrice
-                ),
-                PriceHistoryEntry(
-                    date: now,
-                    price: asset.currentPrice
-                )
-            ]
-        } else {
-            priceHistory = (0...min(daysSinceAdded, 30)).compactMap { dayOffset in
-                guard let date = calendar.date(byAdding: .day, value: -dayOffset, to: now) else { return nil }
-                
-                let progress = Double(daysSinceAdded - dayOffset) / Double(daysSinceAdded)
-                let priceDifference = asset.currentPrice - initialPrice
-                let price = initialPrice + (priceDifference * progress)
-                
-                let variance = price * Double.random(in: -0.02...0.02)
-                let finalPrice = max(0, price + variance)
-                
-                return PriceHistoryEntry(
-                    date: date,
-                    price: finalPrice
-                )
-            }.reversed()
-        }
-        
-        Logger.log("📊 AssetDetailView: Loaded \(priceHistory.count) price history entries for \(asset.name)")
+        Logger.log("📝 AssetDetailView: Loaded \(transactionHistory.count) transaction entries for \(asset.name)")
     }
 }
 
-// MARK: - Price History Entry Model
+// MARK: - AssetPriceHistory Extensions for Display
 
-struct PriceHistoryEntry: Identifiable, Equatable {
-    let id = UUID()
-    let date: Date
-    let price: Double
-    
+extension AssetPriceHistory {
     var formattedDate: String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
-        formatter.timeStyle = .short
+        formatter.timeStyle = .none
         formatter.locale = Locale(identifier: "tr_TR")
         return formatter.string(from: date)
     }
@@ -603,11 +653,6 @@ struct PriceHistoryEntry: Identifiable, Equatable {
         formatter.dateFormat = "MMM"
         formatter.locale = Locale(identifier: "tr_TR")
         return formatter.string(from: date).uppercased()
-    }
-    
-    // Equatable conformance
-    static func == (lhs: PriceHistoryEntry, rhs: PriceHistoryEntry) -> Bool {
-        return lhs.id == rhs.id
     }
 }
 
