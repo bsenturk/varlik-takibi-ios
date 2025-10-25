@@ -106,7 +106,7 @@ struct AssetsView: View {
                             .font(.title.bold())
                             .foregroundColor(.white)
                         
-                        // Currency Selector Menu - DÜZELTME
+                        // Currency Selector Menu
                         Menu {
                             ForEach(Currency.allCases, id: \.self) { currency in
                                 Button {
@@ -382,6 +382,12 @@ struct AssetsView: View {
     private func deleteAsset(_ asset: Asset) {
         withAnimation(.easeInOut(duration: 0.4)) {
             PortfolioManager.shared.removePurchasePrice(for: asset.id)
+            
+            // Varlığın tüm history kayıtlarını sil
+            AssetHistoryManager.shared.deleteAllHistory(for: asset.type, context: modelContext)
+            
+            // Varlığın tüm işlem geçmişini sil
+            AssetHistoryManager.shared.deleteAllTransactionHistory(for: asset.type, context: modelContext)
             
             modelContext.delete(asset)
             

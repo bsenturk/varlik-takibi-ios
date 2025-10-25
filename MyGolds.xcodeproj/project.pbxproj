@@ -11,6 +11,7 @@
 		9B0F50472B7FFCB400A03018 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9B0F50462B7FFCB400A03018 /* Assets.xcassets */; };
 		9B0F504A2B7FFCB400A03018 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9B0F50492B7FFCB400A03018 /* Preview Assets.xcassets */; };
 		9B4772432BA8F3FA00B13CCC /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 9B4772422BA8F3FA00B13CCC /* GoogleService-Info.plist */; };
+		9B6F05CF2EA7FD110097ED33 /* AssetTransactionHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B6F05CE2EA7FD040097ED33 /* AssetTransactionHistory.swift */; };
 		9B81D6C92BA4DCB400C8E9D2 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = 9B81D6C82BA4DCB400C8E9D2 /* GoogleMobileAds */; };
 		9B83C01E2B8793460028CF6E /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 9B83C01D2B8793460028CF6E /* SwiftSoup */; };
 		9B83C0242B87E3E70028CF6E /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 9B83C0232B87E3E70028CF6E /* FirebaseAnalytics */; };
@@ -106,6 +107,7 @@
 		9B0F50462B7FFCB400A03018 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		9B0F50492B7FFCB400A03018 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		9B4772422BA8F3FA00B13CCC /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		9B6F05CE2EA7FD040097ED33 /* AssetTransactionHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetTransactionHistory.swift; sourceTree = "<group>"; };
 		9B755AC02B94E5EC00BC4CF1 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		9BC2B5F52E9FB265009C4B5F /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		9BC2B5F62E9FB265009C4B5F /* APIError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIError.swift; sourceTree = "<group>"; };
@@ -473,6 +475,7 @@
 		D8581F402E0EDC0900E48444 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				9B6F05CE2EA7FD040097ED33 /* AssetTransactionHistory.swift */,
 				9BC2B6C22EA56B21009C4B5F /* Currency.swift */,
 				9BC2B6B92EA51838009C4B5F /* AssetPriceHistory.swift */,
 				D8581F712E0F5E5A00E48444 /* AssetFormDisplayModel.swift */,
@@ -694,6 +697,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9B6F05CF2EA7FD110097ED33 /* AssetTransactionHistory.swift in Sources */,
 				D8581F7C2E0FF38E00E48444 /* AdmobManager.swift in Sources */,
 				D8581F382E0EDB6800E48444 /* ShareView.swift in Sources */,
 				9B0F50432B7FFCB300A03018 /* MyGoldsApp.swift in Sources */,
@@ -905,7 +909,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0.2;
+				MARKETING_VERSION = 2.0.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.xptapps.assetbook;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -946,7 +950,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0.2;
+				MARKETING_VERSION = 2.0.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.xptapps.assetbook;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
