@@ -417,39 +417,57 @@ struct AssetFormView: View {
                     showingAlert = true
                     return
                 }
-                
+
+                // Önceki miktarı kaydet
+                let previousAmount = asset.amount
+
                 asset.type = selectedAssetType
                 asset.amount = amountValue
                 asset.name = selectedAssetType.displayName
                 asset.unit = selectedAssetType.unit
                 asset.lastUpdated = Date()
-                
+
                 // Update currentPrice with market data
                 if let currentPriceString = viewModel.getSelectedAsset(from: selectedAssetType.displayName)?.sellPrice,
                    let priceValue = currentPriceString.parseToDouble() {
                     asset.currentPrice = priceValue
                 }
-                
+
                 // Update purchase price if provided
                 if !purchasePrice.isEmpty,
                    let customPurchasePrice = Double(purchasePrice.replacingOccurrences(of: ",", with: ".")) {
                     PortfolioManager.shared.storePurchasePrice(for: asset.id, price: customPurchasePrice)
                 }
-                
+
                 try modelContext.save()
-                
+
                 // Bugünün snapshot'ını güncelle
                 AssetHistoryManager.shared.recordDailySnapshot(for: asset, modelContext: modelContext)
-                
-                // İşlem geçmişi kaydet (Edit)
-                AssetHistoryManager.shared.recordTransaction(
-                    assetType: asset.type,
-                    transactionType: .edit,
-                    amount: amountValue,
-                    totalAmount: amountValue,
-                    price: asset.currentPrice,
-                    context: modelContext
-                )
+
+                // İşlem geçmişi kaydet - Miktar değişimine göre add veya remove
+                let amountDifference = amountValue - previousAmount
+                let transactionType: AssetTransactionHistory.TransactionType
+
+                if amountDifference > 0 {
+                    transactionType = .add
+                } else if amountDifference < 0 {
+                    transactionType = .remove
+                } else {
+                    // Miktar değişmedi, işlem geçmişi kaydetme
+                    transactionType = .edit
+                }
+
+                // Sadece miktar değiştiyse transaction kaydet
+                if amountDifference != 0 {
+                    AssetHistoryManager.shared.recordTransaction(
+                        assetType: asset.type,
+                        transactionType: transactionType,
+                        amount: abs(amountDifference),  // Mutlak değer
+                        totalAmount: amountValue,       // Yeni toplam miktar
+                        price: asset.currentPrice,
+                        context: modelContext
+                    )
+                }
                 
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     let allAssets = (try? modelContext.fetch(FetchDescriptor<Asset>())) ?? []

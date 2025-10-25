@@ -286,9 +286,9 @@ class AssetHistoryManager {
     /// Belirli bir asset type için tüm işlem geçmişini getir
     func getTransactionHistory(for assetType: AssetType, context: ModelContext) -> [AssetTransactionHistory] {
         let descriptor = FetchDescriptor<AssetTransactionHistory>(
-            sortBy: [SortDescriptor(\.date, order: .reverse)]
+            sortBy: [SortDescriptor(\.date, order: .forward)]  // En eski üstte, en yeni altta
         )
-        
+
         let allTransactions = (try? context.fetch(descriptor)) ?? []
         return allTransactions.filter { $0.assetType == assetType }
     }
