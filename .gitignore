@@ -1,0 +1,30 @@
+# Xcode build / derived data
+build/
+DerivedData/
+
+# Kullanıcıya özel ayarlar
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+
+# Diğer Xcode geçici/metaveri dosyaları
+*.moved-aside
+*.xccheckout
+*.xcuserstate
+*.xcscmblueprint
+
+# Obj-C/Swift özel
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# macOS sistem dosyaları
+.DS_Store
+._*

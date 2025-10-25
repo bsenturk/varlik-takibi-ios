@@ -12,12 +12,32 @@ struct AssetDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var interstitialAdManager: InterstitialAdManager
     let asset: Asset
-    
+
     @State private var selectedPeriod: ChartPeriod = .daily
     @State private var showPeriodSheet = false
-    @State private var priceHistory: [AssetPriceHistory] = []
-    @State private var transactionHistory: [AssetTransactionHistory] = []
+
+    // Computed properties to avoid detached context issues
+    private var priceHistory: [AssetPriceHistory] {
+        let calendar = Calendar.current
+        let endDate = Date()
+        let startDate = calendar.date(byAdding: .day, value: -selectedPeriod.days, to: endDate) ?? endDate
+
+        return AssetHistoryManager.shared.getHistory(
+            for: asset.type,
+            from: startDate,
+            to: endDate,
+            context: modelContext
+        )
+    }
+
+    private var transactionHistory: [AssetTransactionHistory] {
+        AssetHistoryManager.shared.getTransactionHistory(
+            for: asset.type,
+            context: modelContext
+        )
+    }
     
     enum ChartPeriod: String, CaseIterable {
         case daily = "Günlük"
@@ -65,8 +85,10 @@ struct AssetDetailView: View {
             periodSelectionSheet
         }
         .onAppear {
-            loadPriceHistory()
-            loadTransactionHistory()
+            // Show interstitial ad when detail view opens
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                interstitialAdManager.showAdIfAvailable()
+            }
         }
     }
     
@@ -442,21 +464,40 @@ struct AssetDetailView: View {
     
     private func changeIndicator(currentEntry: AssetPriceHistory, previousEntry: AssetPriceHistory) -> some View {
         let change = ((currentEntry.price - previousEntry.price) / previousEntry.price) * 100
-        
-        return HStack(spacing: 4) {
-            Image(systemName: change >= 0 ? "arrow.up.right" : "arrow.down.right")
-                .font(.caption2)
-            
-            Text(formatPercentage(change))
-                .font(.caption.weight(.semibold))
+
+        // Check if change is effectively zero
+        if abs(change) < 0.01 {
+            return AnyView(
+                HStack(spacing: 4) {
+                    Text("- 0.00%")
+                        .font(.caption.weight(.semibold))
+                }
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color.secondary.opacity(0.1))
+                )
+            )
+        } else {
+            return AnyView(
+                HStack(spacing: 4) {
+                    Image(systemName: change >= 0 ? "arrow.up.right" : "arrow.down.right")
+                        .font(.caption2)
+
+                    Text(formatPercentage(change))
+                        .font(.caption.weight(.semibold))
+                }
+                .foregroundColor(change >= 0 ? .green : .red)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill((change >= 0 ? Color.green : Color.red).opacity(0.1))
+                )
+            )
         }
-        .foregroundColor(change >= 0 ? .green : .red)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill((change >= 0 ? Color.green : Color.red).opacity(0.1))
-        )
     }
     
     private var emptyHistoryView: some View {
@@ -610,25 +651,6 @@ struct AssetDetailView: View {
         return "\(sign)\(String(format: "%.2f", value))%"
     }
     
-    private func loadPriceHistory() {
-        // Gerçek history verilerini SwiftData'dan yükle
-        priceHistory = AssetHistoryManager.shared.getHistory(
-            for: asset.type,
-            context: modelContext
-        )
-        
-        Logger.log("📊 AssetDetailView: Loaded \(priceHistory.count) history entries for \(asset.name)")
-    }
-    
-    private func loadTransactionHistory() {
-        // İşlem geçmişini SwiftData'dan yükle
-        transactionHistory = AssetHistoryManager.shared.getTransactionHistory(
-            for: asset.type,
-            context: modelContext
-        )
-        
-        Logger.log("📝 AssetDetailView: Loaded \(transactionHistory.count) transaction entries for \(asset.name)")
-    }
 }
 
 // MARK: - AssetPriceHistory Extensions for Display

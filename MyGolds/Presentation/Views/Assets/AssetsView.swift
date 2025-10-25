@@ -14,11 +14,12 @@ struct AssetsView: View {
     @StateObject private var viewModel = AssetsViewModel()
     @StateObject private var portfolioManager = PortfolioManager.shared
     @StateObject private var marketDataManager = MarketDataManager.shared
+    @EnvironmentObject private var interstitialAdManager: InterstitialAdManager
     @State private var showingAddAsset = false
     @State private var showingAnalytics = false
     @State private var showingDeletePopup = false
     @State private var assetToDelete: Asset?
-    
+
     @AppStorage("selectedCurrency") private var selectedCurrency: Currency = .TRY
     
     var body: some View {
@@ -40,7 +41,11 @@ struct AssetsView: View {
                         HStack {
                             Spacer()
                             
-                            Button(action: { showingAddAsset = true }) {
+                            Button(action: {
+                                // Preload ad before opening form
+                                interstitialAdManager.preloadAd()
+                                showingAddAsset = true
+                            }) {
                                 Image(systemName: "plus")
                                     .font(.title2.weight(.semibold))
                                     .foregroundColor(.white)
@@ -72,8 +77,9 @@ struct AssetsView: View {
                     .zIndex(1000)
                 }
             }
-            .sheet(isPresented: $showingAddAsset) {
+            .fullScreenCover(isPresented: $showingAddAsset) {
                 AssetFormView()
+                    .environmentObject(interstitialAdManager)
             }
             .sheet(isPresented: $showingAnalytics) {
                 AnalyticsView()
@@ -214,6 +220,7 @@ struct AssetsView: View {
                         ))
                     }
                 }
+                .padding(.top, 4)
                 .padding(.horizontal, 20)
                 .padding(.bottom, 180)
             }
@@ -246,7 +253,11 @@ struct AssetsView: View {
                     .padding(.horizontal, 40)
             }
             
-            Button(action: { showingAddAsset = true }) {
+            Button(action: {
+                // Preload ad before opening form
+                interstitialAdManager.preloadAd()
+                showingAddAsset = true
+            }) {
                 HStack {
                     Image(systemName: "plus.circle.fill")
                     Text("İlk Varlığını Ekle")

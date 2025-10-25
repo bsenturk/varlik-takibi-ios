@@ -9,6 +9,7 @@ import SwiftUI
 
 struct AssetCardView: View {
     @Environment(\.colorScheme) var colorScheme
+    @EnvironmentObject private var interstitialAdManager: InterstitialAdManager
     let asset: Asset
     let onDelete: () -> Void
     @State private var showingFormSheet = false
@@ -19,8 +20,9 @@ struct AssetCardView: View {
             cardContent
         }
         .buttonStyle(PlainButtonStyle())
-        .sheet(isPresented: $showingFormSheet) {
+        .fullScreenCover(isPresented: $showingFormSheet) {
             AssetFormView(asset: asset)
+                .environmentObject(interstitialAdManager)
         }
     }
     
@@ -63,6 +65,8 @@ struct AssetCardView: View {
                 
                 HStack(spacing: 4) {
                     Button(action: {
+                        // Preload ad before opening form
+                        interstitialAdManager.preloadAd()
                         showingFormSheet = true
                     }) {
                         Image(systemName: "pencil")
@@ -98,6 +102,7 @@ struct AssetCardView: View {
                 )
         )
         .cornerRadius(12)
+        .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
         .scaleEffect(isDeleting ? 0.95 : 1.0)
         .opacity(isDeleting ? 0.5 : 1.0)
         .animation(.easeInOut(duration: 0.3), value: isDeleting)

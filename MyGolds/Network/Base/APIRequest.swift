@@ -18,7 +18,7 @@ protocol APIRequest {
 
 extension APIRequest {
     var baseURL: String {
-        "https://finance.truncgil.com/api"
+        "https://finans.truncgil.com/v3"
     }
     
     var headers: [String: String]? { nil }

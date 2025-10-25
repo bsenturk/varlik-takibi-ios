@@ -91,207 +91,203 @@ final class MarketDataManager: ObservableObject {
     
     private func mapCurrencyData(from response: RatesResponse) -> [AssetsPrice] {
         var currencies: [AssetsPrice] = []
-        
-        let rates = response.rates
-        
+
         currencies.append(AssetsPrice(
             name: "Dolar",
             code: "USD",
-            buyPrice: formatPrice(rates.usd.buying),
-            sellPrice: formatPrice(rates.usd.selling),
+            buyPrice: formatPrice(response.usd.buyingValue),
+            sellPrice: formatPrice(response.usd.sellingValue),
             change: "",
-            changePercent: formatChange(rates.usd.change),
+            changePercent: formatChange(response.usd.changeValue),
             lastUpdate: Date()
         ))
-        
+
         currencies.append(AssetsPrice(
             name: "Euro",
             code: "EUR",
-            buyPrice: formatPrice(rates.eur.buying),
-            sellPrice: formatPrice(rates.eur.selling),
+            buyPrice: formatPrice(response.eur.buyingValue),
+            sellPrice: formatPrice(response.eur.sellingValue),
             change: "",
-            changePercent: formatChange(rates.eur.change),
+            changePercent: formatChange(response.eur.changeValue),
             lastUpdate: Date()
         ))
-        
+
         currencies.append(AssetsPrice(
             name: "Sterlin",
             code: "GBP",
-            buyPrice: formatPrice(rates.gbp.buying),
-            sellPrice: formatPrice(rates.gbp.selling),
+            buyPrice: formatPrice(response.gbp.buyingValue),
+            sellPrice: formatPrice(response.gbp.sellingValue),
             change: "",
-            changePercent: formatChange(rates.gbp.change),
+            changePercent: formatChange(response.gbp.changeValue),
             lastUpdate: Date()
         ))
-        
+
         return currencies
     }
     
     private func mapGoldData(from response: RatesResponse) -> [AssetsPrice] {
         var goldPrices: [AssetsPrice] = []
-        
-        let rates = response.rates
-        
+
         goldPrices.append(AssetsPrice(
             name: "Gram Altın",
             code: "GRA",
-            buyPrice: formatPrice(rates.gra.buying),
-            sellPrice: formatPrice(rates.gra.selling),
+            buyPrice: formatPrice(response.gra.buyingValue),
+            sellPrice: formatPrice(response.gra.sellingValue),
             change: "",
-            changePercent: formatChange(rates.gra.change),
+            changePercent: formatChange(response.gra.changeValue),
             lastUpdate: Date()
         ))
-        
+
         goldPrices.append(AssetsPrice(
             name: "Çeyrek Altın",
             code: "CEYREK",
-            buyPrice: formatPrice(rates.quarterGold.buying),
-            sellPrice: formatPrice(rates.quarterGold.selling),
+            buyPrice: formatPrice(response.quarterGold.buyingValue),
+            sellPrice: formatPrice(response.quarterGold.sellingValue),
             change: "",
-            changePercent: formatChange(rates.quarterGold.change),
+            changePercent: formatChange(response.quarterGold.changeValue),
             lastUpdate: Date()
         ))
-        
+
         goldPrices.append(AssetsPrice(
             name: "Yarım Altın",
             code: "YARIM",
-            buyPrice: formatPrice(rates.halfGold.buying),
-            sellPrice: formatPrice(rates.halfGold.selling),
+            buyPrice: formatPrice(response.halfGold.buyingValue),
+            sellPrice: formatPrice(response.halfGold.sellingValue),
             change: "",
-            changePercent: formatChange(rates.halfGold.change),
+            changePercent: formatChange(response.halfGold.changeValue),
             lastUpdate: Date()
         ))
-        
+
         goldPrices.append(AssetsPrice(
             name: "Tam Altın",
             code: "TAM",
-            buyPrice: formatPrice(rates.fullGold.buying),
-            sellPrice: formatPrice(rates.fullGold.selling),
+            buyPrice: formatPrice(response.fullGold.buyingValue),
+            sellPrice: formatPrice(response.fullGold.sellingValue),
             change: "",
-            changePercent: formatChange(rates.fullGold.change),
+            changePercent: formatChange(response.fullGold.changeValue),
             lastUpdate: Date()
         ))
-        
+
         goldPrices.append(AssetsPrice(
             name: "Cumhuriyet Altını",
             code: "HAS",
-            buyPrice: formatPrice(rates.republicGold.buying),
-            sellPrice: formatPrice(rates.republicGold.selling),
+            buyPrice: formatPrice(response.republicGold.buyingValue),
+            sellPrice: formatPrice(response.republicGold.sellingValue),
             change: "",
-            changePercent: formatChange(rates.republicGold.change),
+            changePercent: formatChange(response.republicGold.changeValue),
             lastUpdate: Date()
         ))
-        
+
         goldPrices.append(AssetsPrice(
             name: "Ata Altın",
             code: "ATA",
-            buyPrice: formatPrice(rates.ataGold.buying),
-            sellPrice: formatPrice(rates.ataGold.selling),
+            buyPrice: formatPrice(response.ataGold.buyingValue),
+            sellPrice: formatPrice(response.ataGold.sellingValue),
             change: "",
-            changePercent: formatChange(rates.ataGold.change),
+            changePercent: formatChange(response.ataGold.changeValue),
             lastUpdate: Date()
         ))
-        
+
         goldPrices.append(AssetsPrice(
             name: "Reşat Altın",
             code: "RESAT",
-            buyPrice: formatPrice(rates.resatGold.buying),
-            sellPrice: formatPrice(rates.resatGold.selling),
+            buyPrice: formatPrice(response.resatGold.buyingValue),
+            sellPrice: formatPrice(response.resatGold.sellingValue),
             change: "",
-            changePercent: formatChange(rates.resatGold.change),
+            changePercent: formatChange(response.resatGold.changeValue),
             lastUpdate: Date()
         ))
-        
+
         goldPrices.append(AssetsPrice(
             name: "Hamit Altın",
             code: "HAMIT",
-            buyPrice: formatPrice(rates.hamitGold.buying),
-            sellPrice: formatPrice(rates.hamitGold.selling),
+            buyPrice: formatPrice(response.hamitGold.buyingValue),
+            sellPrice: formatPrice(response.hamitGold.sellingValue),
             change: "",
-            changePercent: formatChange(rates.hamitGold.change),
+            changePercent: formatChange(response.hamitGold.changeValue),
             lastUpdate: Date()
         ))
-        
+
         goldPrices.append(AssetsPrice(
             name: "Beşli Altın",
             code: "BESLI",
-            buyPrice: formatPrice(rates.fiveRateGold.buying),
-            sellPrice: formatPrice(rates.fiveRateGold.selling),
+            buyPrice: formatPrice(response.fiveRateGold.buyingValue),
+            sellPrice: formatPrice(response.fiveRateGold.sellingValue),
             change: "",
-            changePercent: formatChange(rates.fiveRateGold.change),
+            changePercent: formatChange(response.fiveRateGold.changeValue),
             lastUpdate: Date()
         ))
-        
+
         goldPrices.append(
             AssetsPrice(
                 name: "Gremse Altın",
                 code: "GREMSE",
-                buyPrice: formatPrice(rates.gremseGold.buying),
-                sellPrice: formatPrice(rates.gremseGold.selling),
+                buyPrice: formatPrice(response.gremseGold.buyingValue),
+                sellPrice: formatPrice(response.gremseGold.sellingValue),
                 change: "",
-                changePercent: formatChange(rates.gremseGold.change),
+                changePercent: formatChange(response.gremseGold.changeValue),
                 lastUpdate: Date()
             )
         )
-        
+
         goldPrices.append(
             AssetsPrice(
                 name: "14 Ayar Altın",
                 code: "14AYAR",
-                buyPrice: formatPrice(rates.fourteenRateGold.buying),
-                sellPrice: formatPrice(rates.fourteenRateGold.selling),
+                buyPrice: formatPrice(response.fourteenRateGold.buyingValue),
+                sellPrice: formatPrice(response.fourteenRateGold.sellingValue),
                 change: "",
-                changePercent: formatChange(rates.fourteenRateGold.change),
+                changePercent: formatChange(response.fourteenRateGold.changeValue),
                 lastUpdate: Date()
             )
         )
-        
+
         goldPrices.append(
             AssetsPrice(
                 name: "18 Ayar Altın",
                 code: "18AYAR",
-                buyPrice: formatPrice(rates.eighteenRateGold.buying),
-                sellPrice: formatPrice(rates.eighteenRateGold.selling),
+                buyPrice: formatPrice(response.eighteenRateGold.buyingValue),
+                sellPrice: formatPrice(response.eighteenRateGold.sellingValue),
                 change: "",
-                changePercent: formatChange(rates.eighteenRateGold.change),
+                changePercent: formatChange(response.eighteenRateGold.changeValue),
                 lastUpdate: Date()
             )
         )
-        
+
         goldPrices.append(
             AssetsPrice(
                 name: "İki Buçuk Altın",
                 code: "IKIBUCUK",
-                buyPrice: formatPrice(rates.twoAndHalfRateGold.buying),
-                sellPrice: formatPrice(rates.twoAndHalfRateGold.selling),
+                buyPrice: formatPrice(response.twoAndHalfRateGold.buyingValue),
+                sellPrice: formatPrice(response.twoAndHalfRateGold.sellingValue),
                 change: "",
-                changePercent: formatChange(rates.twoAndHalfRateGold.change),
+                changePercent: formatChange(response.twoAndHalfRateGold.changeValue),
                 lastUpdate: Date()
             )
         )
-        
+
         goldPrices.append(
             AssetsPrice(
                 name: "22 Ayar Bilezik",
                 code: "22AYARBILEZIK",
-                buyPrice: formatPrice(rates.twentyTwoRateBracelet.buying),
-                sellPrice: formatPrice(rates.twentyTwoRateBracelet.selling),
+                buyPrice: formatPrice(response.twentyTwoRateBracelet.buyingValue),
+                sellPrice: formatPrice(response.twentyTwoRateBracelet.sellingValue),
                 change: "",
-                changePercent: formatChange(rates.twentyTwoRateBracelet.change),
+                changePercent: formatChange(response.twentyTwoRateBracelet.changeValue),
                 lastUpdate: Date()
             )
         )
-        
+
         goldPrices.append(AssetsPrice(
             name: "Gram Gümüş",
             code: "GUMUS",
-            buyPrice: formatPrice(rates.silver.buying),
-            sellPrice: formatPrice(rates.silver.selling),
+            buyPrice: formatPrice(response.silver.buyingValue),
+            sellPrice: formatPrice(response.silver.sellingValue),
             change: "",
-            changePercent: formatChange(rates.silver.change),
+            changePercent: formatChange(response.silver.changeValue),
             lastUpdate: Date()
         ))
-        
+
         return goldPrices
     }
     
