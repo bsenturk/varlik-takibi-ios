@@ -214,7 +214,13 @@ class InterstitialAdManager: NSObject, ObservableObject, GADFullScreenContentDel
             return
         }
 
-        Logger.log("📱 Interstitial: Showing ad")
+        // Find the topmost view controller (handles fullScreenCover case)
+        var topController = rootViewController
+        while let presented = topController.presentedViewController {
+            topController = presented
+        }
+
+        Logger.log("📱 Interstitial: Showing ad from topmost controller")
 
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
@@ -225,7 +231,7 @@ class InterstitialAdManager: NSObject, ObservableObject, GADFullScreenContentDel
             // Hide banner while interstitial is showing
             AdMobManager.shared.hideBanner()
 
-            self.interstitialAd?.present(fromRootViewController: rootViewController)
+            self.interstitialAd?.present(fromRootViewController: topController)
         }
     }
 

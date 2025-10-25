@@ -65,6 +65,8 @@ struct AssetCardView: View {
                 
                 HStack(spacing: 4) {
                     Button(action: {
+                        // Preload ad before opening form
+                        interstitialAdManager.preloadAd()
                         showingFormSheet = true
                     }) {
                         Image(systemName: "pencil")

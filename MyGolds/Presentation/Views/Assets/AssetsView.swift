@@ -41,7 +41,11 @@ struct AssetsView: View {
                         HStack {
                             Spacer()
                             
-                            Button(action: { showingAddAsset = true }) {
+                            Button(action: {
+                                // Preload ad before opening form
+                                interstitialAdManager.preloadAd()
+                                showingAddAsset = true
+                            }) {
                                 Image(systemName: "plus")
                                     .font(.title2.weight(.semibold))
                                     .foregroundColor(.white)
@@ -248,7 +252,11 @@ struct AssetsView: View {
                     .padding(.horizontal, 40)
             }
             
-            Button(action: { showingAddAsset = true }) {
+            Button(action: {
+                // Preload ad before opening form
+                interstitialAdManager.preloadAd()
+                showingAddAsset = true
+            }) {
                 HStack {
                     Image(systemName: "plus.circle.fill")
                     Text("İlk Varlığını Ekle")
