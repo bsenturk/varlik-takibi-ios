@@ -68,15 +68,28 @@ struct CommonRateDto: Decodable {
 
     // Helper computed properties to convert string to double
     var buyingValue: Double {
-        return buying.replacingOccurrences(of: ",", with: ".").replacingOccurrences(of: "$", with: "").trimmingCharacters(in: .whitespaces).toDouble() ?? 0.0
+        return buying
+            .replacingOccurrences(of: "$", with: "")
+            .replacingOccurrences(of: ".", with: "")  // Remove thousand separator
+            .replacingOccurrences(of: ",", with: ".")  // Convert decimal separator to dot
+            .trimmingCharacters(in: .whitespaces)
+            .toDouble() ?? 0.0
     }
 
     var sellingValue: Double {
-        return selling.replacingOccurrences(of: ",", with: ".").replacingOccurrences(of: "$", with: "").trimmingCharacters(in: .whitespaces).toDouble() ?? 0.0
+        return selling
+            .replacingOccurrences(of: "$", with: "")
+            .replacingOccurrences(of: ".", with: "")  // Remove thousand separator
+            .replacingOccurrences(of: ",", with: ".")  // Convert decimal separator to dot
+            .trimmingCharacters(in: .whitespaces)
+            .toDouble() ?? 0.0
     }
 
     var changeValue: Double {
-        let cleanedChange = change.replacingOccurrences(of: "%", with: "").replacingOccurrences(of: ",", with: ".").trimmingCharacters(in: .whitespaces)
+        let cleanedChange = change
+            .replacingOccurrences(of: "%", with: "")
+            .replacingOccurrences(of: ",", with: ".")
+            .trimmingCharacters(in: .whitespaces)
         return cleanedChange.toDouble() ?? 0.0
     }
 }
