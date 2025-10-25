@@ -14,11 +14,12 @@ struct AssetsView: View {
     @StateObject private var viewModel = AssetsViewModel()
     @StateObject private var portfolioManager = PortfolioManager.shared
     @StateObject private var marketDataManager = MarketDataManager.shared
+    @EnvironmentObject private var interstitialAdManager: InterstitialAdManager
     @State private var showingAddAsset = false
     @State private var showingAnalytics = false
     @State private var showingDeletePopup = false
     @State private var assetToDelete: Asset?
-    
+
     @AppStorage("selectedCurrency") private var selectedCurrency: Currency = .TRY
     
     var body: some View {
@@ -74,6 +75,7 @@ struct AssetsView: View {
             }
             .fullScreenCover(isPresented: $showingAddAsset) {
                 AssetFormView()
+                    .environmentObject(interstitialAdManager)
             }
             .sheet(isPresented: $showingAnalytics) {
                 AnalyticsView()

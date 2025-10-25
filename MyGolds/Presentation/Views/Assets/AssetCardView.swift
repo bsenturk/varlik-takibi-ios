@@ -9,6 +9,7 @@ import SwiftUI
 
 struct AssetCardView: View {
     @Environment(\.colorScheme) var colorScheme
+    @EnvironmentObject private var interstitialAdManager: InterstitialAdManager
     let asset: Asset
     let onDelete: () -> Void
     @State private var showingFormSheet = false
@@ -21,6 +22,7 @@ struct AssetCardView: View {
         .buttonStyle(PlainButtonStyle())
         .fullScreenCover(isPresented: $showingFormSheet) {
             AssetFormView(asset: asset)
+                .environmentObject(interstitialAdManager)
         }
     }
     
