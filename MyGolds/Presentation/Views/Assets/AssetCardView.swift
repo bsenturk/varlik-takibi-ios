@@ -19,7 +19,7 @@ struct AssetCardView: View {
             cardContent
         }
         .buttonStyle(PlainButtonStyle())
-        .sheet(isPresented: $showingFormSheet) {
+        .fullScreenCover(isPresented: $showingFormSheet) {
             AssetFormView(asset: asset)
         }
     }

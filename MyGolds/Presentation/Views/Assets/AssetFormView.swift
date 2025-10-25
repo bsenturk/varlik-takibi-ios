@@ -89,6 +89,16 @@ struct AssetFormView: View {
             } message: {
                 Text(alertMessage)
             }
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Tamam") {
+                        isAmountFocused = false
+                        isPurchasePriceFocused = false
+                    }
+                    .font(.headline)
+                }
+            }
             .onAppear {
                 // Show interstitial ad when form opens
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -102,16 +112,30 @@ struct AssetFormView: View {
     
     private var headerSection: some View {
         VStack(spacing: 8) {
+            HStack {
+                Button(action: { dismiss() }) {
+                    Image(systemName: "xmark")
+                        .font(.title3)
+                        .foregroundColor(.secondary)
+                        .frame(width: 32, height: 32)
+                        .background(Color(.systemGray6))
+                        .clipShape(Circle())
+                }
+
+                Spacer()
+            }
+            .padding(.top, 8)
+
             VStack(spacing: 8) {
                 Text(isEditMode ? "Varlık Düzenle" : "Varlık Ekle")
                     .font(.title2.bold())
-                
+
                 Text(isEditMode ? "Varlık bilgilerinizi güncelleyin" : "Yeni bir varlık ekleyerek portföyünüzü genişletin")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
             }
-            .padding(.top, 20)
+            .padding(.top, 8)
         }
     }
     

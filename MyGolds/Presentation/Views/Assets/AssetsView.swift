@@ -72,7 +72,7 @@ struct AssetsView: View {
                     .zIndex(1000)
                 }
             }
-            .sheet(isPresented: $showingAddAsset) {
+            .fullScreenCover(isPresented: $showingAddAsset) {
                 AssetFormView()
             }
             .sheet(isPresented: $showingAnalytics) {
