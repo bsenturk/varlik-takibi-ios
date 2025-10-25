@@ -102,6 +102,7 @@ struct AssetCardView: View {
                 )
         )
         .cornerRadius(12)
+        .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
         .scaleEffect(isDeleting ? 0.95 : 1.0)
         .opacity(isDeleting ? 0.5 : 1.0)
         .animation(.easeInOut(duration: 0.3), value: isDeleting)

@@ -220,6 +220,7 @@ struct AssetsView: View {
                         ))
                     }
                 }
+                .padding(.top, 4)
                 .padding(.horizontal, 20)
                 .padding(.bottom, 180)
             }
