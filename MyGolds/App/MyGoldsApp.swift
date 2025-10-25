@@ -49,7 +49,8 @@ struct VarlikDefterimApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Asset.self,
-            AssetPriceHistory.self
+            AssetPriceHistory.self,
+            AssetTransactionHistory.self
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {
@@ -109,7 +110,98 @@ struct VarlikDefterimApp: App {
             hasHandledInitialAuth = true
         }
         
+        // Record daily snapshots for all assets
+        recordDailySnapshots()
+        
         hasInitialSetupCompleted = true
+    }
+    
+    private func recordDailySnapshots() {
+        Logger.log("📸 App: Recording daily snapshots")
+        
+        // Fetch all assets
+        let descriptor = FetchDescriptor<Asset>()
+        guard let assets = try? sharedModelContainer.mainContext.fetch(descriptor) else {
+            Logger.log("📸 App: No assets found to record")
+            return
+        }
+        
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        
+        // Record snapshot for each asset
+        for asset in assets {
+            var shouldRecordDailySnapshot = true
+            let assetAddedDate = calendar.startOfDay(for: asset.dateAdded)
+            
+            // 1. Price History kontrolü - Yoksa initial oluştur
+            let priceHistory = AssetHistoryManager.shared.getHistory(
+                for: asset.type,
+                context: sharedModelContainer.mainContext
+            )
+            
+            if priceHistory.isEmpty {
+                Logger.log("📸 App: No price history for \(asset.name), creating initial price history with original date")
+                
+                // Mevcut varlık için initial price history oluştur - ORIGINAL DATE KULLAN
+                let initialPrice = PortfolioManager.shared.assetPurchasePrices[asset.id] ?? asset.currentPrice
+                
+                AssetHistoryManager.shared.createInitialSnapshot(
+                    for: asset,
+                    purchasePrice: initialPrice,
+                    modelContext: sharedModelContainer.mainContext
+                )
+                
+                // Eğer varlık bugün eklendiyse, daily snapshot'ı tekrar çağırma
+                if assetAddedDate == today {
+                    shouldRecordDailySnapshot = false
+                    Logger.log("📸 App: Asset \(asset.name) was added today, skipping daily snapshot")
+                }
+            }
+            
+            // 2. Transaction history kontrolü - Yoksa initial oluştur
+            let transactions = AssetHistoryManager.shared.getTransactionHistory(
+                for: asset.type,
+                context: sharedModelContainer.mainContext
+            )
+            
+            if transactions.isEmpty {
+                Logger.log("📝 App: No transaction history for \(asset.name), creating initial transaction with original date")
+                
+                // Mevcut varlık için initial transaction oluştur - ORIGINAL DATE KULLAN
+                let initialPrice = PortfolioManager.shared.assetPurchasePrices[asset.id] ?? asset.currentPrice
+                
+                // Initial transaction için asset.dateAdded tarihini kullan
+                let initialTransaction = AssetTransactionHistory(
+                    assetType: asset.type,
+                    date: asset.dateAdded, // BURADA ORIGINAL DATE KULLANILIYOR
+                    transactionType: .initial,
+                    amount: asset.amount,
+                    totalAmount: asset.amount,
+                    price: initialPrice
+                )
+                
+                sharedModelContainer.mainContext.insert(initialTransaction)
+                
+                // Save transaction
+                do {
+                    try sharedModelContainer.mainContext.save()
+                    Logger.log("📝 App: Created initial transaction for \(asset.name) with date: \(asset.dateAdded)")
+                } catch {
+                    Logger.log("❌ App: Failed to save initial transaction - \(error)")
+                }
+            }
+            
+            // 3. Daily snapshot kaydet (sadece gerekirse)
+            if shouldRecordDailySnapshot {
+                AssetHistoryManager.shared.recordDailySnapshot(
+                    for: asset,
+                    modelContext: sharedModelContainer.mainContext
+                )
+            }
+        }
+        
+        Logger.log("📸 App: Recorded snapshots for \(assets.count) assets")
     }
     
     private func handleScenePhaseChange(_ oldPhase: ScenePhase, _ newPhase: ScenePhase) {
@@ -155,6 +247,9 @@ struct VarlikDefterimApp: App {
         if notificationManager.isAuthorized {
             notificationManager.handleAppLaunch()
         }
+        
+        // Record daily snapshots when returning from background
+        recordDailySnapshots()
         
         // App Open Ad'ı göster (arka plandan dönüşte)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {

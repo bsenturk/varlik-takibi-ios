@@ -19,7 +19,7 @@ struct AssetFormView: View {
     @State private var showingAlert = false
     @State private var alertMessage = ""
     @FocusState private var isAmountFocused: Bool
-    @FocusState private var isPurchasePriceFocused: Bool // Yeni eklenen
+    @FocusState private var isPurchasePriceFocused: Bool
     @StateObject private var viewModel = AssetsFormViewModel()
     
     // Edit mode properties
@@ -45,10 +45,8 @@ struct AssetFormView: View {
         // Format amount properly - remove .0 if it's a whole number
         let amountString: String
         if asset.amount.truncatingRemainder(dividingBy: 1) == 0 {
-            // Whole number - show without decimal
             amountString = String(format: "%.0f", asset.amount)
         } else {
-            // Has decimal - show with appropriate precision
             amountString = String(format: "%.2f", asset.amount).replacingOccurrences(of: ".00", with: "")
         }
         self._amount = State(initialValue: amountString)
@@ -218,7 +216,7 @@ struct AssetFormView: View {
         }
     }
     
-    // MARK: - Purchase Price Section (YENİ)
+    // MARK: - Purchase Price Section
     
     private var purchasePriceSection: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -440,6 +438,19 @@ struct AssetFormView: View {
                 
                 try modelContext.save()
                 
+                // Bugünün snapshot'ını güncelle
+                AssetHistoryManager.shared.recordDailySnapshot(for: asset, modelContext: modelContext)
+                
+                // İşlem geçmişi kaydet (Edit)
+                AssetHistoryManager.shared.recordTransaction(
+                    assetType: asset.type,
+                    transactionType: .edit,
+                    amount: amountValue,
+                    totalAmount: amountValue,
+                    price: asset.currentPrice,
+                    context: modelContext
+                )
+                
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     let allAssets = (try? modelContext.fetch(FetchDescriptor<Asset>())) ?? []
                     PortfolioManager.shared.forceUpdate(with: allAssets)
@@ -484,6 +495,19 @@ struct AssetFormView: View {
                     
                     try modelContext.save()
                     
+                    // Bugünün snapshot'ını güncelle
+                    AssetHistoryManager.shared.recordDailySnapshot(for: existingAsset, modelContext: modelContext)
+                    
+                    // İşlem geçmişi kaydet (Add)
+                    AssetHistoryManager.shared.recordTransaction(
+                        assetType: existingAsset.type,
+                        transactionType: .add,
+                        amount: amountValue,
+                        totalAmount: existingAsset.amount,
+                        price: currentPrice,
+                        context: modelContext
+                    )
+                    
                     // Force immediate portfolio update
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         let allAssets = (try? modelContext.fetch(FetchDescriptor<Asset>())) ?? []
@@ -519,6 +543,23 @@ struct AssetFormView: View {
                     
                     modelContext.insert(newAsset)
                     try modelContext.save()
+                    
+                    // İlk kez eklenen varlık için initial snapshot oluştur
+                    AssetHistoryManager.shared.createInitialSnapshot(
+                        for: newAsset,
+                        purchasePrice: priceToUse,
+                        modelContext: modelContext
+                    )
+                    
+                    // İşlem geçmişi kaydet (Initial)
+                    AssetHistoryManager.shared.recordTransaction(
+                        assetType: newAsset.type,
+                        transactionType: .initial,
+                        amount: amountValue,
+                        totalAmount: amountValue,
+                        price: currentPrice,
+                        context: modelContext
+                    )
                     
                     // Force immediate portfolio update
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
