@@ -12,7 +12,8 @@ struct AssetFormView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) var colorScheme
-    
+    @EnvironmentObject private var interstitialAdManager: InterstitialAdManager
+
     @State private var selectedAssetType: AssetType
     @State private var amount: String
     @State private var purchasePrice: String = ""
@@ -87,6 +88,12 @@ struct AssetFormView: View {
                 Button("Tamam") { }
             } message: {
                 Text(alertMessage)
+            }
+            .onAppear {
+                // Show interstitial ad when form opens
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    interstitialAdManager.showAdIfAvailable()
+                }
             }
         }
     }

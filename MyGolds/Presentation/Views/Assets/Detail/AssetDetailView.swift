@@ -12,8 +12,9 @@ struct AssetDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var interstitialAdManager: InterstitialAdManager
     let asset: Asset
-    
+
     @State private var selectedPeriod: ChartPeriod = .daily
     @State private var showPeriodSheet = false
     @State private var priceHistory: [AssetPriceHistory] = []
@@ -67,6 +68,11 @@ struct AssetDetailView: View {
         .onAppear {
             loadPriceHistory()
             loadTransactionHistory()
+
+            // Show interstitial ad when detail view opens
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                interstitialAdManager.showAdIfAvailable()
+            }
         }
     }
     

@@ -37,6 +37,7 @@ struct VarlikDefterimApp: App {
     @StateObject private var coordinator = AppCoordinator()
     @StateObject private var adManager = AdMobManager.shared
     @StateObject private var appOpenAdManager = AppOpenAdManager.shared
+    @StateObject private var interstitialAdManager = InterstitialAdManager.shared
     @StateObject private var lifecycleObserver = AppLifecycleObserver.shared
     @StateObject private var notificationManager = NotificationManager.shared
     @StateObject private var userDefaults = UserDefaultsManager.shared
@@ -66,6 +67,7 @@ struct VarlikDefterimApp: App {
                 .environmentObject(coordinator)
                 .environmentObject(adManager)
                 .environmentObject(appOpenAdManager)
+                .environmentObject(interstitialAdManager)
                 .environmentObject(lifecycleObserver)
                 .environmentObject(notificationManager)
                 .modelContainer(sharedModelContainer)
