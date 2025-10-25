@@ -464,21 +464,40 @@ struct AssetDetailView: View {
     
     private func changeIndicator(currentEntry: AssetPriceHistory, previousEntry: AssetPriceHistory) -> some View {
         let change = ((currentEntry.price - previousEntry.price) / previousEntry.price) * 100
-        
-        return HStack(spacing: 4) {
-            Image(systemName: change >= 0 ? "arrow.up.right" : "arrow.down.right")
-                .font(.caption2)
-            
-            Text(formatPercentage(change))
-                .font(.caption.weight(.semibold))
+
+        // Check if change is effectively zero
+        if abs(change) < 0.01 {
+            return AnyView(
+                HStack(spacing: 4) {
+                    Text("- 0.00%")
+                        .font(.caption.weight(.semibold))
+                }
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color.secondary.opacity(0.1))
+                )
+            )
+        } else {
+            return AnyView(
+                HStack(spacing: 4) {
+                    Image(systemName: change >= 0 ? "arrow.up.right" : "arrow.down.right")
+                        .font(.caption2)
+
+                    Text(formatPercentage(change))
+                        .font(.caption.weight(.semibold))
+                }
+                .foregroundColor(change >= 0 ? .green : .red)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill((change >= 0 ? Color.green : Color.red).opacity(0.1))
+                )
+            )
         }
-        .foregroundColor(change >= 0 ? .green : .red)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill((change >= 0 ? Color.green : Color.red).opacity(0.1))
-        )
     }
     
     private var emptyHistoryView: some View {
