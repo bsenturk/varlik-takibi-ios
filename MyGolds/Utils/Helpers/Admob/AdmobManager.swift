@@ -50,12 +50,18 @@ class AdMobManager: ObservableObject {
     }
     
     func showBannerAd() {
+        // Don't show ads for premium users
+        guard !RevenueCatManager.shared.isPremium else {
+            Logger.log("🎯 Banner: Not showing - User is Premium")
+            return
+        }
+
         // Don't show banner if app open ad is showing
         guard !AppOpenAdManager.shared.isAdShowing else {
             Logger.log("🎯 Banner: Not showing - App Open Ad is active")
             return
         }
-        
+
         Logger.log("🎯 Banner: Showing")
         withAnimation(.easeIn(duration: 0.3)) {
             showBanner = true
@@ -67,8 +73,13 @@ class AdMobManager: ObservableObject {
     }
     
     // MARK: - State Management
-    
+
     var shouldShowBanner: Bool {
+        // Don't show ads for premium users
+        guard !RevenueCatManager.shared.isPremium else {
+            return false
+        }
+
         return showBanner && !isAppOpenAdShowing && initializationComplete
     }
     
@@ -196,6 +207,12 @@ class InterstitialAdManager: NSObject, ObservableObject, GADFullScreenContentDel
     // MARK: - Ad Presentation
 
     func showAdIfAvailable() {
+        // Don't show ads for premium users
+        guard !RevenueCatManager.shared.isPremium else {
+            Logger.log("📱 Interstitial: Not showing - User is Premium")
+            return
+        }
+
         guard canShowAd else {
             Logger.log("📱 Interstitial: Cannot show ad (not available or too soon)")
             if !isAdAvailable {

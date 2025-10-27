@@ -111,6 +111,12 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
     
     // MARK: - Show Ad
     func showAdIfAvailable() {
+        // Don't show ads for premium users
+        guard !RevenueCatManager.shared.isPremium else {
+            Logger.log("📱 App Open Ad: Not showing - User is Premium")
+            return
+        }
+
         guard canShowAd else {
             Logger.log("📱 App Open Ad: Cannot show ad - not available or too soon")
             if !isAdAvailable && !isLoadingAd {

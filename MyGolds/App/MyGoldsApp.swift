@@ -11,22 +11,31 @@ import GoogleMobileAds
 import FirebaseCrashlytics
 import AppTrackingTransparency
 import SwiftData
+import RevenueCat
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil
     ) -> Bool {
-        
+
         // Configure Firebase
         FirebaseApp.configure()
         Logger.log("🔧 Firebase configured")
-        
+
+        // Configure RevenueCat
+        // TODO: RevenueCat Dashboard'dan API Key alınacak
+        // Production: "appl_xxxxxxxxxx"
+        // Not: Bu key'i güvenli bir şekilde saklamalısınız
+        let revenueCatAPIKey = "REVENUECAT_API_KEY_BURAYA"
+        RevenueCatManager.shared.configure(apiKey: revenueCatAPIKey)
+        Logger.log("🔧 RevenueCat configured")
+
         // Start AdMob (handled by AdMobManager)
         Logger.log("🔧 AdMob initialization will be handled by AdMobManager")
-        
+
         UNUserNotificationCenter.current().setBadgeCount(0) { _ in }
-        
+
         return true
     }
 }
@@ -41,6 +50,7 @@ struct VarlikDefterimApp: App {
     @StateObject private var lifecycleObserver = AppLifecycleObserver.shared
     @StateObject private var notificationManager = NotificationManager.shared
     @StateObject private var userDefaults = UserDefaultsManager.shared
+    @StateObject private var revenueCatManager = RevenueCatManager.shared
     
     // State tracking için
     @State private var lastScenePhase: ScenePhase = .active
@@ -70,6 +80,7 @@ struct VarlikDefterimApp: App {
                 .environmentObject(interstitialAdManager)
                 .environmentObject(lifecycleObserver)
                 .environmentObject(notificationManager)
+                .environmentObject(revenueCatManager)
                 .modelContainer(sharedModelContainer)
                 .preferredColorScheme(userDefaults.darkModePreference.colorScheme)
                 .onChange(of: lifecycleObserver.scenePhase) { oldPhase, newPhase in
