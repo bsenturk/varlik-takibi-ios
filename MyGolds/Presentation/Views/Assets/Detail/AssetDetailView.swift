@@ -87,7 +87,7 @@ struct AssetDetailView: View {
         .onAppear {
             // Show interstitial ad when detail view opens
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                interstitialAdManager.showAdIfAvailable()
+                //interstitialAdManager.showAdIfAvailable()
             }
         }
     }

@@ -18,7 +18,7 @@ protocol APIRequest {
 
 extension APIRequest {
     var baseURL: String {
-        "https://finans.truncgil.com/v3"
+        "https://finance.truncgil.com/api"
     }
     
     var headers: [String: String]? { nil }
@@ -43,6 +43,8 @@ extension APIRequest {
         
         var request = URLRequest(url: url)
         request.httpMethod = method.rawValue
+        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        request.timeoutInterval = 60
         
         // Headers ekle
         headers?.forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
