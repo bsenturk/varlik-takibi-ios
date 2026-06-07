@@ -6,6 +6,15 @@ class UserDefaultsManager: ObservableObject {
     enum Keys: String {
         case hasSeenOnboarding = "has_seen_onboarding"
         case darkModePreference = "dark_mode_preference"
+        case didCreateDefaultPortfolios = "did_create_default_portfolios"
+        case isPro = "is_pro"
+    }
+
+    /// Local "Varlık Pro" entitlement flag. Real StoreKit purchases will set this later.
+    @Published var isPro: Bool {
+        didSet {
+            UserDefaults.standard.set(isPro, forKey: Keys.isPro.rawValue)
+        }
     }
     
     enum DarkModePreference: String, CaseIterable {
@@ -47,6 +56,7 @@ class UserDefaultsManager: ObservableObject {
     private init() {
         let savedPreference = UserDefaults.standard.string(forKey: Keys.darkModePreference.rawValue)
         self.darkModePreference = DarkModePreference(rawValue: savedPreference ?? DarkModePreference.system.rawValue) ?? .system
+        self.isPro = UserDefaults.standard.bool(forKey: Keys.isPro.rawValue)
     }
     
     func setValue(value: Bool, key: Keys) {

@@ -78,8 +78,8 @@ class RatesViewModel: ObservableObject {
     
     func updateCurrencyRates(rate: [AssetsPrice]) {
         let currencyNames: [String: String] = ["USD": "Dolar", "EUR": "Euro", "GBP": "Sterlin"]
-        let currenciesIconName: [String: String] = ["USD": "dollarsign.circle", "EUR": "eurosign.circle", "GBP": "sterlingsign.circle"]
-        let currenciesColor: [String: Color] = ["USD": .green, "EUR": .blue, "GBP": .purple]
+        let currenciesIconName: [String: String] = ["USD": "dollarsign.circle.fill", "EUR": "eurosign.circle.fill", "GBP": "sterlingsign.circle.fill"]
+        let currenciesColor: [String: Color] = ["USD": Color(hex: "#34C759"), "EUR": Color(hex: "#0A84FF"), "GBP": Color(hex: "#AF52DE")]
         
         currencyRates = rate.compactMap { price -> RateDisplayModel? in
             guard let code = price.code, !code.isEmpty else { return nil }
@@ -103,8 +103,8 @@ class RatesViewModel: ObservableObject {
     func updateGoldRates(rate: [AssetsPrice]) {
         goldRates = rate.map { price -> RateDisplayModel in
             let isSilver = price.code?.lowercased().contains("gumus") == true
-            let iconName = isSilver ? "soccerball.circle" : "circle.hexagongrid.circle"
-            let iconColor: Color = isSilver ? .gray : .yellow
+            let iconName = isSilver ? "circle.grid.2x2.fill" : "circle.hexagongrid.fill"
+            let iconColor: Color = isSilver ? Color(hex: "#9E9E9E") : Color(hex: "#FFB300")
             return RateDisplayModel(
                 title: price.name,
                 iconName: iconName,

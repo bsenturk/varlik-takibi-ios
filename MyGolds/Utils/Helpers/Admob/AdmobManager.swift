@@ -50,12 +50,18 @@ class AdMobManager: ObservableObject {
     }
     
     func showBannerAd() {
+        // No ads for Pro users.
+        guard !UserDefaultsManager.shared.isPro else {
+            showBanner = false
+            return
+        }
+
         // Don't show banner if app open ad is showing
         guard !AppOpenAdManager.shared.isAdShowing else {
             Logger.log("🎯 Banner: Not showing - App Open Ad is active")
             return
         }
-        
+
         Logger.log("🎯 Banner: Showing")
         withAnimation(.easeIn(duration: 0.3)) {
             showBanner = true
@@ -69,7 +75,7 @@ class AdMobManager: ObservableObject {
     // MARK: - State Management
     
     var shouldShowBanner: Bool {
-        return showBanner && !isAppOpenAdShowing && initializationComplete
+        return showBanner && !isAppOpenAdShowing && initializationComplete && !UserDefaultsManager.shared.isPro
     }
     
     // MARK: - Public Methods
@@ -196,6 +202,9 @@ class InterstitialAdManager: NSObject, ObservableObject, GADFullScreenContentDel
     // MARK: - Ad Presentation
 
     func showAdIfAvailable() {
+        // No ads for Pro users.
+        guard !UserDefaultsManager.shared.isPro else { return }
+
         guard canShowAd else {
             Logger.log("📱 Interstitial: Cannot show ad (not available or too soon)")
             if !isAdAvailable {
@@ -238,6 +247,9 @@ class InterstitialAdManager: NSObject, ObservableObject, GADFullScreenContentDel
     // MARK: - Preloading
 
     func preloadAd() {
+        // No ads for Pro users.
+        guard !UserDefaultsManager.shared.isPro else { return }
+
         guard interstitialAd == nil else {
             Logger.log("📱 Interstitial: Already preloaded")
             return

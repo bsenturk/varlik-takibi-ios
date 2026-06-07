@@ -2,7 +2,7 @@
 //  OnboardingView.swift
 //  MyGolds
 //
-//  Created by Burak Şentürk on 27.06.2025.
+//  Redesigned onboarding (v3.0.0): 3 paged screens → ATT → Paywall → app.
 //
 
 import SwiftUI
@@ -10,132 +10,227 @@ import AppTrackingTransparency
 
 struct OnboardingView: View {
     @EnvironmentObject var coordinator: AppCoordinator
-    @State private var currentStep = 0
-    @State private var showATTPermission = false
-    
-    private let steps = [
-        OnboardingStep(
-            icon: "wallet.pass.fill",
-            title: "Varlık Takibi'ne Hoş Geldiniz",
-            description: "Altın, döviz ve diğer varlıklarınızı kolayca takip edin. Güncel kurlarla toplam değerinizi anında görün.",
-            gradientColors: [.blue, .purple]
-        ),
-        OnboardingStep(
-            icon: "plus.circle.fill",
-            title: "Varlık Ekleyin",
-            description: "Gram altın, çeyrek altın, dolar, euro gibi 12 farklı varlık türünü ekleyebilir ve miktarlarını girebilirsiniz.",
-            gradientColors: [.green, .teal]
-        ),
-        OnboardingStep(
-            icon: "chart.line.uptrend.xyaxis",
-            title: "Kurları Takip Edin",
-            description: "Güncel alış-satış kurlarını görün. Değişim oranlarını takip ederek piyasa hareketlerini kaçırmayın.",
-            gradientColors: [.orange, .red]
-        )
-    ]
-    
+    @State private var page = 0
+    @State private var phase: Phase = .pages
+
+    private enum Phase { case pages, att, paywall }
+
+    private let pageCount = 3
+
     var body: some View {
-        if showATTPermission {
-            ATTPermissionView(
-                onPermissionGranted: { granted in
-                    showATTPermission = false
-                    coordinator.onboardingCompleted()
-                }
-            )
-        } else {
-            VStack {
-                Spacer()
-                
-                // Icon
-                ZStack {
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: steps[currentStep].gradientColors,
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 120, height: 120)
-                        .shadow(color: steps[currentStep].gradientColors.first?.opacity(0.3) ?? .clear, radius: 20, x: 0, y: 10)
-                    
-                    Image(systemName: steps[currentStep].icon)
-                        .font(.system(size: 50, weight: .medium))
-                        .foregroundColor(.white)
-                }
-                .padding(.bottom, 40)
-                
-                // Content
-                VStack(spacing: 16) {
-                    Text(steps[currentStep].title)
-                        .font(.title.bold())
-                        .multilineTextAlignment(.center)
-                        .foregroundColor(.primary)
-                    
-                    Text(steps[currentStep].description)
-                        .font(.body)
-                        .multilineTextAlignment(.center)
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 20)
-                }
-                .padding(.bottom, 60)
-                
-                // Step Indicators
-                HStack(spacing: 8) {
-                    ForEach(0..<steps.count, id: \.self) { index in
-                        Circle()
-                            .fill(index == currentStep ? .blue : .gray.opacity(0.3))
-                            .frame(width: 12, height: 12)
-                            .animation(.easeInOut(duration: 0.3), value: currentStep)
-                    }
-                }
-                .padding(.bottom, 60)
-                
-                Spacer()
-                
-                // Buttons
-                VStack(spacing: 12) {
-                    Button(action: nextStep) {
-                        Text(currentStep == steps.count - 1 ? "Devam Et" : "Devam Et")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 56)
-                            .background(.blue)
-                            .cornerRadius(16)
-                    }
-                    
-                    if currentStep < steps.count - 1 {
-                        Button(action: {
-                            showATTPermission = ATTrackingManager.trackingAuthorizationStatus == .notDetermined
-                            if !showATTPermission {
-                                coordinator.onboardingCompleted()
-                            }
-                        }) {
-                            Text("Atla")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.top, 8)
-                    }
-                }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 40)
-            }
-            .background(Color(.systemBackground))
+        switch phase {
+        case .att:
+            ATTPermissionView(onPermissionGranted: { _ in
+                withAnimation { phase = .paywall }
+            })
+        case .paywall:
+            PaywallView(onClose: { coordinator.onboardingCompleted() })
+        case .pages:
+            pagesView
         }
     }
-    
-    private func nextStep() {
-        if currentStep < steps.count - 1 {
-            withAnimation(.easeInOut(duration: 0.3)) {
-                currentStep += 1
+
+    private var pagesView: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Spacer()
+                Button("Atla") { finishPages() }
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.secondary)
             }
+            .padding(.horizontal, 24)
+            .padding(.top, 12)
+
+            TabView(selection: $page) {
+                OnboardingPage(
+                    mock: AnyView(WelcomeMock()),
+                    title: "Varlıklarını Tek Yerde Topla",
+                    description: "Altın, döviz ve daha fazlasını tek bir uygulamada kolayca takip edin."
+                ).tag(0)
+
+                OnboardingPage(
+                    mock: AnyView(FolderMock()),
+                    title: "Farklı Amaçlar,\nFarklı Portföyler",
+                    description: "Emeklilik, ev peşinatı ya da günlük takip. Hedeflerinize göre sınırsız portföy oluşturun."
+                ).tag(1)
+
+                OnboardingPage(
+                    mock: AnyView(ChartMock()),
+                    title: "Detaylı Analiz ile\nBüyümeyi Takip Et",
+                    description: "Dağılım grafikleri ve zaman bazlı analizlerle varlıklarınızın seyrini yakından izleyin."
+                ).tag(2)
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+
+            PageDots(count: pageCount, index: page)
+                .padding(.bottom, 20)
+
+            Button(action: advance) {
+                Text("Devam Et")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 56)
+                    .background(Color.accentColor)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 32)
+        }
+        .background(Color(.systemBackground).ignoresSafeArea())
+    }
+
+    private func advance() {
+        if page < pageCount - 1 {
+            withAnimation(.easeInOut(duration: 0.3)) { page += 1 }
         } else {
-            showATTPermission = ATTrackingManager.trackingAuthorizationStatus == .notDetermined
-            if !showATTPermission {
-                coordinator.onboardingCompleted()
+            finishPages()
+        }
+    }
+
+    private func finishPages() {
+        if ATTrackingManager.trackingAuthorizationStatus == .notDetermined {
+            withAnimation { phase = .att }
+        } else {
+            withAnimation { phase = .paywall }
+        }
+    }
+}
+
+// MARK: - Page scaffold
+
+private struct OnboardingPage: View {
+    let mock: AnyView
+    let title: String
+    let description: String
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Spacer()
+            mock
+                .frame(maxWidth: .infinity)
+                .frame(height: 280)
+            Spacer()
+            VStack(spacing: 14) {
+                Text(title)
+                    .font(.system(size: 26, weight: .heavy))
+                    .multilineTextAlignment(.center)
+                Text(description)
+                    .font(.system(size: 15))
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 28)
+            }
+            .padding(.bottom, 12)
+        }
+        .padding(.horizontal, 12)
+    }
+}
+
+private struct PageDots: View {
+    let count: Int
+    let index: Int
+    var body: some View {
+        HStack(spacing: 7) {
+            ForEach(0..<count, id: \.self) { i in
+                Capsule()
+                    .fill(i == index ? Color.accentColor : Color.secondary.opacity(0.3))
+                    .frame(width: i == index ? 22 : 8, height: 8)
+                    .animation(.easeInOut(duration: 0.25), value: index)
             }
         }
+    }
+}
+
+// MARK: - Mock illustrations
+
+private let onboardGradient = LinearGradient(
+    colors: [Color(hex: "#007AFF"), Color(hex: "#AF52DE")],
+    startPoint: .topLeading, endPoint: .bottomTrailing
+)
+
+private struct WelcomeMock: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Toplam Bakiye").font(.system(size: 13, weight: .medium)).foregroundColor(.white.opacity(0.85))
+            Text("₺1.250.430").font(.system(size: 30, weight: .heavy)).foregroundColor(.white)
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.up").font(.system(size: 10, weight: .bold))
+                Text("%0,29 · Bugün").font(.system(size: 12, weight: .semibold))
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 10).padding(.vertical, 6)
+            .background(Color.white.opacity(0.2)).clipShape(Capsule())
+        }
+        .padding(22)
+        .frame(width: 270, alignment: .leading)
+        .background(onboardGradient)
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .shadow(color: Color(hex: "#AF52DE").opacity(0.35), radius: 18, x: 0, y: 12)
+        .rotationEffect(.degrees(-4))
+    }
+}
+
+private struct FolderMock: View {
+    var body: some View {
+        // Symmetric fan: one card angled left, one angled right, the front card centered lower
+        // so both back cards' icons + names stay visible above it.
+        ZStack {
+            folderCard(name: "Araba", amount: "₺420B", colorHex: "#FF9500")
+                .scaleEffect(0.88)
+                .rotationEffect(.degrees(-18), anchor: .bottom)
+                .offset(x: -66, y: -34)
+            folderCard(name: "Emeklilik", amount: "₺2,84M", colorHex: "#AF52DE")
+                .scaleEffect(0.88)
+                .rotationEffect(.degrees(18), anchor: .bottom)
+                .offset(x: 66, y: -34)
+            folderCard(name: "Ev Peşinatı", amount: "₺684B", colorHex: "#007AFF")
+                .offset(y: 82)
+        }
+    }
+
+    private func folderCard(name: String, amount: String, colorHex: String) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color(hex: colorHex).opacity(0.15))
+                .frame(width: 42, height: 42)
+                .overlay(Image(systemName: "folder.fill").foregroundColor(Color(hex: colorHex)))
+            Text(name).font(.system(size: 17, weight: .bold))
+            Text(amount).font(.system(size: 14)).foregroundColor(.secondary)
+        }
+        .padding(20)
+        .frame(width: 176, alignment: .leading)
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .shadow(color: .black.opacity(0.12), radius: 16, x: 0, y: 10)
+    }
+}
+
+private struct ChartMock: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Toplam Değer").font(.system(size: 12)).foregroundColor(.secondary)
+                    Text("₺1.250.430").font(.system(size: 20, weight: .heavy))
+                }
+                Spacer()
+                HStack(spacing: 3) {
+                    Image(systemName: "arrowtriangle.up.fill").font(.system(size: 9))
+                    Text("%46,2").font(.system(size: 13, weight: .bold))
+                }
+                .foregroundColor(.green)
+            }
+            SparklineView(
+                values: [10, 12, 11, 14, 16, 15, 19, 22, 21, 26, 30, 34],
+                lineColor: Color(hex: "#FF2D55")
+            )
+            .frame(height: 90)
+        }
+        .padding(20)
+        .frame(width: 280)
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .shadow(color: .black.opacity(0.12), radius: 18, x: 0, y: 12)
     }
 }

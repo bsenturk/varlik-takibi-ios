@@ -51,7 +51,8 @@ struct VarlikDefterimApp: App {
         let schema = Schema([
             Asset.self,
             AssetPriceHistory.self,
-            AssetTransactionHistory.self
+            AssetTransactionHistory.self,
+            Portfolio.self
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {
@@ -91,7 +92,10 @@ struct VarlikDefterimApp: App {
     
     private func setupInitialState() {
         Logger.log("🚀 App: Initial setup")
-        
+
+        // Create default portfolios & migrate pre-v3.0.0 assets into "Portföyüm"
+        PortfolioStore.ensureDefaults(context: sharedModelContainer.mainContext)
+
         // Clear badge on app launch
         notificationManager.clearBadge()
         

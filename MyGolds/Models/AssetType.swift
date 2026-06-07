@@ -5,6 +5,40 @@
 //  Created by Burak Şentürk on 27.06.2025.
 //
 
+/// High-level grouping used by the "Genel" aggregate portfolio.
+enum AssetCategory: String, CaseIterable, Identifiable {
+    case gold = "Altın"
+    case silver = "Gümüş"
+    case currency = "Döviz"
+
+    var id: String { rawValue }
+
+    var displayName: String { rawValue }
+
+    /// SF Symbol shown on the category tile / grid.
+    var iconName: String {
+        switch self {
+        case .gold: return "circle.hexagongrid.fill"
+        case .silver: return "circle.grid.2x2.fill"
+        case .currency: return "banknote.fill"
+        }
+    }
+
+    /// Accent color for the category icon tile.
+    var tintHex: String {
+        switch self {
+        case .gold: return "#FFB300"
+        case .silver: return "#9E9E9E"
+        case .currency: return "#34C759"
+        }
+    }
+
+    /// Asset types that belong to this category, in display order.
+    var assetTypes: [AssetType] {
+        AssetType.allCases.filter { $0.category == self }
+    }
+}
+
 enum AssetType: String, CaseIterable, Codable {
     case gold = "gold"
     case goldQuarter = "gold_quarter"
@@ -84,6 +118,42 @@ enum AssetType: String, CaseIterable, Codable {
         case .eur: return "blue"
         case .gbp: return "purple"
         case .tl: return "red"
+        }
+    }
+
+    /// Filled SF Symbol used on the redesigned asset/category tile.
+    var tileIcon: String {
+        switch self {
+        case .silver: return "circle.grid.2x2.fill"
+        case .usd: return "dollarsign.circle.fill"
+        case .eur: return "eurosign.circle.fill"
+        case .gbp: return "sterlingsign.circle.fill"
+        case .tl: return "turkishlirasign.circle.fill"
+        default: return "circle.hexagongrid.fill"
+        }
+    }
+
+    /// Accent color (hex) for the asset tile glyph.
+    var tileTintHex: String {
+        switch self {
+        case .silver: return "#9E9E9E"
+        case .usd: return "#34C759"
+        case .eur: return "#0A84FF"
+        case .gbp: return "#AF52DE"
+        case .tl: return "#FF3B30"
+        default: return "#FFB300"
+        }
+    }
+
+    /// The high-level category this type rolls up into for the "Genel" portfolio.
+    var category: AssetCategory {
+        switch self {
+        case .silver:
+            return .silver
+        case .usd, .eur, .gbp, .tl:
+            return .currency
+        default:
+            return .gold
         }
     }
 }

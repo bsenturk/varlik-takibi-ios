@@ -1,0 +1,401 @@
+//
+//  AnalysisView.swift
+//  MyGolds
+//
+//  The redesigned "Analiz" tab (v3.0.0): value trend + distribution, scoped to the
+//  currently selected portfolio.
+//
+
+import SwiftUI
+import SwiftData
+import Charts
+
+struct AnalysisView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \Portfolio.sortOrder) private var portfolios: [Portfolio]
+    @Query private var assets: [Asset]
+    @StateObject private var portfolioManager = PortfolioManager.shared
+
+    @AppStorage("selectedCurrency") private var selectedCurrency: Currency = .TRY
+    @AppStorage("selectedPortfolioID") private var selectedPortfolioIDString: String = ""
+    @State private var range: TimeRange = .month
+
+    enum TimeRange: String, CaseIterable, Identifiable {
+        case week = "1H", month = "1A", quarter = "3A", year = "1Y", all = "Tümü"
+        var id: String { rawValue }
+        var days: Int {
+            switch self {
+            case .week: return 7
+            case .month: return 30
+            case .quarter: return 90
+            case .year: return 365
+            case .all: return 3650
+            }
+        }
+    }
+
+    // MARK: - Selection
+
+    private var selectedPortfolio: Portfolio? {
+        if let id = UUID(uuidString: selectedPortfolioIDString),
+           let match = portfolios.first(where: { $0.id == id }) { return match }
+        return portfolios.first(where: { $0.isGeneral }) ?? portfolios.first
+    }
+
+    private var isGeneral: Bool { selectedPortfolio?.isGeneral ?? false }
+
+    private var scopedAssets: [Asset] {
+        guard let selected = selectedPortfolio else { return [] }
+        return selected.isGeneral ? assets : assets.filter { $0.portfolio?.id == selected.id }
+    }
+
+    private var metrics: PortfolioMetrics {
+        PortfolioMetrics.compute(for: scopedAssets, context: modelContext)
+    }
+
+    var body: some View {
+        ZStack {
+            Color(.systemGroupedBackground).ignoresSafeArea()
+            VStack(spacing: 14) {
+                // Header + chips pinned so the horizontal chips scroll isn't nested.
+                header.padding(.horizontal, 18)
+                portfolioChips
+
+                ScrollView {
+                    VStack(spacing: 18) {
+                        Group {
+                            if scopedAssets.isEmpty {
+                                emptyState
+                            } else {
+                                valueCard
+                                distributionCard
+                                if !topGainers.isEmpty {
+                                    moversCard(title: "En Çok Kazandıranlar", assets: topGainers, positive: true)
+                                }
+                                if !topLosers.isEmpty {
+                                    moversCard(title: "En Çok Kaybettirenler", assets: topLosers, positive: false)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 18)
+                    }
+                    .padding(.top, 4)
+                    .padding(.bottom, 24)
+                }
+                .scrollIndicators(.hidden)
+            }
+            .padding(.top, 8)
+        }
+        .onAppear { portfolioManager.updatePortfolio(with: assets) }
+    }
+
+    // MARK: - Header
+
+    private var header: some View {
+        Text("Analiz")
+            .font(.system(size: 30, weight: .heavy))
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var portfolioChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(portfolios) { portfolio in
+                    PortfolioChip(
+                        portfolio: portfolio,
+                        isSelected: portfolio.id == selectedPortfolio?.id,
+                        showsEditAffordance: false,
+                        showsEditPencil: false,
+                        onTap: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                selectedPortfolioIDString = portfolio.id.uuidString
+                            }
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        }
+                    )
+                }
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 2)
+        }
+    }
+
+    // MARK: - Value + trend card
+
+    private var valueCard: some View {
+        let series = valueSeries()
+        let convertedValue = portfolioManager.convertToTargetCurrency(metrics.totalValue, targetCurrency: selectedCurrency)
+        return VStack(alignment: .leading, spacing: 14) {
+            Text("Güncel Değer")
+                .font(.system(size: 14))
+                .foregroundColor(.secondary)
+            Text(convertedValue.formatAsCurrency(currency: selectedCurrency))
+                .font(.system(size: 30, weight: .heavy))
+                .minimumScaleFactor(0.6)
+                .lineLimit(1)
+
+            if metrics.hasDayChange {
+                HStack(spacing: 6) {
+                    Image(systemName: metrics.isPositive ? "arrow.up" : "arrow.down")
+                        .font(.system(size: 11, weight: .bold))
+                    Text("%\(String(format: "%.2f", abs(metrics.dayChangePercent)).replacingOccurrences(of: ".", with: ","))")
+                        .font(.system(size: 14, weight: .semibold))
+                    Text("Bugün").font(.system(size: 13)).foregroundColor(.secondary)
+                }
+                .foregroundColor(metrics.isPositive ? .green : .red)
+            }
+
+            if series.count > 1 {
+                Chart(series, id: \.date) { point in
+                    let converted = portfolioManager.convertToTargetCurrency(point.value, targetCurrency: selectedCurrency)
+                    AreaMark(x: .value("Tarih", point.date), y: .value("Değer", converted))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [(selectedPortfolio?.color ?? .blue).color.opacity(0.25), .clear],
+                                startPoint: .top, endPoint: .bottom
+                            )
+                        )
+                    LineMark(x: .value("Tarih", point.date), y: .value("Değer", converted))
+                        .foregroundStyle((selectedPortfolio?.color ?? .blue).color)
+                        .interpolationMethod(.catmullRom)
+                }
+                .chartXAxis(.hidden)
+                .chartYAxis(.hidden)
+                .frame(height: 160)
+            } else {
+                Text("Grafik için yeterli geçmiş veri bulunmuyor.")
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 120)
+            }
+
+            rangePicker
+        }
+        .padding(18)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color(.secondarySystemGroupedBackground))
+        )
+    }
+
+    private var rangePicker: some View {
+        HStack(spacing: 8) {
+            ForEach(TimeRange.allCases) { option in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { range = option }
+                } label: {
+                    Text(option.rawValue)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(range == option ? .white : .secondary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 32)
+                        .background(
+                            range == option
+                            ? AnyShapeStyle((selectedPortfolio?.color ?? .blue).color)
+                            : AnyShapeStyle(Color(.tertiarySystemBackground))
+                        )
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    // MARK: - Distribution
+
+    private var distributionCard: some View {
+        let slices = distribution()
+        return VStack(alignment: .leading, spacing: 14) {
+            Text("Varlık Dağılımı").font(.system(size: 20, weight: .bold))
+
+            if slices.isEmpty {
+                Text("Henüz veri yok").font(.system(size: 14)).foregroundColor(.secondary)
+            } else {
+                HStack(spacing: 18) {
+                    // Donut with center count
+                    ZStack {
+                        Chart(slices, id: \.name) { slice in
+                            SectorMark(
+                                angle: .value("Değer", slice.value),
+                                innerRadius: .ratio(0.66),
+                                angularInset: 2
+                            )
+                            .foregroundStyle(slice.color)
+                            .cornerRadius(4)
+                        }
+                        .frame(width: 150, height: 150)
+
+                        VStack(spacing: 2) {
+                            Text("Tür").font(.system(size: 13)).foregroundColor(.secondary)
+                            Text("\(slices.count)").font(.system(size: 26, weight: .heavy))
+                        }
+                    }
+
+                    // Legend
+                    VStack(spacing: 14) {
+                        ForEach(slices, id: \.name) { slice in
+                            HStack(spacing: 10) {
+                                Circle().fill(slice.color).frame(width: 11, height: 11)
+                                Text(slice.name)
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .lineLimit(1)
+                                Spacer(minLength: 6)
+                                Text("%\(String(format: "%.0f", slice.percent))")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                }
+                .padding(18)
+                .frame(maxWidth: .infinity)
+                .background(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(Color(.secondarySystemGroupedBackground))
+                )
+            }
+        }
+    }
+
+    // MARK: - Empty state
+
+    private var emptyState: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "chart.pie")
+                .font(.system(size: 44))
+                .foregroundColor(.secondary)
+            Text("Analiz için varlık yok")
+                .font(.system(size: 18, weight: .semibold))
+            Text("Bu portföye varlık ekleyince analizler burada görünecek.")
+                .font(.system(size: 14))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 30)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 60)
+    }
+
+    // MARK: - Data
+
+    private func valueSeries() -> [(date: Date, value: Double)] {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let start = calendar.date(byAdding: .day, value: -range.days, to: today) ?? today
+
+        var byDay: [Date: Double] = [:]
+        for asset in scopedAssets {
+            let history = AssetHistoryManager.shared.getHistory(for: asset.type, from: start, to: today, context: modelContext)
+            for point in history {
+                let day = calendar.startOfDay(for: point.date)
+                byDay[day, default: 0] += asset.amount * point.price
+            }
+        }
+        return byDay.keys.sorted().map { (date: $0, value: byDay[$0] ?? 0) }
+    }
+
+    // MARK: - Movers (gainers / losers)
+
+    private func moversCard(title: String, assets: [Asset], positive: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(title)
+                .font(.system(size: 18, weight: .bold))
+                .padding(.horizontal, 18)
+                .padding(.top, 18)
+                .padding(.bottom, 6)
+
+            ForEach(Array(assets.enumerated()), id: \.element.id) { index, asset in
+                moverRow(asset)
+                if index < assets.count - 1 {
+                    Divider().padding(.leading, 78)
+                }
+            }
+        }
+        .padding(.bottom, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color(.secondarySystemGroupedBackground))
+        )
+    }
+
+    private func moverRow(_ asset: Asset) -> some View {
+        let pct = assetDayChangePercent(asset)
+        let positive = pct >= 0
+        let color = positive ? Color(hex: "#34C759") : Color(hex: "#FF3B30")
+        let value = portfolioManager.convertToTargetCurrency(asset.totalValue, targetCurrency: selectedCurrency)
+        return HStack(spacing: 12) {
+            AssetIconTile(icon: asset.type.tileIcon, tintHex: asset.type.tileTintHex, size: 48)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(asset.type.displayName)
+                    .font(.system(size: 16, weight: .semibold))
+                    .lineLimit(1)
+                Text(value.formatAsCurrency(currency: selectedCurrency))
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+            }
+            Spacer(minLength: 6)
+            HStack(spacing: 4) {
+                Image(systemName: positive ? "arrow.up" : "arrow.down")
+                    .font(.system(size: 11, weight: .bold))
+                Text("\(positive ? "+" : "−")%\(String(format: "%.2f", abs(pct)).replacingOccurrences(of: ".", with: ","))")
+                    .font(.system(size: 14, weight: .bold))
+            }
+            .foregroundColor(color)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(color.opacity(0.15))
+            .clipShape(Capsule())
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+    }
+
+    private func assetDayChangePercent(_ asset: Asset) -> Double {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let history = AssetHistoryManager.shared.getHistory(for: asset.type, context: modelContext)
+        guard let prev = history.filter({ calendar.startOfDay(for: $0.date) < today })
+            .sorted(by: { $0.date < $1.date }).last?.price, prev > 0 else { return 0 }
+        return ((asset.currentPrice - prev) / prev) * 100.0
+    }
+
+    private var topGainers: [Asset] {
+        scopedAssets
+            .filter { assetDayChangePercent($0) > 0.001 }
+            .sorted { assetDayChangePercent($0) > assetDayChangePercent($1) }
+            .prefix(3)
+            .map { $0 }
+    }
+
+    private var topLosers: [Asset] {
+        scopedAssets
+            .filter { assetDayChangePercent($0) < -0.001 }
+            .sorted { assetDayChangePercent($0) < assetDayChangePercent($1) }
+            .prefix(3)
+            .map { $0 }
+    }
+
+    private struct Slice { let name: String; let value: Double; let percent: Double; let color: Color }
+
+    private func distribution() -> [Slice] {
+        let total = scopedAssets.reduce(0) { $0 + $1.totalValue }
+        guard total > 0 else { return [] }
+
+        if isGeneral {
+            let grouped = Dictionary(grouping: scopedAssets) { $0.type.category }
+            return AssetCategory.allCases.compactMap { category in
+                guard let items = grouped[category] else { return nil }
+                let value = items.reduce(0) { $0 + $1.totalValue }
+                guard value > 0 else { return nil }
+                return Slice(name: category.displayName, value: value, percent: value / total * 100, color: Color(hex: category.tintHex))
+            }.sorted { $0.value > $1.value }
+        } else {
+            let grouped = Dictionary(grouping: scopedAssets) { $0.type }
+            return grouped.compactMap { (type, items) in
+                let value = items.reduce(0) { $0 + $1.totalValue }
+                guard value > 0 else { return nil }
+                return Slice(name: type.displayName, value: value, percent: value / total * 100, color: Color(hex: type.tileTintHex))
+            }.sorted { $0.value > $1.value }
+        }
+    }
+}

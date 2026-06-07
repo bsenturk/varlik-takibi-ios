@@ -19,7 +19,11 @@ final class Asset {
     var lastUpdated: Date
     var currentRate: Double
     var currentPrice: Double
-    
+
+    /// The portfolio this asset belongs to. Optional for backward compatibility with
+    /// pre-v3.0.0 data; the launch migration assigns every orphan asset to "Portföyüm".
+    var portfolio: Portfolio?
+
     init(type: AssetType, amount: Double, currentRate: Double = 0.0, currentPrice: Double) {
         self.id = UUID()
         self.type = type

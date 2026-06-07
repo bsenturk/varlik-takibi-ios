@@ -29,7 +29,7 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
     // Minimum time interval between ad shows (in seconds)
     private let minimumAdInterval: TimeInterval = 300 // 5 minutes
     private var lastAdShowTime: Date?
-    
+
     private override init() {
         super.init()
         loadAd()
@@ -111,6 +111,17 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
     
     // MARK: - Show Ad
     func showAdIfAvailable() {
+        // No ads for Pro users.
+        guard !UserDefaultsManager.shared.isPro else { return }
+
+        // Don't show the app-open ad while the user is still in the onboarding flow.
+        // Once onboarding is finished, app-open ads show normally.
+        guard UserDefaultsManager.shared.getValue(for: .hasSeenOnboarding) else {
+            Logger.log("📱 App Open Ad: Onboarding not finished — skipping app open ad")
+            preloadAd()
+            return
+        }
+
         guard canShowAd else {
             Logger.log("📱 App Open Ad: Cannot show ad - not available or too soon")
             if !isAdAvailable && !isLoadingAd {
