@@ -11,16 +11,22 @@ class RatesViewModel: ObservableObject {
     @Published var isRefreshing = false
     @Published var currencyRates: [RateDisplayModel] = []
     @Published var goldRates: [RateDisplayModel] = []
+    @Published var cryptoRates: [RateDisplayModel] = []
+    @Published var bistRates: [RateDisplayModel] = []
+    @Published var usRates: [RateDisplayModel] = []
     @Published var errorMessage: String?
-    
+
     private var cancellables = Set<AnyCancellable>()
-    
+
     init() {
         setupBindings()
         updateCurrencyRates(rate: MarketDataManager.shared.currencyRates)
         updateGoldRates(rate: MarketDataManager.shared.goldPrices)
+        cryptoRates = mapMarketRates(MarketDataManager.shared.cryptoPrices, icon: "bitcoinsign.circle.fill", hex: "#F7931A")
+        bistRates = mapMarketRates(MarketDataManager.shared.bistPrices, icon: "chart.line.uptrend.xyaxis", hex: "#E63946")
+        usRates = mapMarketRates(MarketDataManager.shared.usPrices, icon: "building.columns.fill", hex: "#2A9D8F")
     }
-    
+
     private func setupBindings() {
         // MarketDataManager'dan verileri dinle
         MarketDataManager.shared.$currencyRates
@@ -29,14 +35,35 @@ class RatesViewModel: ObservableObject {
                 self?.updateCurrencyRates(rate: rates)
             }
             .store(in: &cancellables)
-        
+
         MarketDataManager.shared.$goldPrices
             .receive(on: DispatchQueue.main)
             .sink { [weak self] prices in
                 self?.updateGoldRates(rate: prices)
             }
             .store(in: &cancellables)
-        
+
+        MarketDataManager.shared.$cryptoPrices
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] prices in
+                self?.cryptoRates = self?.mapMarketRates(prices, icon: "bitcoinsign.circle.fill", hex: "#F7931A") ?? []
+            }
+            .store(in: &cancellables)
+
+        MarketDataManager.shared.$bistPrices
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] prices in
+                self?.bistRates = self?.mapMarketRates(prices, icon: "chart.line.uptrend.xyaxis", hex: "#E63946") ?? []
+            }
+            .store(in: &cancellables)
+
+        MarketDataManager.shared.$usPrices
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] prices in
+                self?.usRates = self?.mapMarketRates(prices, icon: "building.columns.fill", hex: "#2A9D8F") ?? []
+            }
+            .store(in: &cancellables)
+
         MarketDataManager.shared.$isLoading
             .receive(on: DispatchQueue.main)
             .assign(to: \.isRefreshing, on: self)
@@ -100,6 +127,21 @@ class RatesViewModel: ObservableObject {
         }
     }
     
+    /// Maps live crypto / stock instruments (already TRY-priced) to display rows.
+    func mapMarketRates(_ rate: [AssetsPrice], icon: String, hex: String) -> [RateDisplayModel] {
+        rate.map { price in
+            RateDisplayModel(
+                title: "\(price.name) (\(price.code ?? ""))",
+                iconName: icon,
+                iconColor: Color(hex: hex),
+                buyRate: price.buyPrice,
+                sellRate: price.sellPrice,
+                change: price.changePercent,
+                isChangeRatePositive: isRateChangePercentagePositive(from: price.changePercent)
+            )
+        }
+    }
+
     func updateGoldRates(rate: [AssetsPrice]) {
         goldRates = rate.map { price -> RateDisplayModel in
             let isSilver = price.code?.lowercased().contains("gumus") == true

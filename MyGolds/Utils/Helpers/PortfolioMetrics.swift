@@ -37,7 +37,7 @@ struct PortfolioMetrics {
             currentTotal += current
 
             // Find the most recent snapshot strictly before today to use as the baseline.
-            let history = AssetHistoryManager.shared.getHistory(for: asset.type, context: context)
+            let history = AssetHistoryManager.shared.getHistory(for: asset.symbol, context: context)
             let previousPrice = history
                 .filter { calendar.startOfDay(for: $0.date) < today }
                 .sorted { $0.date < $1.date }

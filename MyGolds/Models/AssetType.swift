@@ -10,6 +10,9 @@ enum AssetCategory: String, CaseIterable, Identifiable {
     case gold = "Altın"
     case silver = "Gümüş"
     case currency = "Döviz"
+    case crypto = "Kripto"
+    case bistStock = "Borsa İstanbul"
+    case usStock = "ABD Borsası"
 
     var id: String { rawValue }
 
@@ -21,6 +24,9 @@ enum AssetCategory: String, CaseIterable, Identifiable {
         case .gold: return "circle.hexagongrid.fill"
         case .silver: return "circle.grid.2x2.fill"
         case .currency: return "banknote.fill"
+        case .crypto: return "bitcoinsign.circle.fill"
+        case .bistStock: return "chart.line.uptrend.xyaxis"
+        case .usStock: return "building.columns.fill"
         }
     }
 
@@ -30,12 +36,46 @@ enum AssetCategory: String, CaseIterable, Identifiable {
         case .gold: return "#FFB300"
         case .silver: return "#9E9E9E"
         case .currency: return "#34C759"
+        case .crypto: return "#F7931A"
+        case .bistStock: return "#E63946"
+        case .usStock: return "#2A9D8F"
         }
     }
 
-    /// Asset types that belong to this category, in display order.
+    /// Dynamic categories are populated live from the `assets_prices` catalog
+    /// (crypto / stocks) instead of from fixed `AssetType` cases.
+    var isDynamic: Bool {
+        switch self {
+        case .crypto, .bistStock, .usStock: return true
+        case .gold, .silver, .currency: return false
+        }
+    }
+
+    /// The backend `asset_type` value in `assets_prices` for dynamic categories.
+    var backendAssetType: String? {
+        switch self {
+        case .crypto: return "crypto"
+        case .bistStock: return "bist"
+        case .usStock: return "us_stock"
+        case .gold, .silver, .currency: return nil
+        }
+    }
+
+    /// The generic `AssetType` used to tag holdings in a dynamic category.
+    var dynamicAssetType: AssetType? {
+        switch self {
+        case .crypto: return .crypto
+        case .bistStock: return .bistStock
+        case .usStock: return .usStock
+        case .gold, .silver, .currency: return nil
+        }
+    }
+
+    /// Asset types that belong to this category, in display order. Empty for
+    /// dynamic categories (their instruments come from the live catalog).
     var assetTypes: [AssetType] {
-        AssetType.allCases.filter { $0.category == self }
+        guard !isDynamic else { return [] }
+        return AssetType.allCases.filter { $0.category == self }
     }
 }
 
@@ -59,7 +99,20 @@ enum AssetType: String, CaseIterable, Codable {
     case usd = "usd"
     case eur = "eur"
     case gbp = "gbp"
-    
+    // Dynamic market instruments. The specific instrument is identified by
+    // `Asset.symbol`; these generic cases only carry category/icon metadata.
+    case crypto = "crypto"
+    case bistStock = "bist_stock"
+    case usStock = "us_stock"
+
+    /// Whether this is a generic, symbol-driven market type (crypto / stocks).
+    var isDynamic: Bool {
+        switch self {
+        case .crypto, .bistStock, .usStock: return true
+        default: return false
+        }
+    }
+
     var displayName: String {
         switch self {
         case .gold: return "Gram Altın"
@@ -81,9 +134,12 @@ enum AssetType: String, CaseIterable, Codable {
         case .usd: return "Dolar"
         case .eur: return "Euro"
         case .gbp: return "Sterlin"
+        case .crypto: return "Kripto Para"
+        case .bistStock: return "BIST Hisse"
+        case .usStock: return "ABD Hisse"
         }
     }
-    
+
     var unit: String {
         switch self {
         case .gold, .silver: return "gram"
@@ -93,9 +149,11 @@ enum AssetType: String, CaseIterable, Codable {
         case .eur: return "EUR"
         case .gbp: return "GBP"
         case .tl: return "TRY"
+        case .crypto: return "adet"
+        case .bistStock, .usStock: return "lot"
         }
     }
-    
+
     var iconName: String {
         switch self {
         case .gold, .goldQuarter, .goldHalf, .goldFull, .goldRepublic, .goldAta, .goldResat, .goldHamit, .goldFive, .goldGremse, .goldFourteen, .goldEighteen, .goldTwoAndHalf, .goldTwentyTwoBracelet:
@@ -106,9 +164,12 @@ enum AssetType: String, CaseIterable, Codable {
         case .eur: return "eurosign.circle"
         case .gbp: return "sterlingsign.circle"
         case .tl: return "turkishlirasign.circle"
+        case .crypto: return "bitcoinsign.circle"
+        case .bistStock: return "chart.line.uptrend.xyaxis"
+        case .usStock: return "building.columns"
         }
     }
-    
+
     var color: String {
         switch self {
         case .gold, .goldQuarter, .goldHalf, .goldFull, .goldRepublic, .goldAta, .goldResat, .goldHamit, .goldFive, .goldGremse, .goldFourteen, .goldEighteen, .goldTwoAndHalf, .goldTwentyTwoBracelet:
@@ -118,6 +179,9 @@ enum AssetType: String, CaseIterable, Codable {
         case .eur: return "blue"
         case .gbp: return "purple"
         case .tl: return "red"
+        case .crypto: return "orange"
+        case .bistStock: return "red"
+        case .usStock: return "teal"
         }
     }
 
@@ -129,6 +193,9 @@ enum AssetType: String, CaseIterable, Codable {
         case .eur: return "eurosign.circle.fill"
         case .gbp: return "sterlingsign.circle.fill"
         case .tl: return "turkishlirasign.circle.fill"
+        case .crypto: return "bitcoinsign.circle.fill"
+        case .bistStock: return "chart.line.uptrend.xyaxis"
+        case .usStock: return "building.columns.fill"
         default: return "circle.hexagongrid.fill"
         }
     }
@@ -141,7 +208,38 @@ enum AssetType: String, CaseIterable, Codable {
         case .eur: return "#0A84FF"
         case .gbp: return "#AF52DE"
         case .tl: return "#FF3B30"
+        case .crypto: return "#F7931A"
+        case .bistStock: return "#E63946"
+        case .usStock: return "#2A9D8F"
         default: return "#FFB300"
+        }
+    }
+
+    /// Symbol used to look this type up in the Supabase `assets_prices` table.
+    /// NOTE: these must match the symbols the backend Edge Functions write.
+    var supabaseSymbol: String {
+        switch self {
+        case .gold: return "GRAM_ALTIN"
+        case .goldQuarter: return "CEYREK_ALTIN"
+        case .goldHalf: return "YARIM_ALTIN"
+        case .goldFull: return "TAM_ALTIN"
+        case .goldRepublic: return "CUMHURIYET_ALTIN"
+        case .goldAta: return "ATA_ALTIN"
+        case .goldResat: return "RESAT_ALTIN"
+        case .goldHamit: return "HAMIT_ALTIN"
+        case .goldFive: return "BESLI_ALTIN"
+        case .goldGremse: return "GREMSE_ALTIN"
+        case .goldFourteen: return "14_AYAR_ALTIN"
+        case .goldEighteen: return "18_AYAR_ALTIN"
+        case .goldTwoAndHalf: return "IKIBUCUK_ALTIN"
+        case .goldTwentyTwoBracelet: return "22_AYAR_BILEZIK"
+        case .silver: return "GRAM_GUMUS"
+        case .usd: return "USD"
+        case .eur: return "EUR"
+        case .gbp: return "GBP"
+        case .tl: return "TRY"
+        // Dynamic types have no fixed symbol — `Asset.symbol` is the lookup key.
+        case .crypto, .bistStock, .usStock: return ""
         }
     }
 
@@ -152,6 +250,12 @@ enum AssetType: String, CaseIterable, Codable {
             return .silver
         case .usd, .eur, .gbp, .tl:
             return .currency
+        case .crypto:
+            return .crypto
+        case .bistStock:
+            return .bistStock
+        case .usStock:
+            return .usStock
         default:
             return .gold
         }

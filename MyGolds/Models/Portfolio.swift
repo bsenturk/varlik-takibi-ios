@@ -25,6 +25,10 @@ final class Portfolio {
     @Relationship(deleteRule: .nullify, inverse: \Asset.portfolio)
     var assets: [Asset]? = []
 
+    /// End-of-day valuation history used for charts. Cascade-deleted with the portfolio.
+    @Relationship(deleteRule: .cascade, inverse: \PortfolioSnapshot.portfolio)
+    var snapshots: [PortfolioSnapshot]? = []
+
     init(
         name: String,
         colorHex: String = PortfolioColor.blue.rawValue,

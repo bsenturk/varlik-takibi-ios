@@ -21,6 +21,7 @@ struct DashboardView: View {
 
     @State private var editorMode: EditorMode?
     @State private var assetToDelete: Asset?
+    @State private var assetToEdit: Asset?
     @State private var showingDeletePopup = false
     @State private var showingPaywall = false
 
@@ -123,6 +124,9 @@ struct DashboardView: View {
         .sheet(isPresented: $showingPaywall) {
             PaywallView(onClose: { showingPaywall = false })
         }
+        .sheet(item: $assetToEdit) { asset in
+            AssetEditSheet(asset: asset, onDeleted: { deleteAsset($0) })
+        }
     }
 
     /// Opens the create-portfolio editor, or the paywall if a non-Pro user is at the limit.
@@ -214,13 +218,16 @@ struct DashboardView: View {
             ForEach(rowItems) { item in
                 Group {
                     if let id = item.assetID, let asset = assets.first(where: { $0.id == id }) {
-                        NavigationLink {
-                            AssetDetailView(asset: asset)
+                        Button {
+                            assetToEdit = asset
                         } label: {
                             DashboardRowView(item: item)
                         }
                         .buttonStyle(.plain)
                         .contextMenu {
+                            Button {
+                                assetToEdit = asset
+                            } label: { Label("Düzenle", systemImage: "pencil") }
                             Button(role: .destructive) {
                                 assetToDelete = asset
                                 showingDeletePopup = true
@@ -276,11 +283,11 @@ struct DashboardView: View {
             .sorted { $0.totalValue > $1.totalValue }
             .map { asset in
                 let spark = AssetHistoryManager.shared
-                    .getChartData(for: asset.type, days: 30, context: modelContext)
+                    .getChartData(for: asset.symbol, days: 30, context: modelContext)
                     .map { $0.price }
                 return DashboardRowItem(
                     id: asset.id.uuidString,
-                    title: asset.type.displayName,
+                    title: asset.name,
                     subtitle: "\(Self.formatAmount(asset.amount)) \(asset.unit)",
                     value: asset.totalValue,
                     changePercent: dayChangePercent(for: asset),
@@ -306,7 +313,7 @@ struct DashboardView: View {
             let today = calendar.startOfDay(for: Date())
 
             for asset in items {
-                let history = AssetHistoryManager.shared.getHistory(for: asset.type, context: modelContext)
+                let history = AssetHistoryManager.shared.getHistory(for: asset.symbol, context: modelContext)
                 for point in history {
                     let day = calendar.startOfDay(for: point.date)
                     seriesByDay[day, default: 0] += asset.amount * point.price
@@ -338,7 +345,7 @@ struct DashboardView: View {
     private func dayChangePercent(for asset: Asset) -> Double {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
-        let history = AssetHistoryManager.shared.getHistory(for: asset.type, context: modelContext)
+        let history = AssetHistoryManager.shared.getHistory(for: asset.symbol, context: modelContext)
         guard let prev = history.filter({ calendar.startOfDay(for: $0.date) < today })
             .sorted(by: { $0.date < $1.date }).last?.price, prev > 0 else { return 0 }
         return ((asset.currentPrice - prev) / prev) * 100.0
@@ -402,7 +409,7 @@ struct DashboardView: View {
     private func updateAssetPrices() async {
         var changed = false
         for asset in assets {
-            if let newPrice = currentMarketPrice(for: asset.type), abs(newPrice - asset.currentPrice) > 0.01 {
+            if let newPrice = currentMarketPrice(for: asset), abs(newPrice - asset.currentPrice) > 0.01 {
                 asset.currentPrice = newPrice
                 asset.lastUpdated = Date()
                 changed = true
@@ -411,36 +418,18 @@ struct DashboardView: View {
         if changed { try? modelContext.save() }
     }
 
-    private func currentMarketPrice(for type: AssetType) -> Double? {
-        let gold = marketDataManager.goldPrices
-        switch type {
-        case .gold: return gold.first { $0.name.lowercased().contains("gram altın") }?.sellPrice.parseToDouble()
-        case .goldQuarter: return gold.first { $0.name.lowercased().contains("çeyrek") }?.sellPrice.parseToDouble()
-        case .goldHalf: return gold.first { $0.name.lowercased().contains("yarım") }?.sellPrice.parseToDouble()
-        case .goldFull: return gold.first { $0.name.lowercased().contains("tam") }?.sellPrice.parseToDouble()
-        case .goldRepublic: return gold.first { $0.name.lowercased().contains("cumhuriyet") }?.sellPrice.parseToDouble()
-        case .goldAta: return gold.first { $0.name.lowercased().contains("ata") }?.sellPrice.parseToDouble()
-        case .goldResat: return gold.first { $0.name.lowercased().contains("reşat") }?.sellPrice.parseToDouble()
-        case .goldHamit: return gold.first { $0.name.lowercased().contains("hamit") }?.sellPrice.parseToDouble()
-        case .goldFive: return gold.first { $0.name.lowercased().contains("beşli") }?.sellPrice.parseToDouble()
-        case .goldGremse: return gold.first { $0.name.lowercased().contains("gremse") }?.sellPrice.parseToDouble()
-        case .goldFourteen: return gold.first { $0.name.lowercased().contains("14 ayar") }?.sellPrice.parseToDouble()
-        case .goldEighteen: return gold.first { $0.name.lowercased().contains("18 ayar") }?.sellPrice.parseToDouble()
-        case .goldTwoAndHalf: return gold.first { $0.name.lowercased().contains("iki buçuk") }?.sellPrice.parseToDouble()
-        case .goldTwentyTwoBracelet: return gold.first { $0.name.lowercased().contains("22 ayar") }?.sellPrice.parseToDouble()
-        case .silver: return gold.first { $0.name.lowercased().contains("gümüş") }?.sellPrice.parseToDouble()
-        case .usd: return marketDataManager.currencyRates.first { $0.code?.uppercased() == "USD" }?.sellPrice.parseToDouble()
-        case .eur: return marketDataManager.currencyRates.first { $0.code?.uppercased() == "EUR" }?.sellPrice.parseToDouble()
-        case .gbp: return marketDataManager.currencyRates.first { $0.code?.uppercased() == "GBP" }?.sellPrice.parseToDouble()
-        case .tl: return 1.0
-        }
+    /// Live price for an asset in TRY, keyed by its `symbol`. Covers gold, FX,
+    /// crypto and stocks uniformly (USD-priced instruments converted to TRY).
+    private func currentMarketPrice(for asset: Asset) -> Double? {
+        if asset.symbol == "TRY" { return 1.0 }
+        return marketDataManager.tryPrice(forSymbol: asset.symbol)
     }
 
     private func deleteAsset(_ asset: Asset) {
         withAnimation(.easeInOut(duration: 0.3)) {
             PortfolioManager.shared.removePurchasePrice(for: asset.id)
-            AssetHistoryManager.shared.deleteAllHistory(for: asset.type, context: modelContext)
-            AssetHistoryManager.shared.deleteAllTransactionHistory(for: asset.type, context: modelContext)
+            AssetHistoryManager.shared.deleteAllHistory(for: asset.symbol, context: modelContext)
+            AssetHistoryManager.shared.deleteAllTransactionHistory(for: asset.symbol, context: modelContext)
             modelContext.delete(asset)
             try? modelContext.save()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {

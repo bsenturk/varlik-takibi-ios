@@ -12,6 +12,8 @@ import Foundation
 final class AssetTransactionHistory {
     var id: UUID
     var assetType: AssetType
+    /// Canonical key matching `Asset.symbol`. Defaulted for migration.
+    var symbol: String = ""
     var date: Date
     var transactionType: TransactionType
     var amount: Double
@@ -56,6 +58,7 @@ final class AssetTransactionHistory {
     
     init(
         assetType: AssetType,
+        symbol: String? = nil,
         date: Date,
         transactionType: TransactionType,
         amount: Double,
@@ -64,6 +67,7 @@ final class AssetTransactionHistory {
     ) {
         self.id = UUID()
         self.assetType = assetType
+        self.symbol = symbol ?? assetType.supabaseSymbol
         self.date = Calendar.current.startOfDay(for: date)
         self.transactionType = transactionType
         self.amount = amount

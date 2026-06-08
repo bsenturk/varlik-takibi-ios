@@ -105,8 +105,8 @@ enum PortfolioStore {
 
         for asset in portfolio.assets ?? [] {
             PortfolioManager.shared.removePurchasePrice(for: asset.id)
-            AssetHistoryManager.shared.deleteAllHistory(for: asset.type, context: context)
-            AssetHistoryManager.shared.deleteAllTransactionHistory(for: asset.type, context: context)
+            AssetHistoryManager.shared.deleteAllHistory(for: asset.symbol, context: context)
+            AssetHistoryManager.shared.deleteAllTransactionHistory(for: asset.symbol, context: context)
             context.delete(asset)
         }
         context.delete(portfolio)

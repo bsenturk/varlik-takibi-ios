@@ -12,15 +12,19 @@ import Foundation
 final class AssetPriceHistory {
     var id: UUID
     var assetType: AssetType
+    /// Canonical key matching `Asset.symbol` (supports crypto/stocks where many
+    /// instruments share one generic `assetType`). Defaulted for migration.
+    var symbol: String = ""
     var date: Date
     var price: Double
     var amount: Double
     var totalValue: Double
     var createdAt: Date
-    
-    init(assetType: AssetType, date: Date, price: Double, amount: Double) {
+
+    init(assetType: AssetType, symbol: String? = nil, date: Date, price: Double, amount: Double) {
         self.id = UUID()
         self.assetType = assetType
+        self.symbol = symbol ?? assetType.supabaseSymbol
         self.date = Calendar.current.startOfDay(for: date)
         self.price = price
         self.amount = amount

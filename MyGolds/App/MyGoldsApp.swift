@@ -52,7 +52,8 @@ struct VarlikDefterimApp: App {
             Asset.self,
             AssetPriceHistory.self,
             AssetTransactionHistory.self,
-            Portfolio.self
+            Portfolio.self,
+            PortfolioSnapshot.self
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {
@@ -96,6 +97,21 @@ struct VarlikDefterimApp: App {
         // Create default portfolios & migrate pre-v3.0.0 assets into "Portföyüm"
         PortfolioStore.ensureDefaults(context: sharedModelContainer.mainContext)
 
+        // Backfill `symbol` on legacy rows added before the symbol-based model.
+        backfillSymbols()
+
+        // "Time Machine": rebuild any missing daily portfolio snapshots so charts
+        // stay continuous. Best-effort & offline-safe (no-ops if prices unavailable).
+        Task { @MainActor in
+            let repository = PortfolioRepository(context: sharedModelContainer.mainContext)
+            let calculator = PortfolioCalculatorService(
+                context: sharedModelContainer.mainContext,
+                repository: repository,
+                marketData: MarketDataService()
+            )
+            await calculator.reconstructAllPortfolios()
+        }
+
         // Clear badge on app launch
         notificationManager.clearBadge()
         
@@ -122,6 +138,38 @@ struct VarlikDefterimApp: App {
         hasInitialSetupCompleted = true
     }
     
+    /// One-time backfill: legacy `Asset` / history rows created before the
+    /// symbol-based model have an empty `symbol`. Derive it from the stored
+    /// `AssetType` so symbol-keyed lookups work for existing data.
+    private func backfillSymbols() {
+        let context = sharedModelContainer.mainContext
+        var changed = false
+
+        if let assets = try? context.fetch(FetchDescriptor<Asset>()) {
+            for asset in assets where asset.symbol.isEmpty {
+                asset.symbol = asset.type.supabaseSymbol
+                changed = true
+            }
+        }
+        if let history = try? context.fetch(FetchDescriptor<AssetPriceHistory>()) {
+            for row in history where row.symbol.isEmpty {
+                row.symbol = row.assetType.supabaseSymbol
+                changed = true
+            }
+        }
+        if let txns = try? context.fetch(FetchDescriptor<AssetTransactionHistory>()) {
+            for row in txns where row.symbol.isEmpty {
+                row.symbol = row.assetType.supabaseSymbol
+                changed = true
+            }
+        }
+
+        if changed {
+            try? context.save()
+            Logger.log("🔁 Backfilled symbol on legacy rows")
+        }
+    }
+
     private func recordDailySnapshots() {
         Logger.log("📸 App: Recording daily snapshots")
         
@@ -142,7 +190,7 @@ struct VarlikDefterimApp: App {
             
             // 1. Price History kontrolü - Yoksa initial oluştur
             let priceHistory = AssetHistoryManager.shared.getHistory(
-                for: asset.type,
+                for: asset.symbol,
                 context: sharedModelContainer.mainContext
             )
             
@@ -167,7 +215,7 @@ struct VarlikDefterimApp: App {
             
             // 2. Transaction history kontrolü - Yoksa initial oluştur
             let transactions = AssetHistoryManager.shared.getTransactionHistory(
-                for: asset.type,
+                for: asset.symbol,
                 context: sharedModelContainer.mainContext
             )
             
@@ -180,6 +228,7 @@ struct VarlikDefterimApp: App {
                 // Initial transaction için asset.dateAdded tarihini kullan
                 let initialTransaction = AssetTransactionHistory(
                     assetType: asset.type,
+                    symbol: asset.symbol,
                     date: asset.dateAdded, // BURADA ORIGINAL DATE KULLANILIYOR
                     transactionType: .initial,
                     amount: asset.amount,
