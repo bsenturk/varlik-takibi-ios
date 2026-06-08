@@ -15,8 +15,10 @@ import Foundation
 class AssetHistoryManager {
     static let shared = AssetHistoryManager()
 
-    private let maxHistoryCount = 30
-    private let maxTransactionHistoryCount = 10
+    // Keep ~13 months of daily price history so longer analysis ranges (3A/1Y)
+    // can accumulate. One row per asset per day is cheap in local SwiftData.
+    private let maxHistoryCount = 400
+    private let maxTransactionHistoryCount = 50
 
     private init() {}
 

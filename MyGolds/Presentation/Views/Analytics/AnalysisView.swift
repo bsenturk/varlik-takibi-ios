@@ -162,7 +162,7 @@ struct AnalysisView: View {
             }
 
             if hasEnoughHistory {
-                Chart(series, id: \.date) { point in
+                Chart(downsample(series), id: \.date) { point in
                     let converted = portfolioManager.convertToTargetCurrency(point.value, targetCurrency: selectedCurrency)
                     AreaMark(x: .value("Tarih", point.date), y: .value("Değer", converted))
                         .foregroundStyle(
@@ -305,20 +305,58 @@ struct AnalysisView: View {
 
     // MARK: - Data
 
+    /// Daily portfolio-value series for the selected range, sourced from
+    /// `PortfolioSnapshot` (uncapped, and built with the *historical* holdings by
+    /// the Time Machine — so past days aren't valued with today's amounts). For
+    /// "Genel" we sum snapshots across all real portfolios per day. The final
+    /// point is pinned to the live total so the chart ends at the current value.
     private func valueSeries() -> [(date: Date, value: Double)] {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
         let start = calendar.date(byAdding: .day, value: -range.days, to: today) ?? today
 
-        var byDay: [Date: Double] = [:]
-        for asset in scopedAssets {
-            let history = AssetHistoryManager.shared.getHistory(for: asset.symbol, from: start, to: today, context: modelContext)
-            for point in history {
-                let day = calendar.startOfDay(for: point.date)
-                byDay[day, default: 0] += asset.amount * point.price
-            }
+        let snapshots: [PortfolioSnapshot]
+        if isGeneral {
+            snapshots = portfolios.filter { !$0.isGeneral }.flatMap { $0.snapshots ?? [] }
+        } else {
+            snapshots = selectedPortfolio?.snapshots ?? []
         }
+
+        var byDay: [Date: Double] = [:]
+        for snap in snapshots {
+            let day = calendar.startOfDay(for: snap.date)
+            guard day >= start && day <= today else { continue }
+            byDay[day, default: 0] += snap.totalValue
+        }
+
+        // Pin the most recent point to the live total (snapshots are once/day).
+        let liveValue = metrics.totalValue
+        if liveValue > 0 { byDay[today] = liveValue }
+
         return byDay.keys.sorted().map { (date: $0, value: byDay[$0] ?? 0) }
+    }
+
+    /// Downsample a daily series so long ranges stay readable: weekly buckets for
+    /// 3A, monthly for 1Y/Tümü (keeping the latest point in each bucket). 1H/1A
+    /// stay daily.
+    private func downsample(_ series: [(date: Date, value: Double)]) -> [(date: Date, value: Double)] {
+        let component: Calendar.Component?
+        switch range {
+        case .week, .month: component = nil
+        case .quarter: component = .weekOfYear
+        case .year, .all: component = .month
+        }
+        guard let comp = component, series.count > 2 else { return series }
+
+        let calendar = Calendar.current
+        var byBucket: [Date: (date: Date, value: Double)] = [:]
+        for point in series {
+            let key = calendar.dateInterval(of: comp, for: point.date)?.start
+                ?? calendar.startOfDay(for: point.date)
+            if let existing = byBucket[key], existing.date >= point.date { continue }
+            byBucket[key] = point
+        }
+        return byBucket.values.sorted { $0.date < $1.date }
     }
 
     // MARK: - Movers (gainers / losers)
