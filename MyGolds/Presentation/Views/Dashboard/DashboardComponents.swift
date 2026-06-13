@@ -117,7 +117,7 @@ struct BalanceCardView: View {
     }
 
     private var convertedChange: Double {
-        portfolioManager.convertToTargetCurrency(metrics.dayChangeValue, targetCurrency: selectedCurrency)
+        portfolioManager.convertToTargetCurrency(metrics.profitLoss, targetCurrency: selectedCurrency)
     }
 
     var body: some View {
@@ -136,12 +136,12 @@ struct BalanceCardView: View {
                 .minimumScaleFactor(0.6)
                 .lineLimit(1)
 
-            if metrics.hasDayChange {
+            if metrics.hasProfitLoss {
                 HStack(spacing: 8) {
                     HStack(spacing: 6) {
                         Image(systemName: metrics.isPositive ? "arrow.up" : "arrow.down")
                             .font(.system(size: 11, weight: .bold))
-                        Text("%\(String(format: "%.2f", abs(metrics.dayChangePercent)).replacingOccurrences(of: ".", with: ","))")
+                        Text("%\(String(format: "%.2f", abs(metrics.profitLossPercent)).replacingOccurrences(of: ".", with: ","))")
                             .font(.system(size: 13, weight: .bold))
                         Text("·")
                             .font(.system(size: 13, weight: .bold))
@@ -154,7 +154,7 @@ struct BalanceCardView: View {
                     .background(Color.white.opacity(0.18))
                     .clipShape(Capsule())
 
-                    Text("Bugün")
+                    Text("Kâr / Zarar")
                         .font(.system(size: 13))
                         .foregroundColor(.white.opacity(0.8))
                 }
@@ -184,6 +184,7 @@ struct BalanceCardView: View {
             ForEach(Currency.allCases, id: \.self) { currency in
                 Button {
                     withAnimation { selectedCurrency = currency }
+                    FirebaseAnalyticsHelper.shared.logCurrencyChanged(to: currency.rawValue)
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 } label: {
                     Label(currency.displayName, systemImage: selectedCurrency == currency ? "checkmark" : "")

@@ -80,6 +80,7 @@ final class PortfolioCalculatorService: PortfolioCalculatorServiceProtocol {
         let priceSeries = makePriceSeries(from: priceRows)
 
         // ── Steps 2 + 4 + 5: replay, value and persist each missing day ──────
+        var persisted = 0
         for day in missingDates {
             var total = 0.0
             for asset in assets {
@@ -88,10 +89,16 @@ final class PortfolioCalculatorService: PortfolioCalculatorServiceProtocol {
                 let price = price(for: asset.symbol, on: day, in: priceSeries)
                 total += amount * price                                     // Step 4
             }
+            // Skip days we couldn't value (historical prices unavailable → total 0):
+            // persisting a 0 plots a false flat-at-baseline line and breaks the range
+            // % on the Analiz chart. Leaving a gap is harmless — the day is retried on a
+            // later launch once prices become available.
+            guard total > 0 else { continue }
             _ = try repository.addSnapshot(date: day, totalValue: total, to: portfolio) // Step 5
+            persisted += 1
         }
 
-        Logger.log("⏳ TimeMachine: reconstructed \(missingDates.count) day(s) for \(portfolio.name)")
+        Logger.log("⏳ TimeMachine: reconstructed \(persisted)/\(missingDates.count) day(s) for \(portfolio.name)")
     }
 
     // MARK: - Step 1 helpers

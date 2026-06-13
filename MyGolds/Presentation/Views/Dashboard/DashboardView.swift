@@ -122,7 +122,7 @@ struct DashboardView: View {
         }
         .onChange(of: assets) { _, _ in portfolioManager.updatePortfolio(with: assets) }
         .sheet(isPresented: $showingPaywall) {
-            PaywallView(onClose: { showingPaywall = false })
+            PaywallView(onClose: { showingPaywall = false }, context: .portfolioLimit)
         }
         .sheet(item: $assetToEdit) { asset in
             AssetEditSheet(asset: asset, onDeleted: { deleteAsset($0) })
@@ -258,11 +258,11 @@ struct DashboardView: View {
             }
             .padding(.top, 30)
 
-            Text(isGeneralSelected ? "Henüz varlık yok" : "Bu portföy boş")
+            Text(isGeneralSelected ? "Hadi başlayalım" : "Bu portföy boş")
                 .font(.system(size: 20, weight: .bold))
             Text(isGeneralSelected
-                 ? "Aşağıdaki + butonuna dokunarak ilk varlığınızı ekleyin."
-                 : "Aşağıdaki + butonuna dokunarak bu portföye varlık ekleyin.")
+                 ? "Aşağıdaki + butonuna dokun, ilk varlığını ekle ve portföyünün canlı değerini gör."
+                 : "Aşağıdaki + butonuna dokunarak bu portföye varlık ekle.")
                 .font(.system(size: 15))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -290,7 +290,7 @@ struct DashboardView: View {
                     title: asset.name,
                     subtitle: "\(Self.formatAmount(asset.amount)) \(asset.unit)",
                     value: asset.totalValue,
-                    changePercent: dayChangePercent(for: asset),
+                    changePercent: profitLossPercent(for: asset),
                     sparkline: spark,
                     icon: asset.type.tileIcon,
                     tintHex: asset.type.tileTintHex,
@@ -306,11 +306,10 @@ struct DashboardView: View {
             let value = items.reduce(0) { $0 + $1.totalValue }
             guard value > 0 else { return nil }
 
-            // Aggregate sparkline + previous-day value across all assets in the category.
+            // Aggregate sparkline + cost basis across all assets in the category.
             var seriesByDay: [Date: Double] = [:]
-            var previousTotal = 0.0
+            var costBasis = 0.0
             let calendar = Calendar.current
-            let today = calendar.startOfDay(for: Date())
 
             for asset in items {
                 let history = AssetHistoryManager.shared.getHistory(for: asset.symbol, context: modelContext)
@@ -318,14 +317,12 @@ struct DashboardView: View {
                     let day = calendar.startOfDay(for: point.date)
                     seriesByDay[day, default: 0] += asset.amount * point.price
                 }
-                let prev = history.filter { calendar.startOfDay(for: $0.date) < today }
-                    .sorted { $0.date < $1.date }.last?.price
-                previousTotal += asset.amount * (prev ?? asset.currentPrice)
+                let cost = PortfolioManager.shared.assetPurchasePrices[asset.id] ?? asset.currentPrice
+                costBasis += cost * asset.amount
             }
 
             let spark = seriesByDay.keys.sorted().map { seriesByDay[$0] ?? 0 }
-            let change = value - previousTotal
-            let pct = previousTotal > 0 ? (change / previousTotal) * 100.0 : 0.0
+            let pct = costBasis > 0 ? ((value - costBasis) / costBasis) * 100.0 : 0.0
 
             return DashboardRowItem(
                 id: "cat-\(category.rawValue)",
@@ -342,13 +339,10 @@ struct DashboardView: View {
         .sorted { $0.value > $1.value }
     }
 
-    private func dayChangePercent(for asset: Asset) -> Double {
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        let history = AssetHistoryManager.shared.getHistory(for: asset.symbol, context: modelContext)
-        guard let prev = history.filter({ calendar.startOfDay(for: $0.date) < today })
-            .sorted(by: { $0.date < $1.date }).last?.price, prev > 0 else { return 0 }
-        return ((asset.currentPrice - prev) / prev) * 100.0
+    /// Profit/loss percentage of a holding vs its weighted average cost.
+    private func profitLossPercent(for asset: Asset) -> Double {
+        guard let cost = PortfolioManager.shared.assetPurchasePrices[asset.id], cost > 0 else { return 0 }
+        return ((asset.currentPrice - cost) / cost) * 100.0
     }
 
     static func formatAmount(_ value: Double) -> String {

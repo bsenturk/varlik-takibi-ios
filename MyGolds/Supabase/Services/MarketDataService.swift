@@ -19,6 +19,15 @@ protocol MarketDataServiceProtocol: Sendable {
     /// Fetches historical closing prices for the given symbols within a date range
     /// (inclusive). Used by the "Time Machine" to reconstruct missing snapshots.
     func fetchHistoricalPrices(symbols: [String], from: Date, to: Date) async throws -> [AssetPrice]
+    /// Searches TEFAS for funds matching `query` (code or name) via the
+    /// `search-tefas` Edge Function. The backend fetches the funds live, upserts
+    /// them into `assets_prices`, and returns the matching rows.
+    func searchFunds(query: String) async throws -> [AssetPrice]
+}
+
+/// Envelope returned by the `search-tefas` Edge Function.
+private struct FundSearchResponse: Decodable {
+    let data: [AssetPrice]
 }
 
 final class MarketDataService: MarketDataServiceProtocol {
@@ -65,4 +74,42 @@ final class MarketDataService: MarketDataServiceProtocol {
             throw AppError.map(error)
         }
     }
+
+    func searchFunds(query: String) async throws -> [AssetPrice] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 2 else { return [] }
+        do {
+            let response: FundSearchResponse = try await client.functions.invoke(
+                "search-tefas",
+                options: FunctionInvokeOptions(body: ["q": trimmed])
+            ) { data, _ in
+                try Self.functionDecoder.decode(FundSearchResponse.self, from: data)
+            }
+            return response.data
+        } catch {
+            throw AppError.map(error)
+        }
+    }
+
+    /// Decoder for Edge Function payloads. Mirrors `SupabaseManager`'s decoder so
+    /// `updated_at` (ISO8601 with or without fractional seconds) decodes cleanly.
+    private static let functionDecoder: JSONDecoder = {
+        let decoder = JSONDecoder()
+        let withFractional = ISO8601DateFormatter()
+        withFractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let plain = ISO8601DateFormatter()
+        plain.formatOptions = [.withInternetDateTime]
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let raw = try container.decode(String.self)
+            if let date = withFractional.date(from: raw) ?? plain.date(from: raw) {
+                return date
+            }
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unsupported date format: \(raw)"
+            )
+        }
+        return decoder
+    }()
 }

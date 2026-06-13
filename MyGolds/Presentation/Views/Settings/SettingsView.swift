@@ -21,7 +21,6 @@ struct SettingsView: View {
 
     // Debug helpers
     @StateObject private var appOpenAdManager = AppOpenAdManager.shared
-    @StateObject private var adManager = AdMobManager.shared
     @StateObject private var notificationManager = NotificationManager.shared
 
     struct ShareItem: Identifiable {
@@ -90,7 +89,7 @@ struct SettingsView: View {
                             .foregroundColor(.white)
                     )
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Varlık Pro'ya Geç")
+                    Text("Varlık Takibi Pro'ya Geç")
                         .font(.system(size: 18, weight: .bold))
                         .foregroundColor(.white)
                     Text("Sınırsız portföy ve gelişmiş analiz")
@@ -285,10 +284,6 @@ struct SettingsView: View {
             HStack(spacing: 10) {
                 Button("Load Ad") { appOpenAdManager.loadAd() }.buttonStyle(.bordered)
                 Button("Force Ad") { appOpenAdManager.forceShowAd() }.buttonStyle(.borderedProminent)
-                Button(userDefaults.isPro ? "Pro: ON" : "Pro: OFF") {
-                    userDefaults.isPro.toggle()
-                    if userDefaults.isPro { adManager.hideBanner() } else { adManager.showBannerAd() }
-                }.buttonStyle(.bordered)
             }
             HStack(spacing: 10) {
                 Button("Test Notif") { notificationManager.scheduleTestNotification() }.buttonStyle(.bordered)

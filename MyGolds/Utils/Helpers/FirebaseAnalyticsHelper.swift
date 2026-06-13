@@ -123,4 +123,117 @@ final class FirebaseAnalyticsHelper {
             "ad_type": "banner"
         ])
     }
+
+    // MARK: - Product / Business Events
+    //
+    // PRIVACY: These events deliberately NEVER include financial/critical user data —
+    // no balances, asset amounts, monetary values, or purchase prices. Only
+    // behavioural signals and non-sensitive categories (asset class, plan type,
+    // instrument symbol, currency code, screen name) are recorded so the funnel can
+    // be analysed without profiling a user's actual holdings.
+
+    // MARK: Onboarding
+
+    /// Onboarding tamamlandığında (ATT sonrası tek seferlik bitiş noktası).
+    func logOnboardingCompleted(reachedPage: Int, skipped: Bool) {
+        Analytics.logEvent("onboarding_completed", parameters: [
+            "reached_page": reachedPage,
+            "skipped": skipped
+        ])
+    }
+
+    // MARK: Assets
+
+    /// Bir varlık eklendiğinde — yalnızca varlık sınıfı/sembolü ve davranışsal
+    /// bayraklar; ASLA miktar, değer veya fiyat içermez.
+    func logAssetAdded(category: String, symbol: String, isMerge: Bool, hasPurchasePrice: Bool) {
+        Analytics.logEvent("asset_added", parameters: [
+            "asset_category": category,
+            "asset_symbol": symbol,
+            "is_merge": isMerge,
+            "has_purchase_price": hasPurchasePrice
+        ])
+    }
+
+    /// Bir varlık silindiğinde (miktar/değer içermez).
+    func logAssetDeleted(category: String, symbol: String) {
+        Analytics.logEvent("asset_deleted", parameters: [
+            "asset_category": category,
+            "asset_symbol": symbol
+        ])
+    }
+
+    // MARK: Monetization funnel
+
+    /// Pro olmayan kullanıcı premium bir kategoriye dokunup paywall'a düştüğünde.
+    func logPremiumCategoryLocked(category: String) {
+        Analytics.logEvent("premium_category_locked", parameters: [
+            "asset_category": category
+        ])
+    }
+
+    /// Paywall açıldığında — hangi bağlamdan tetiklendiği.
+    func logPaywallShown(context: String) {
+        Analytics.logEvent("paywall_shown", parameters: [
+            "context": context
+        ])
+    }
+
+    /// Paywall'da bir plan seçildiğinde.
+    func logPaywallPlanSelected(plan: String) {
+        Analytics.logEvent("paywall_plan_selected", parameters: [
+            "plan": plan
+        ])
+    }
+
+    /// Paywall ana CTA'sına basıldığında (satın alma başlatılır).
+    func logPaywallCtaTapped(plan: String, hasTrial: Bool) {
+        Analytics.logEvent("paywall_cta_tapped", parameters: [
+            "plan": plan,
+            "has_trial": hasTrial
+        ])
+    }
+
+    /// Paywall satın alma yapılmadan kapatıldığında.
+    func logPaywallDismissed(context: String) {
+        Analytics.logEvent("paywall_dismissed", parameters: [
+            "context": context
+        ])
+    }
+
+    /// Abonelik satın alımı başarıyla tamamlandığında (tutar/fiyat içermez).
+    func logSubscriptionPurchased(plan: String, hadTrial: Bool) {
+        Analytics.logEvent("subscription_purchased", parameters: [
+            "plan": plan,
+            "had_trial": hadTrial
+        ])
+    }
+
+    /// Abonelik satın alımı başarısız olduğunda / iptal edildiğinde.
+    func logSubscriptionPurchaseFailed(plan: String) {
+        Analytics.logEvent("subscription_purchase_failed", parameters: [
+            "plan": plan
+        ])
+    }
+
+    /// Önceki satın alımlar geri yüklendiğinde.
+    func logSubscriptionRestored() {
+        Analytics.logEvent("subscription_restored", parameters: nil)
+    }
+
+    // MARK: Navigation / general
+
+    /// Sekme/ekran görüntülemesi (Firebase'in standart screen_view olayı).
+    func logScreenView(_ screenName: String) {
+        Analytics.logEvent(AnalyticsEventScreenView, parameters: [
+            AnalyticsParameterScreenName: screenName
+        ])
+    }
+
+    /// Görüntüleme para birimi değiştirildiğinde (yalnızca kod, tutar değil).
+    func logCurrencyChanged(to currency: String) {
+        Analytics.logEvent("currency_changed", parameters: [
+            "currency": currency
+        ])
+    }
 }

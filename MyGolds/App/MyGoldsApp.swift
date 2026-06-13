@@ -21,7 +21,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // Configure Firebase
         FirebaseApp.configure()
         Logger.log("🔧 Firebase configured")
-        
+
+        // Configure RevenueCat, then start observing entitlements / offerings.
+        PurchaseManager.configure()
+        Logger.log("🔧 RevenueCat configured")
+        Task { @MainActor in PurchaseManager.shared.start() }
+
         // Start AdMob (handled by AdMobManager)
         Logger.log("🔧 AdMob initialization will be handled by AdMobManager")
         

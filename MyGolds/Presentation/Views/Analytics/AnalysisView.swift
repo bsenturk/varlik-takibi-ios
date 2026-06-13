@@ -267,7 +267,7 @@ struct AnalysisView: View {
                                     .lineLimit(1)
                                     .minimumScaleFactor(0.7)
                                 Spacer(minLength: 6)
-                                Text("%\(String(format: "%.0f", slice.percent))")
+                                Text(Self.percentLabel(slice.percent))
                                     .font(.system(size: 14, weight: .semibold))
                                     .foregroundColor(.secondary)
                             }
@@ -333,7 +333,13 @@ struct AnalysisView: View {
         let liveValue = metrics.totalValue
         if liveValue > 0 { byDay[today] = liveValue }
 
-        return byDay.keys.sorted().map { (date: $0, value: byDay[$0] ?? 0) }
+        // Drop days we couldn't value (totalValue 0): the Time Machine stores a 0
+        // when historical prices were unavailable, and a leading 0 would both flatten
+        // the chart to the baseline and collapse the range % to "%0,00" (firstValue 0),
+        // contradicting the dashboard's cost-basis P/L.
+        return byDay.keys.sorted()
+            .map { (date: $0, value: byDay[$0] ?? 0) }
+            .filter { $0.value > 0 }
     }
 
     /// Downsample a daily series so long ranges stay readable: weekly buckets for
@@ -442,46 +448,32 @@ struct AnalysisView: View {
 
     private struct Slice { let name: String; let value: Double; let percent: Double; let color: Color }
 
-    /// Distinct colors assigned by slice order so every slice is visually unique
-    /// (gold types all share one tint, which previously made the donut one color).
-    private static let slicePalette: [Color] = [
-        Color(hex: "#FFB300"), Color(hex: "#34C759"), Color(hex: "#0A84FF"),
-        Color(hex: "#AF52DE"), Color(hex: "#FF3B30"), Color(hex: "#F7931A"),
-        Color(hex: "#2A9D8F"), Color(hex: "#E63946"), Color(hex: "#5856D6"),
-        Color(hex: "#FF9500"), Color(hex: "#30B0C7"), Color(hex: "#8E8E93")
-    ]
-
+    /// Distribution by ASSET CLASS (category): all holdings of the same class are
+    /// one slice (e.g. the 3 BIST stocks → a single "Borsa İstanbul" slice), so the
+    /// "Tür" count reflects asset classes — not individual instruments.
     private func distribution() -> [Slice] {
         let total = scopedAssets.reduce(0) { $0 + $1.totalValue }
         guard total > 0 else { return [] }
 
-        // Genel: group by category. A specific portfolio: one slice per holding
-        // (its real name), so distinct asset types show as distinct slices.
-        let raw: [(name: String, value: Double)]
-        if isGeneral {
-            let grouped = Dictionary(grouping: scopedAssets) { $0.type.category }
-            raw = AssetCategory.allCases.compactMap { category in
-                guard let items = grouped[category] else { return nil }
-                let value = items.reduce(0) { $0 + $1.totalValue }
-                guard value > 0 else { return nil }
-                return (category.displayName, value)
-            }
-        } else {
-            raw = scopedAssets
-                .map { (name: $0.name, value: $0.totalValue) }
-                .filter { $0.value > 0 }
+        let grouped = Dictionary(grouping: scopedAssets) { $0.type.category }
+        return AssetCategory.allCases.compactMap { category -> Slice? in
+            guard let items = grouped[category] else { return nil }
+            let value = items.reduce(0) { $0 + $1.totalValue }
+            guard value > 0 else { return nil }
+            return Slice(
+                name: category.displayName,
+                value: value,
+                percent: value / total * 100,
+                color: Color(hex: category.tintHex)
+            )
         }
+        .sorted { $0.value > $1.value }
+    }
 
-        return raw
-            .sorted { $0.value > $1.value }
-            .enumerated()
-            .map { index, item in
-                Slice(
-                    name: item.name,
-                    value: item.value,
-                    percent: item.value / total * 100,
-                    color: Self.slicePalette[index % Self.slicePalette.count]
-                )
-            }
+    /// Percentage label that doesn't mislead: a small-but-present slice shows
+    /// "<%1" instead of a flat "%0".
+    static func percentLabel(_ p: Double) -> String {
+        if p > 0 && p < 1 { return "<%1" }
+        return "%\(String(format: "%.0f", p))"
     }
 }

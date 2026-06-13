@@ -17,6 +17,7 @@
 		41BB945641F3EC209AEAAF52 /* Portfolio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 247368DDD248FD2197BCB0D6 /* Portfolio.swift */; };
 		498450D4CD87F6A6B8A131FB /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = C1961964D2580EE33B8B1AE3 /* Supabase */; };
 		49C05C98D9EDA2703B539338 /* AssetEditSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD57CBF5F13AB266CF39E404 /* AssetEditSheet.swift */; };
+		51B8DA64BB6557E6D81A8390 /* PurchaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3FA32630A917E0B54622A5C /* PurchaseManager.swift */; };
 		57346157300FA9A706701060 /* AppError.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E50DD4E3D3B4F3BAC569F8 /* AppError.swift */; };
 		58D058789EDAE33025BA16EC /* SupabaseModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD256FBA733EBE4803F3F420 /* SupabaseModels.swift */; };
 		5D9AFB0E241CCBABB02784B1 /* MarketDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8B3C04E3733E47B22E90D9A /* MarketDataService.swift */; };
@@ -63,6 +64,7 @@
 		9BC2B6C32EA56B23009C4B5F /* Currency.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BC2B6C22EA56B21009C4B5F /* Currency.swift */; };
 		A360D8ED2533987A4E5CD1A1 /* DashboardComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6097DEE3897B75EFE50A3407 /* DashboardComponents.swift */; };
 		A8C3E38C16158BA7797038CB /* PortfolioEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BF667F5C586B464A6A9DF44 /* PortfolioEditorView.swift */; };
+		AAD70E9A546417685D9CC705 /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = F9CEB7A7386B60B483DDD43D /* RevenueCat */; };
 		B517DB3FA8623083E22DDB03 /* PortfolioColor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5134E28796004C70C938911A /* PortfolioColor.swift */; };
 		C5964977E0A820E5F620E295 /* SparklineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7968DC0D91AA68BE56367185 /* SparklineView.swift */; };
 		CF12A212BAB889AB7D3D6DA3 /* PortfolioMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8B998C21C6F270752DCED6D /* PortfolioMetrics.swift */; };
@@ -179,6 +181,7 @@
 		D8B50E502E2D3FC400C8F0E9 /* AppVersionHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppVersionHelper.swift; sourceTree = "<group>"; };
 		D8B998C21C6F270752DCED6D /* PortfolioMetrics.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PortfolioMetrics.swift; sourceTree = "<group>"; };
 		E8B3C04E3733E47B22E90D9A /* MarketDataService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MarketDataService.swift; sourceTree = "<group>"; };
+		F3FA32630A917E0B54622A5C /* PurchaseManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PurchaseManager.swift; sourceTree = "<group>"; };
 		F8EA8A77E2A393340062D5A0 /* PortfolioRepository.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PortfolioRepository.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -217,6 +220,7 @@
 				9B83C03C2B87E3E70028CF6E /* FirebaseFirestore in Frameworks */,
 				9B83C0542B87E3E70028CF6E /* FirebaseRemoteConfigSwift in Frameworks */,
 				498450D4CD87F6A6B8A131FB /* Supabase in Frameworks */,
+				AAD70E9A546417685D9CC705 /* RevenueCat in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -508,6 +512,7 @@
 				D8581F5F2E0EE02D00E48444 /* NotificationManager.swift */,
 				D8B998C21C6F270752DCED6D /* PortfolioMetrics.swift */,
 				6756A37D257C1F93381E6719 /* PortfolioStore.swift */,
+				F3FA32630A917E0B54622A5C /* PurchaseManager.swift */,
 			);
 			path = Helpers;
 			sourceTree = "<group>";
@@ -608,6 +613,7 @@
 				9B81D6C82BA4DCB400C8E9D2 /* GoogleMobileAds */,
 				D8B22AAE2E0DF74F0058B883 /* SDWebImageSwiftUI */,
 				C1961964D2580EE33B8B1AE3 /* Supabase */,
+				F9CEB7A7386B60B483DDD43D /* RevenueCat */,
 			);
 			productName = MyGolds;
 			productReference = 9B0F503F2B7FFCB300A03018 /* MyGolds.app */;
@@ -642,6 +648,7 @@
 				9B81D6C72BA4DCB400C8E9D2 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
 				D8B22AAA2E0DF6640058B883 /* XCRemoteSwiftPackageReference "SDWebImageSwiftUI" */,
 				F362FCD570315F4DDA5C2B34 /* XCRemoteSwiftPackageReference "supabase-swift" */,
+				BCDFB19454BB76379B2312C0 /* XCRemoteSwiftPackageReference "purchases-ios" */,
 			);
 			productRefGroup = 9B0F50402B7FFCB300A03018 /* Products */;
 			projectDirPath = "";
@@ -764,6 +771,7 @@
 				271B53FCF47103949DE543E8 /* PortfolioSnapshot.swift in Sources */,
 				3963729C2B4D8369F69B4A37 /* PortfolioCalculatorService.swift in Sources */,
 				49C05C98D9EDA2703B539338 /* AssetEditSheet.swift in Sources */,
+				51B8DA64BB6557E6D81A8390 /* PurchaseManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1012,6 +1020,14 @@
 				minimumVersion = 10.21.0;
 			};
 		};
+		BCDFB19454BB76379B2312C0 /* XCRemoteSwiftPackageReference "purchases-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/RevenueCat/purchases-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.0.0;
+			};
+		};
 		D8B22AAA2E0DF6640058B883 /* XCRemoteSwiftPackageReference "SDWebImageSwiftUI" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/SDWebImage/SDWebImageSwiftUI.git";
@@ -1180,6 +1196,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = D8B22AAA2E0DF6640058B883 /* XCRemoteSwiftPackageReference "SDWebImageSwiftUI" */;
 			productName = SDWebImageSwiftUI;
+		};
+		F9CEB7A7386B60B483DDD43D /* RevenueCat */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BCDFB19454BB76379B2312C0 /* XCRemoteSwiftPackageReference "purchases-ios" */;
+			productName = RevenueCat;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

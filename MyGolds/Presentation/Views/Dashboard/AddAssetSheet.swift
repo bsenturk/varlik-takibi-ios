@@ -62,6 +62,11 @@ struct AddAssetSheet: View {
     @State private var selectedPortfolio: Portfolio?
     @State private var showAlert = false
     @State private var alertMessage = ""
+    @State private var showingPaywall = false
+
+    // Debounced TEFAS fund search (funds the user types that aren't cached locally).
+    @State private var fundSearchTask: Task<Void, Never>?
+    @State private var isSearchingFunds = false
 
     private var realPortfolios: [Portfolio] { portfolios.filter { !$0.isGeneral } }
 
@@ -89,6 +94,20 @@ struct AddAssetSheet: View {
         .alert("Hata", isPresented: $showAlert) {
             Button("Tamam", role: .cancel) {}
         } message: { Text(alertMessage) }
+        .sheet(isPresented: $showingPaywall) {
+            PaywallView(onClose: { showingPaywall = false }, context: .fund)
+        }
+    }
+
+    /// Opens a category, or the paywall when a non-Pro user taps a premium category.
+    private func openCategory(_ category: AssetCategory) {
+        if category.isPremium && !UserDefaultsManager.shared.isPro {
+            FirebaseAnalyticsHelper.shared.logPremiumCategoryLocked(category: String(describing: category))
+            showingPaywall = true
+            UINotificationFeedbackGenerator().notificationOccurred(.warning)
+        } else {
+            withAnimation(.easeInOut(duration: 0.2)) { step = .typeList(category) }
+        }
     }
 
     // MARK: - Nav bar
@@ -157,7 +176,7 @@ struct AddAssetSheet: View {
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)], spacing: 14) {
                 ForEach(AssetCategory.allCases) { category in
                     Button {
-                        withAnimation(.easeInOut(duration: 0.2)) { step = .typeList(category) }
+                        openCategory(category)
                     } label: {
                         VStack(spacing: 12) {
                             AssetIconTile(icon: category.iconName, tintHex: category.tintHex, size: 56)
@@ -171,6 +190,23 @@ struct AddAssetSheet: View {
                             RoundedRectangle(cornerRadius: 20, style: .continuous)
                                 .fill(Color(.secondarySystemGroupedBackground))
                         )
+                        .overlay(alignment: .topTrailing) {
+                            // Pro badge on premium categories (until the user subscribes).
+                            if category.isPremium && !UserDefaultsManager.shared.isPro {
+                                Image(systemName: "crown.fill")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .padding(7)
+                                    .background(
+                                        LinearGradient(
+                                            colors: [Color(hex: "#0A84FF"), Color(hex: "#AF52DE")],
+                                            startPoint: .topLeading, endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .clipShape(Circle())
+                                    .padding(10)
+                            }
+                        }
                     }
                     .buttonStyle(.plain)
                 }
@@ -200,12 +236,27 @@ struct AddAssetSheet: View {
             searchBar
             ScrollView {
                 LazyVStack(spacing: 10) {
-                    if items.isEmpty && category.isDynamic && searchText.isEmpty {
-                        ProgressView()
-                            .padding(.top, 40)
-                        Text("Fiyatlar yükleniyor…")
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
+                    if items.isEmpty {
+                        if isSearchingFunds {
+                            ProgressView()
+                                .padding(.top, 40)
+                            Text("Fon aranıyor…")
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                        } else if category.isDynamic && searchText.isEmpty {
+                            ProgressView()
+                                .padding(.top, 40)
+                            Text("Fiyatlar yükleniyor…")
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                        } else if category == .fund && searchText.count >= 2 {
+                            Text("“\(searchText)” için fon bulunamadı.")
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.top, 40)
+                                .padding(.horizontal, 24)
+                        }
                     }
                     ForEach(items, id: \.self) { instrument in
                         Button {
@@ -242,6 +293,40 @@ struct AddAssetSheet: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 16)
             }
+        }
+        .onChange(of: searchText) { _, newValue in
+            scheduleFundSearch(category: category, query: newValue)
+        }
+        .onDisappear {
+            fundSearchTask?.cancel()
+            isSearchingFunds = false
+        }
+    }
+
+    /// Debounced TEFAS search. When the user types a query in the fund list that
+    /// isn't already matched by a locally-cached fund, ask the backend to fetch
+    /// it live (~400ms after they stop typing). Results flow back through
+    /// `marketData.fundPrices`, so the list updates automatically.
+    private func scheduleFundSearch(category: AssetCategory, query: String) {
+        fundSearchTask?.cancel()
+        let trimmed = query.trimmingCharacters(in: .whitespaces)
+        guard category == .fund, trimmed.count >= 2 else {
+            isSearchingFunds = false
+            return
+        }
+        // Skip the round-trip if a cached fund already matches the query.
+        let hasLocalMatch = marketData.instruments(for: .fund).contains {
+            $0.name.localizedCaseInsensitiveContains(trimmed)
+                || ($0.code ?? "").localizedCaseInsensitiveContains(trimmed)
+        }
+        if hasLocalMatch { isSearchingFunds = false; return }
+
+        fundSearchTask = Task {
+            try? await Task.sleep(nanoseconds: 400_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run { isSearchingFunds = true }
+            await marketData.searchRemoteFunds(query: trimmed)
+            await MainActor.run { isSearchingFunds = false }
         }
     }
 
@@ -317,9 +402,11 @@ struct AddAssetSheet: View {
 
                     portfolioPicker
 
-                    purchasePriceField
-
-                    profitLossPreview(for: instrument)
+                    // Türk Lirası has no purchase rate (it's the base currency).
+                    if instrument.symbol != "TRY" {
+                        purchasePriceField(for: instrument)
+                        profitLossPreview(for: instrument)
+                    }
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 8)
@@ -340,39 +427,53 @@ struct AddAssetSheet: View {
         }
     }
 
-    // Optional purchase-rate input (price the user paid per unit).
-    private var purchasePriceField: some View {
-        Button { activeField = .purchasePrice } label: {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Satın Alınan Kur")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(.primary)
-                    Text("(Opsiyonel)")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
+    // Optional cost-basis input. For stocks/crypto/funds it's the "average cost";
+    // for gold/FX it's the "purchased rate". Left empty -> current price is used.
+    private func purchasePriceField(for instrument: Instrument) -> some View {
+        let label = instrument.category.isDynamic ? "Ortalama Maliyet" : "Satın Alınan Kur"
+        return VStack(alignment: .leading, spacing: 6) {
+            Button { activeField = .purchasePrice } label: {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(label)
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(.primary)
+                        Text("(Opsiyonel)")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    if purchasePrice.isEmpty {
+                        Text("Güncel fiyat")
+                            .font(.system(size: 16))
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text("₺\(purchasePrice)")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.primary)
+                    }
                 }
-                Spacer()
-                if purchasePrice.isEmpty {
-                    Text("Güncel kur")
-                        .font(.system(size: 16))
-                        .foregroundColor(.secondary)
-                } else {
-                    Text("₺\(purchasePrice)")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.primary)
-                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+                .background(Color(.secondarySystemGroupedBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(activeField == .purchasePrice ? Color.accentColor : Color.clear, lineWidth: 2)
+                )
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(Color(.secondarySystemGroupedBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(activeField == .purchasePrice ? Color.accentColor : Color.clear, lineWidth: 2)
-            )
+            .buttonStyle(.plain)
+
+            HStack(spacing: 5) {
+                Image(systemName: "info.circle")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                Text("Belirtmezseniz güncel fiyattan alınmış kabul edilir.")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal, 4)
         }
-        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -563,6 +664,14 @@ struct AddAssetSheet: View {
             let all = (try? modelContext.fetch(FetchDescriptor<Asset>())) ?? []
             PortfolioManager.shared.forceUpdate(with: all)
         }
+        // Privacy-safe: only the instrument class/symbol + behavioural flags — never
+        // the amount, value, or entered purchase price.
+        FirebaseAnalyticsHelper.shared.logAssetAdded(
+            category: String(describing: instrument.category),
+            symbol: instrument.symbol,
+            isMerge: existing != nil,
+            hasPurchasePrice: enteredPurchase != nil && enteredPurchase! > 0
+        )
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         dismiss()
     }

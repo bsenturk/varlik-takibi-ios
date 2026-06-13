@@ -19,9 +19,11 @@ final class AddAssetPresenter: ObservableObject {
 struct MainTabView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Portfolio.sortOrder) private var portfolios: [Portfolio]
+    @Query private var assets: [Asset]
     @AppStorage("selectedPortfolioID") private var selectedPortfolioIDString: String = ""
 
     @State private var selectedTab: Tab = .portfolio
+    @State private var showOnboardingPaywall = false
     @StateObject private var adManager = AdMobManager.shared
     @StateObject private var appOpenAdManager = AppOpenAdManager.shared
     @StateObject private var addPresenter = AddAssetPresenter.shared
@@ -87,15 +89,41 @@ struct MainTabView: View {
             AddAssetSheet(targetPortfolio: addTargetPortfolio)
                 .environmentObject(interstitialAdManager)
         }
+        .sheet(isPresented: $showOnboardingPaywall) {
+            PaywallView(onClose: { showOnboardingPaywall = false }, context: .onboarding)
+        }
         .onAppear {
             if adManager.shouldShowBanner {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     adManager.refreshBannerIfNeeded()
                 }
             }
+            FirebaseAnalyticsHelper.shared.logScreenView(String(describing: selectedTab))
+            presentFirstAssetAddIfNeeded()
         }
         .onChange(of: appOpenAdManager.isAdShowing) { _, newValue in
             handleAppOpenAdStateChange(isShowing: newValue)
+        }
+        .onChange(of: addPresenter.isPresented) { _, isPresented in
+            // When the (onboarding) Add-Asset flow closes, surface the paywall once —
+            // but only after the user has actually added an asset (felt the value).
+            guard !isPresented,
+                  UserDefaultsManager.shared.getValue(for: .pendingOnboardingPaywall) else { return }
+            UserDefaultsManager.shared.setValue(value: false, key: .pendingOnboardingPaywall)
+            guard !assets.isEmpty else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                showOnboardingPaywall = true
+            }
+        }
+    }
+
+    /// First launch hand-off from onboarding: auto-open the Add-Asset flow so the
+    /// user's first action is adding a real asset. Consumed once.
+    private func presentFirstAssetAddIfNeeded() {
+        guard UserDefaultsManager.shared.getValue(for: .pendingFirstAssetAdd) else { return }
+        UserDefaultsManager.shared.setValue(value: false, key: .pendingFirstAssetAdd)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+            addPresenter.present()
         }
     }
 
@@ -146,6 +174,7 @@ struct MainTabView: View {
     private func tabButton(_ tab: Tab) -> some View {
         Button {
             withAnimation(.easeInOut(duration: 0.2)) { selectedTab = tab }
+            FirebaseAnalyticsHelper.shared.logScreenView(String(describing: tab))
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         } label: {
             VStack(spacing: 4) {

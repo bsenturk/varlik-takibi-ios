@@ -1,0 +1,11 @@
+# Supabase CLI project config.
+# `project_id` is a LOCAL identifier (not the remote project ref). It just tells
+# the CLI that this directory is a Supabase project so `supabase functions deploy`
+# can find supabase/functions/<name>/index.ts.
+project_id = "varlik-takibi"
+
+[functions.tefas-sync]
+verify_jwt = false
+
+[functions.tefas-search]
+verify_jwt = false

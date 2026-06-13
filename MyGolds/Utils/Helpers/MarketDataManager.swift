@@ -25,6 +25,7 @@ final class MarketDataManager: ObservableObject {
     @Published var cryptoPrices: [AssetsPrice] = []
     @Published var bistPrices: [AssetsPrice] = []
     @Published var usPrices: [AssetsPrice] = []
+    @Published var fundPrices: [AssetsPrice] = []   // TEFAS funds (premium)
 
     @Published var isLoading = false
     @Published var lastUpdateTime: Date?
@@ -85,6 +86,7 @@ final class MarketDataManager: ObservableObject {
             self.cryptoPrices = makeTRYInstruments(assetType: "crypto")
             self.bistPrices = makeTRYInstruments(assetType: "bist")
             self.usPrices = makeTRYInstruments(assetType: "us_stock")
+            self.fundPrices = makeTRYInstruments(assetType: "fund")
 
             self.lastUpdateTime = Date()
 
@@ -160,7 +162,41 @@ final class MarketDataManager: ObservableObject {
         case .crypto: return cryptoPrices
         case .bistStock: return bistPrices
         case .usStock: return usPrices
+        case .fund: return fundPrices
         default: return []
+        }
+    }
+
+    /// Searches TEFAS for funds matching `query` via the backend, merges any
+    /// matches into the live price set, and refreshes `fundPrices` so the search
+    /// list updates. Returns the number of newly-discovered funds. The backend
+    /// also upserts the funds into `assets_prices`, so they survive the next
+    /// auto-refresh. Failures are swallowed (returns 0) — the local list still works.
+    @MainActor
+    @discardableResult
+    func searchRemoteFunds(query: String) async -> Int {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 2 else { return 0 }
+        do {
+            let results = try await marketData.searchFunds(query: trimmed)
+            guard !Task.isCancelled, !results.isEmpty else { return 0 }
+
+            // Merge into allPrices, keyed by (symbol, currency); newest wins.
+            var merged = Dictionary(
+                allPrices.map { ("\($0.symbol)_\($0.currency)", $0) },
+                uniquingKeysWith: { _, last in last }
+            )
+            var added = 0
+            for row in results {
+                let key = "\(row.symbol)_\(row.currency)"
+                if merged[key] == nil { added += 1 }
+                merged[key] = row
+            }
+            self.allPrices = Array(merged.values)
+            self.fundPrices = makeTRYInstruments(assetType: "fund")
+            return added
+        } catch {
+            return 0
         }
     }
 
