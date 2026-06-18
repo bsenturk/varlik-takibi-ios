@@ -110,8 +110,13 @@ struct MainTabView: View {
             guard !isPresented,
                   UserDefaultsManager.shared.getValue(for: .pendingOnboardingPaywall) else { return }
             UserDefaultsManager.shared.setValue(value: false, key: .pendingOnboardingPaywall)
+            // Never paywall an already-subscribed user (e.g. they reinstalled and
+            // RevenueCat restored their entitlement on launch).
+            guard !UserDefaultsManager.shared.isPro else { return }
             guard !assets.isEmpty else { return }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                // Re-check in case the entitlement finished restoring during the delay.
+                guard !UserDefaultsManager.shared.isPro else { return }
                 showOnboardingPaywall = true
             }
         }

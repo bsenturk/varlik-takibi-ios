@@ -172,7 +172,17 @@ class InterstitialAdManager: NSObject, ObservableObject, GADFullScreenContentDel
 
         let request = GADRequest()
 
-        GADInterstitialAd.load(withAdUnitID: adUnitID, request: request) { [weak self] ad, error in
+        // Use test ID in debug, production ID in release (prevents accidental
+        // clicks on our own live ads during development → AdMob policy violation).
+        #if DEBUG
+        let adID = testAdUnitID
+        Logger.log("📱 Interstitial: Using test ad unit ID")
+        #else
+        let adID = adUnitID
+        Logger.log("📱 Interstitial: Using production ad unit ID")
+        #endif
+
+        GADInterstitialAd.load(withAdUnitID: adID, request: request) { [weak self] ad, error in
             guard let self = self else { return }
 
             DispatchQueue.main.async {

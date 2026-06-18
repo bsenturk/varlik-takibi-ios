@@ -405,6 +405,7 @@ struct AddAssetSheet: View {
                     // Türk Lirası has no purchase rate (it's the base currency).
                     if instrument.symbol != "TRY" {
                         purchasePriceField(for: instrument)
+                        liveValuePreview(for: instrument)
                         profitLossPreview(for: instrument)
                     }
                 }
@@ -473,6 +474,45 @@ struct AddAssetSheet: View {
                     .foregroundColor(.secondary)
             }
             .padding(.horizontal, 4)
+        }
+    }
+
+    /// Live summary under the purchase-rate field: the current market price per
+    /// unit and the entered amount × that price (total value), updated as the user
+    /// types the quantity.
+    @ViewBuilder
+    private func liveValuePreview(for instrument: Instrument) -> some View {
+        let unitPrice = currentMarketPrice(for: instrument)
+        if unitPrice > 0 {
+            let qty = Double(amount.replacingOccurrences(of: ",", with: ".")) ?? 0
+            VStack(spacing: 0) {
+                HStack {
+                    Text("Güncel Fiyat")
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text("\(unitPrice.formatAsCurrency()) / \(instrument.unit)")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(.primary)
+                }
+                .padding(.vertical, 12)
+
+                Divider()
+
+                HStack {
+                    Text("Toplam Değer")
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text((qty * unitPrice).formatAsCurrency())
+                        .font(.system(size: 18, weight: .heavy))
+                        .foregroundColor(.primary)
+                }
+                .padding(.vertical, 12)
+            }
+            .padding(.horizontal, 16)
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
     }
 

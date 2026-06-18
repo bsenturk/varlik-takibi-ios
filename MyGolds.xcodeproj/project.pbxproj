@@ -17,6 +17,7 @@
 		41BB945641F3EC209AEAAF52 /* Portfolio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 247368DDD248FD2197BCB0D6 /* Portfolio.swift */; };
 		498450D4CD87F6A6B8A131FB /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = C1961964D2580EE33B8B1AE3 /* Supabase */; };
 		49C05C98D9EDA2703B539338 /* AssetEditSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD57CBF5F13AB266CF39E404 /* AssetEditSheet.swift */; };
+		515B55E34135116A7F9ECB0B /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7D00CE426CA4105B5D702D76 /* PrivacyInfo.xcprivacy */; };
 		51B8DA64BB6557E6D81A8390 /* PurchaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3FA32630A917E0B54622A5C /* PurchaseManager.swift */; };
 		57346157300FA9A706701060 /* AppError.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E50DD4E3D3B4F3BAC569F8 /* AppError.swift */; };
 		58D058789EDAE33025BA16EC /* SupabaseModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD256FBA733EBE4803F3F420 /* SupabaseModels.swift */; };
@@ -126,6 +127,7 @@
 		771C5D8022DF794D87CE2C2A /* SupabaseManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SupabaseManager.swift; sourceTree = "<group>"; };
 		7968DC0D91AA68BE56367185 /* SparklineView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SparklineView.swift; sourceTree = "<group>"; };
 		7BF667F5C586B464A6A9DF44 /* PortfolioEditorView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PortfolioEditorView.swift; sourceTree = "<group>"; };
+		7D00CE426CA4105B5D702D76 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		9B0F503F2B7FFCB300A03018 /* MyGolds.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MyGolds.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9B0F50422B7FFCB300A03018 /* MyGoldsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyGoldsApp.swift; sourceTree = "<group>"; };
 		9B0F50462B7FFCB400A03018 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -349,6 +351,7 @@
 			isa = PBXGroup;
 			children = (
 				9B4772422BA8F3FA00B13CCC /* GoogleService-Info.plist */,
+				7D00CE426CA4105B5D702D76 /* PrivacyInfo.xcprivacy */,
 			);
 			path = "Supporting Files";
 			sourceTree = "<group>";
@@ -667,6 +670,7 @@
 				9B0F504A2B7FFCB400A03018 /* Preview Assets.xcassets in Resources */,
 				9B4772432BA8F3FA00B13CCC /* GoogleService-Info.plist in Resources */,
 				9B0F50472B7FFCB400A03018 /* Assets.xcassets in Resources */,
+				515B55E34135116A7F9ECB0B /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -830,7 +834,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -887,7 +891,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -920,7 +924,7 @@
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -961,7 +965,7 @@
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

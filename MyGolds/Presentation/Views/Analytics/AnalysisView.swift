@@ -313,7 +313,17 @@ struct AnalysisView: View {
     private func valueSeries() -> [(date: Date, value: Double)] {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
-        let start = calendar.date(byAdding: .day, value: -range.days, to: today) ?? today
+        let rangeStart = calendar.date(byAdding: .day, value: -range.days, to: today) ?? today
+
+        // Never chart value from before the user actually held any of their CURRENT
+        // assets: clamp the window to the earliest current-holding date. This drops
+        // stale snapshots left over from a previous holdings composition (e.g. assets
+        // that were replaced), which would otherwise value past days on holdings the
+        // user no longer owns and produce a nonsensical range % (e.g. −94%).
+        let earliestHoldingDay = scopedAssets
+            .map { calendar.startOfDay(for: $0.dateAdded) }
+            .min()
+        let start = max(rangeStart, earliestHoldingDay ?? rangeStart)
 
         let snapshots: [PortfolioSnapshot]
         if isGeneral {

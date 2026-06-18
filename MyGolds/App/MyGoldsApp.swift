@@ -60,11 +60,36 @@ struct VarlikDefterimApp: App {
             Portfolio.self,
             PortfolioSnapshot.self
         ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        let persistent = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+
+        // 1) Normal persistent store.
         do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
+            return try ModelContainer(for: schema, configurations: [persistent])
         } catch {
-            fatalError("Could not create ModelContainer: \(error)")
+            Logger.log("⚠️ ModelContainer failed (\(error)). Attempting store reset.")
+            Crashlytics.crashlytics().record(error: error)
+        }
+
+        // 2) Migration/corruption recovery: delete the on-disk store (and its
+        //    -shm/-wal sidecars) and retry once, so an incompatible schema change
+        //    can't hard-crash existing users.
+        let storeBase = URL.applicationSupportDirectory.appending(path: "default.store")
+        for path in [storeBase.path, storeBase.path + "-shm", storeBase.path + "-wal"] {
+            try? FileManager.default.removeItem(atPath: path)
+        }
+        if let recovered = try? ModelContainer(for: schema, configurations: [persistent]) {
+            Logger.log("✅ ModelContainer recovered after store reset.")
+            return recovered
+        }
+
+        // 3) Last resort: in-memory store so the app still launches (data not persisted).
+        Logger.log("⚠️ Falling back to in-memory ModelContainer.")
+        do {
+            let inMemory = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+            return try ModelContainer(for: schema, configurations: [inMemory])
+        } catch {
+            Crashlytics.crashlytics().record(error: error)
+            fatalError("Could not create even an in-memory ModelContainer: \(error)")
         }
     }()
     

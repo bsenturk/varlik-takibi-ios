@@ -40,7 +40,9 @@ struct SettingsView: View {
                         .padding(.horizontal, 20)
                         .padding(.top, 16)
 
-                    if !userDefaults.isPro {
+                    if userDefaults.isPro {
+                        proActiveBadge.padding(.horizontal, 20)
+                    } else {
                         proBanner.padding(.horizontal, 20)
                     }
 
@@ -112,6 +114,47 @@ struct SettingsView: View {
             .shadow(color: Color(hex: "#AF52DE").opacity(0.3), radius: 12, x: 0, y: 6)
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - Pro active badge
+
+    /// Shown only to subscribers: confirms the active Pro membership (no CTA).
+    private var proActiveBadge: some View {
+        HStack(spacing: 14) {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.white.opacity(0.22))
+                .frame(width: 50, height: 50)
+                .overlay(
+                    Image(systemName: "crown.fill")
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundColor(.white)
+                )
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Varlık Takibi Pro")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(.white)
+                Text("Üyeliğiniz aktif")
+                    .font(.system(size: 13))
+                    .foregroundColor(.white.opacity(0.9))
+            }
+            Spacer()
+            Text("Pro")
+                .font(.system(size: 13, weight: .heavy))
+                .foregroundColor(Color(hex: "#AF52DE"))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Color.white)
+                .clipShape(Capsule())
+        }
+        .padding(16)
+        .background(
+            LinearGradient(
+                colors: [Color(hex: "#0A84FF"), Color(hex: "#AF52DE")],
+                startPoint: .leading, endPoint: .trailing
+            )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .shadow(color: Color(hex: "#AF52DE").opacity(0.3), radius: 12, x: 0, y: 6)
     }
 
     // MARK: - Preferences

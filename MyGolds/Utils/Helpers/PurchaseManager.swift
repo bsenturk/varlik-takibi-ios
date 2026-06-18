@@ -35,9 +35,13 @@ final class PurchaseManager: NSObject, ObservableObject {
 
     /// Configures the RevenueCat SDK. Call once, as early as possible at launch.
     static func configure() {
-        // Use `.debug` temporarily to surface RevenueCat's detailed reason for
-        // store/config errors (e.g. which products failed to fetch).
-        Purchases.logLevel = .info
+        // Verbose logs only in development; keep production quiet (RevenueCat's own
+        // console logging is independent of our DEBUG-gated `Logger`).
+        #if DEBUG
+        Purchases.logLevel = .debug
+        #else
+        Purchases.logLevel = .error
+        #endif
         Purchases.configure(withAPIKey: apiKey)
     }
 
@@ -60,16 +64,6 @@ final class PurchaseManager: NSObject, ObservableObject {
             self.currentOffering = offerings.current
             let current = offerings.current
             Logger.log("✅ RevenueCat: offering '\(current?.identifier ?? "nil")' loaded with \(current?.availablePackages.count ?? 0) package(s): \(current?.availablePackages.map { $0.storeProduct.productIdentifier } ?? [])")
-            // TEMP diagnostics: what intro/free-trial offer does StoreKit return per product?
-            for pkg in current?.availablePackages ?? [] {
-                let p = pkg.storeProduct
-                if let intro = p.introductoryDiscount {
-                    let unit = intro.subscriptionPeriod.unit
-                    Logger.log("🎁 \(p.productIdentifier): intro found — mode=\(intro.paymentMode) period=\(intro.subscriptionPeriod.value) unit=\(unit) price=\(intro.localizedPriceString)")
-                } else {
-                    Logger.log("🎁 \(p.productIdentifier): NO introductoryDiscount returned by StoreKit")
-                }
-            }
         } catch {
             let ns = error as NSError
             Logger.log("❌ RevenueCat: failed to load offerings - \(ns.localizedDescription)")

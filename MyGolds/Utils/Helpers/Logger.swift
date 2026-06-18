@@ -6,9 +6,9 @@
 //
 
 class Logger {
-    static func log(_ message: String) {
+    static func log(_ message: @autoclosure () -> String) {
         #if DEBUG
-        print(message)
+        print(message())
         #endif
     }
 }
