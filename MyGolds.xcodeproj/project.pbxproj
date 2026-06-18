@@ -127,7 +127,7 @@
 		771C5D8022DF794D87CE2C2A /* SupabaseManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SupabaseManager.swift; sourceTree = "<group>"; };
 		7968DC0D91AA68BE56367185 /* SparklineView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SparklineView.swift; sourceTree = "<group>"; };
 		7BF667F5C586B464A6A9DF44 /* PortfolioEditorView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PortfolioEditorView.swift; sourceTree = "<group>"; };
-		7D00CE426CA4105B5D702D76 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		7D00CE426CA4105B5D702D76 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		9B0F503F2B7FFCB300A03018 /* MyGolds.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MyGolds.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9B0F50422B7FFCB300A03018 /* MyGoldsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyGoldsApp.swift; sourceTree = "<group>"; };
 		9B0F50462B7FFCB400A03018 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -234,7 +234,6 @@
 			children = (
 				E8B3C04E3733E47B22E90D9A /* MarketDataService.swift */,
 			);
-			name = Services;
 			path = Services;
 			sourceTree = "<group>";
 		};
@@ -243,7 +242,6 @@
 			children = (
 				12CAAD3CBA5A4B847F064538 /* PaywallView.swift */,
 			);
-			name = Paywall;
 			path = Paywall;
 			sourceTree = "<group>";
 		};
@@ -256,7 +254,6 @@
 				7BF667F5C586B464A6A9DF44 /* PortfolioEditorView.swift */,
 				BD57CBF5F13AB266CF39E404 /* AssetEditSheet.swift */,
 			);
-			name = Dashboard;
 			path = Dashboard;
 			sourceTree = "<group>";
 		};
@@ -564,7 +561,6 @@
 				BD256FBA733EBE4803F3F420 /* SupabaseModels.swift */,
 				01A9F05B1B928006A59FB128 /* PortfolioCalculatorService.swift */,
 			);
-			name = Supabase;
 			path = Supabase;
 			sourceTree = "<group>";
 		};
@@ -908,7 +904,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 128;
+				CURRENT_PROJECT_VERSION = 129;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEPLOYMENT_POSTPROCESSING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"MyGolds/Preview Content\"";
@@ -950,7 +946,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 128;
+				CURRENT_PROJECT_VERSION = 129;
 				DEPLOYMENT_POSTPROCESSING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"MyGolds/Preview Content\"";
 				DEVELOPMENT_TEAM = ADPP457ME6;
