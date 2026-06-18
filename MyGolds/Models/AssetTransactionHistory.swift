@@ -96,7 +96,7 @@ final class AssetTransactionHistory {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM"
         formatter.locale = Locale(identifier: "tr_TR")
-        return formatter.string(from: date).uppercased()
+        return formatter.string(from: date).uppercased(with: Locale(identifier: "tr_TR"))
     }
     
     var formattedAmount: String {

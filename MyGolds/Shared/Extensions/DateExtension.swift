@@ -18,7 +18,7 @@ extension Date {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM"
         formatter.locale = Locale(identifier: "tr_TR")
-        return formatter.string(from: self).uppercased()
+        return formatter.string(from: self).uppercased(with: Locale(identifier: "tr_TR"))
     }
     
     var formattedDateTime: String {

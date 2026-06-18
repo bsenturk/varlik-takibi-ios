@@ -340,18 +340,16 @@ struct PaywallView: View {
     }
 
     /// Per-plan subtitle. Yearly anchors on its monthly-equivalent price; the others
-    /// surface a trial when present, otherwise a flexibility line.
+    /// describe their flexibility. The free-trial line is intentionally NOT repeated
+    /// here — it's shown once, canonically, in `trialBadge` above the CTA.
     private func planSubtitle(for plan: Plan) -> String {
         switch plan {
         case .yearly:
             if let monthly = monthlyEquivalentString() { return "Aylık yalnızca \(monthly)" }
-            if let trial = freeTrial(for: .yearly) { return "İlk \(trial) ücretsiz" }
             return "En avantajlı plan"
         case .monthly:
-            if let trial = freeTrial(for: .monthly) { return "İlk \(trial) ücretsiz" }
             return "Esnek, dilediğin zaman iptal et"
         case .weekly:
-            if let trial = freeTrial(for: .weekly) { return "İlk \(trial) ücretsiz" }
             return "Kısa vadeli, esnek seçenek"
         }
     }
@@ -364,13 +362,24 @@ struct PaywallView: View {
         return formatter.string(from: NSDecimalNumber(decimal: perMonth))
     }
 
-    /// Savings of the annual plan vs paying monthly, as a whole percentage.
+    /// Savings of the annual plan vs paying monthly, as a whole percentage. Uses the
+    /// live App Store prices when available and otherwise falls back to the static
+    /// reference prices (kept in sync with `planCards`) so the value badge always
+    /// renders — even before offerings load.
     private func savingsBadge() -> String? {
-        guard let annual = package(for: .yearly)?.storeProduct,
-              let monthly = package(for: .monthly)?.storeProduct,
-              monthly.price > 0 else { return nil }
-        let annualPerMonth = annual.price / 12
-        let pct = (1 - annualPerMonth / monthly.price) * 100
+        let annualPrice: Decimal
+        let monthlyPrice: Decimal
+        if let annual = package(for: .yearly)?.storeProduct,
+           let monthly = package(for: .monthly)?.storeProduct,
+           monthly.price > 0 {
+            annualPrice = annual.price
+            monthlyPrice = monthly.price
+        } else {
+            annualPrice = 299.99   // ₺299,99 / yıl
+            monthlyPrice = 49.99   // ₺49,99 / ay
+        }
+        let annualPerMonth = annualPrice / 12
+        let pct = (1 - annualPerMonth / monthlyPrice) * 100
         let value = NSDecimalNumber(decimal: pct).intValue
         return value > 0 ? "%\(value) avantajlı" : nil
     }
