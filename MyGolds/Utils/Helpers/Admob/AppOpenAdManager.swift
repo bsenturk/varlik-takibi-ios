@@ -45,13 +45,16 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
     
     var canShowAd: Bool {
         guard isAdAvailable else { return false }
-        
+
+        // Global gate: never stack right after another full-screen ad (interstitial).
+        guard FullScreenAdGate.shared.canShow else { return false }
+
         // Check minimum interval between ads
         if let lastShowTime = lastAdShowTime {
             let timeSinceLastAd = Date().timeIntervalSince(lastShowTime)
             return timeSinceLastAd >= minimumAdInterval
         }
-        
+
         return true
     }
     
@@ -145,6 +148,7 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
         Logger.log("📱 App Open Ad: Showing ad")
         isAdShowing = true
         lastAdShowTime = Date()
+        FullScreenAdGate.shared.recordShown()
         appOpenAd?.present(fromRootViewController: rootViewController)
     }
     

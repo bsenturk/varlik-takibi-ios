@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0528278AD78F91F4408501DF /* RatingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BBDD6ED0FF9AD49042FAE92 /* RatingManager.swift */; };
 		1DA16E2772CDFB2EFF79DD0F /* SupabaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 771C5D8022DF794D87CE2C2A /* SupabaseManager.swift */; };
 		1EC57CE76295482DD6403A65 /* PortfolioStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6756A37D257C1F93381E6719 /* PortfolioStore.swift */; };
 		1EFF8EC1021D8F8FF79E4B01 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E45113718A2BE02F9C91637 /* DashboardView.swift */; };
@@ -120,6 +121,7 @@
 		26A5AF6D29D0C76F7C2C0305 /* PortfolioSnapshot.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PortfolioSnapshot.swift; sourceTree = "<group>"; };
 		36C3F48DF406AEFA3D9127B4 /* RateDisplayModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RateDisplayModel.swift; sourceTree = "<group>"; };
 		3E45113718A2BE02F9C91637 /* DashboardView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		4BBDD6ED0FF9AD49042FAE92 /* RatingManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RatingManager.swift; sourceTree = "<group>"; };
 		5134E28796004C70C938911A /* PortfolioColor.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PortfolioColor.swift; sourceTree = "<group>"; };
 		548A197807D437CE0774A5DF /* RateCardView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RateCardView.swift; sourceTree = "<group>"; };
 		6097DEE3897B75EFE50A3407 /* DashboardComponents.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DashboardComponents.swift; sourceTree = "<group>"; };
@@ -513,6 +515,7 @@
 				D8B998C21C6F270752DCED6D /* PortfolioMetrics.swift */,
 				6756A37D257C1F93381E6719 /* PortfolioStore.swift */,
 				F3FA32630A917E0B54622A5C /* PurchaseManager.swift */,
+				4BBDD6ED0FF9AD49042FAE92 /* RatingManager.swift */,
 			);
 			path = Helpers;
 			sourceTree = "<group>";
@@ -772,6 +775,7 @@
 				3963729C2B4D8369F69B4A37 /* PortfolioCalculatorService.swift in Sources */,
 				49C05C98D9EDA2703B539338 /* AssetEditSheet.swift in Sources */,
 				51B8DA64BB6557E6D81A8390 /* PurchaseManager.swift in Sources */,
+				0528278AD78F91F4408501DF /* RatingManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

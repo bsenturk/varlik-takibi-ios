@@ -124,6 +124,9 @@ struct VarlikDefterimApp: App {
     private func setupInitialState() {
         Logger.log("🚀 App: Initial setup")
 
+        // Track distinct-day engagement for the rating prompt.
+        RatingManager.shared.recordAppOpen()
+
         // Create default portfolios & migrate pre-v3.0.0 assets into "Portföyüm"
         PortfolioStore.ensureDefaults(context: sharedModelContainer.mainContext)
 

@@ -39,7 +39,11 @@ final class SupabaseManager: @unchecked Sendable {
                 db: .init(
                     encoder: Self.makeEncoder(),
                     decoder: Self.makeDecoder()
-                )
+                ),
+                // We never use Supabase Auth (anonymous, read-only market prices), but
+                // the SDK still spins up an AuthClient. Opt in to the upcoming default
+                // so it doesn't log the "initial session" deprecation warning.
+                auth: .init(emitLocalSessionAsInitialSession: true)
             )
         )
     }

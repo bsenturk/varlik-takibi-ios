@@ -12,8 +12,18 @@ import SwiftData
 final class AddAssetPresenter: ObservableObject {
     static let shared = AddAssetPresenter()
     @Published var isPresented = false
+    /// Set when an asset was successfully added, so an interstitial can be shown at
+    /// the natural transition *after* the sheet closes (best practice) instead of
+    /// interrupting the user the moment it opens.
+    private var pendingInterstitial = false
     private init() {}
     func present() { isPresented = true }
+    func scheduleInterstitialAfterClose() { pendingInterstitial = true }
+    /// Returns whether an interstitial is pending and clears the flag.
+    func consumePendingInterstitial() -> Bool {
+        defer { pendingInterstitial = false }
+        return pendingInterstitial
+    }
 }
 
 struct MainTabView: View {
@@ -105,20 +115,8 @@ struct MainTabView: View {
             handleAppOpenAdStateChange(isShowing: newValue)
         }
         .onChange(of: addPresenter.isPresented) { _, isPresented in
-            // When the (onboarding) Add-Asset flow closes, surface the paywall once —
-            // but only after the user has actually added an asset (felt the value).
-            guard !isPresented,
-                  UserDefaultsManager.shared.getValue(for: .pendingOnboardingPaywall) else { return }
-            UserDefaultsManager.shared.setValue(value: false, key: .pendingOnboardingPaywall)
-            // Never paywall an already-subscribed user (e.g. they reinstalled and
-            // RevenueCat restored their entitlement on launch).
-            guard !UserDefaultsManager.shared.isPro else { return }
-            guard !assets.isEmpty else { return }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                // Re-check in case the entitlement finished restoring during the delay.
-                guard !UserDefaultsManager.shared.isPro else { return }
-                showOnboardingPaywall = true
-            }
+            guard !isPresented else { return }
+            handleAddAssetSheetClosed()
         }
     }
 
@@ -129,6 +127,33 @@ struct MainTabView: View {
         UserDefaultsManager.shared.setValue(value: false, key: .pendingFirstAssetAdd)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
             addPresenter.present()
+        }
+    }
+
+    /// Handles the Add-Asset sheet closing. During onboarding it surfaces the paywall
+    /// once; otherwise it shows the interstitial at this natural transition (back to
+    /// the portfolio) — but only when an asset was actually added.
+    private func handleAddAssetSheetClosed() {
+        // Always consume the pending flag so it can't leak into a later close.
+        let didAddAsset = addPresenter.consumePendingInterstitial()
+
+        // Onboarding hand-off: paywall instead of an interstitial (after first add).
+        if UserDefaultsManager.shared.getValue(for: .pendingOnboardingPaywall) {
+            UserDefaultsManager.shared.setValue(value: false, key: .pendingOnboardingPaywall)
+            // Never paywall an already-subscribed user (e.g. reinstall + restore).
+            guard !UserDefaultsManager.shared.isPro, !assets.isEmpty else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                guard !UserDefaultsManager.shared.isPro else { return }
+                showOnboardingPaywall = true
+            }
+            return
+        }
+
+        // Normal flow: interstitial only if the user actually added something.
+        if didAddAsset {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                interstitialAdManager.showAdIfAvailable()
+            }
         }
     }
 

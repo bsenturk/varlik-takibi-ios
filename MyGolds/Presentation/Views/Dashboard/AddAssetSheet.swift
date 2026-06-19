@@ -87,9 +87,8 @@ struct AddAssetSheet: View {
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .onAppear {
             selectedPortfolio = targetPortfolio ?? realPortfolios.first
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                interstitialAdManager.showAdIfAvailable()
-            }
+            // No ad on open — the interstitial is shown after a successful add, when
+            // the sheet closes (see AddAssetPresenter.scheduleInterstitialAfterClose).
         }
         .alert("Hata", isPresented: $showAlert) {
             Button("Tamam", role: .cancel) {}
@@ -713,6 +712,10 @@ struct AddAssetSheet: View {
             hasPurchasePrice: enteredPurchase != nil && enteredPurchase! > 0
         )
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        // Show the interstitial at the natural transition after this sheet closes,
+        // not on open. Gated/frequency-capped by the ad managers (and skipped for
+        // Pro). MainTabView shows it once the sheet has dismissed.
+        AddAssetPresenter.shared.scheduleInterstitialAfterClose()
         dismiss()
     }
 }

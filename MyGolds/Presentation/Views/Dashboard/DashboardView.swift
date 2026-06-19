@@ -119,6 +119,12 @@ struct DashboardView: View {
             // Ask for notification permission when the Portföy page opens.
             NotificationManager.shared.requestNotificationPermission()
             Task { await refresh() }
+
+            // Calm moment: ask for an App Store rating if the user is engaged enough.
+            // Self-gates (≥3 distinct days + ≥2 assets, once per version, no ad on screen).
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                RatingManager.shared.requestReviewIfAppropriate(assetCount: assets.count)
+            }
         }
         .onChange(of: assets) { _, _ in portfolioManager.updatePortfolio(with: assets) }
         .sheet(isPresented: $showingPaywall) {
