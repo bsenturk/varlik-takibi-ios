@@ -12,16 +12,28 @@ import SwiftData
 final class AddAssetPresenter: ObservableObject {
     static let shared = AddAssetPresenter()
     @Published var isPresented = false
+    /// Set when an asset was successfully added, so an interstitial can be shown at
+    /// the natural transition *after* the sheet closes (best practice) instead of
+    /// interrupting the user the moment it opens.
+    private var pendingInterstitial = false
     private init() {}
     func present() { isPresented = true }
+    func scheduleInterstitialAfterClose() { pendingInterstitial = true }
+    /// Returns whether an interstitial is pending and clears the flag.
+    func consumePendingInterstitial() -> Bool {
+        defer { pendingInterstitial = false }
+        return pendingInterstitial
+    }
 }
 
 struct MainTabView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Portfolio.sortOrder) private var portfolios: [Portfolio]
+    @Query private var assets: [Asset]
     @AppStorage("selectedPortfolioID") private var selectedPortfolioIDString: String = ""
 
     @State private var selectedTab: Tab = .portfolio
+    @State private var showOnboardingPaywall = false
     @StateObject private var adManager = AdMobManager.shared
     @StateObject private var appOpenAdManager = AppOpenAdManager.shared
     @StateObject private var addPresenter = AddAssetPresenter.shared
@@ -87,15 +99,61 @@ struct MainTabView: View {
             AddAssetSheet(targetPortfolio: addTargetPortfolio)
                 .environmentObject(interstitialAdManager)
         }
+        .sheet(isPresented: $showOnboardingPaywall) {
+            PaywallView(onClose: { showOnboardingPaywall = false }, context: .onboarding)
+        }
         .onAppear {
             if adManager.shouldShowBanner {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     adManager.refreshBannerIfNeeded()
                 }
             }
+            FirebaseAnalyticsHelper.shared.logScreenView(String(describing: selectedTab))
+            presentFirstAssetAddIfNeeded()
         }
         .onChange(of: appOpenAdManager.isAdShowing) { _, newValue in
             handleAppOpenAdStateChange(isShowing: newValue)
+        }
+        .onChange(of: addPresenter.isPresented) { _, isPresented in
+            guard !isPresented else { return }
+            handleAddAssetSheetClosed()
+        }
+    }
+
+    /// First launch hand-off from onboarding: auto-open the Add-Asset flow so the
+    /// user's first action is adding a real asset. Consumed once.
+    private func presentFirstAssetAddIfNeeded() {
+        guard UserDefaultsManager.shared.getValue(for: .pendingFirstAssetAdd) else { return }
+        UserDefaultsManager.shared.setValue(value: false, key: .pendingFirstAssetAdd)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+            addPresenter.present()
+        }
+    }
+
+    /// Handles the Add-Asset sheet closing. During onboarding it surfaces the paywall
+    /// once; otherwise it shows the interstitial at this natural transition (back to
+    /// the portfolio) — but only when an asset was actually added.
+    private func handleAddAssetSheetClosed() {
+        // Always consume the pending flag so it can't leak into a later close.
+        let didAddAsset = addPresenter.consumePendingInterstitial()
+
+        // Onboarding hand-off: paywall instead of an interstitial (after first add).
+        if UserDefaultsManager.shared.getValue(for: .pendingOnboardingPaywall) {
+            UserDefaultsManager.shared.setValue(value: false, key: .pendingOnboardingPaywall)
+            // Never paywall an already-subscribed user (e.g. reinstall + restore).
+            guard !UserDefaultsManager.shared.isPro, !assets.isEmpty else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                guard !UserDefaultsManager.shared.isPro else { return }
+                showOnboardingPaywall = true
+            }
+            return
+        }
+
+        // Normal flow: interstitial only if the user actually added something.
+        if didAddAsset {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                interstitialAdManager.showAdIfAvailable()
+            }
         }
     }
 
@@ -146,6 +204,7 @@ struct MainTabView: View {
     private func tabButton(_ tab: Tab) -> some View {
         Button {
             withAnimation(.easeInOut(duration: 0.2)) { selectedTab = tab }
+            FirebaseAnalyticsHelper.shared.logScreenView(String(describing: tab))
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         } label: {
             VStack(spacing: 4) {

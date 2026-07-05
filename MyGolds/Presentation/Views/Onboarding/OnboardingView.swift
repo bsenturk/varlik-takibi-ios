@@ -2,7 +2,9 @@
 //  OnboardingView.swift
 //  MyGolds
 //
-//  Redesigned onboarding (v3.0.0): 3 paged screens → ATT → Paywall → app.
+//  Redesigned onboarding: 3 paged screens → ATT → app, where the first action
+//  is adding a real asset (the "aha" moment). The paywall is deferred until
+//  after that first asset is added (armed here, presented by MainTabView).
 //
 
 import SwiftUI
@@ -12,8 +14,9 @@ struct OnboardingView: View {
     @EnvironmentObject var coordinator: AppCoordinator
     @State private var page = 0
     @State private var phase: Phase = .pages
+    @State private var skippedOnboarding = false
 
-    private enum Phase { case pages, att, paywall }
+    private enum Phase { case pages, att }
 
     private let pageCount = 3
 
@@ -21,10 +24,8 @@ struct OnboardingView: View {
         switch phase {
         case .att:
             ATTPermissionView(onPermissionGranted: { _ in
-                withAnimation { phase = .paywall }
+                completeAndArmFirstAsset()
             })
-        case .paywall:
-            PaywallView(onClose: { coordinator.onboardingCompleted() })
         case .pages:
             pagesView
         }
@@ -34,7 +35,7 @@ struct OnboardingView: View {
         VStack(spacing: 0) {
             HStack {
                 Spacer()
-                Button("Atla") { finishPages() }
+                Button("Atla") { skippedOnboarding = true; finishPages() }
                     .font(.system(size: 16, weight: .medium))
                     .foregroundColor(.secondary)
             }
@@ -44,20 +45,20 @@ struct OnboardingView: View {
             TabView(selection: $page) {
                 OnboardingPage(
                     mock: AnyView(WelcomeMock()),
-                    title: "Varlıklarını Tek Yerde Topla",
-                    description: "Altın, döviz ve daha fazlasını tek bir uygulamada kolayca takip edin."
+                    title: "Tüm Varlıkların Tek Yerde",
+                    description: "Altın, döviz, hisse ve kriptonu tek uygulamada, canlı fiyatlarla takip et."
                 ).tag(0)
 
                 OnboardingPage(
                     mock: AnyView(FolderMock()),
-                    title: "Farklı Amaçlar,\nFarklı Portföyler",
-                    description: "Emeklilik, ev peşinatı ya da günlük takip. Hedeflerinize göre sınırsız portföy oluşturun."
+                    title: "Farklı Hedefler,\nFarklı Portföyler",
+                    description: "Emeklilik, ev peşinatı ya da günlük takip — hedeflerine göre ayrı portföyler oluştur."
                 ).tag(1)
 
                 OnboardingPage(
                     mock: AnyView(ChartMock()),
-                    title: "Detaylı Analiz ile\nBüyümeyi Takip Et",
-                    description: "Dağılım grafikleri ve zaman bazlı analizlerle varlıklarınızın seyrini yakından izleyin."
+                    title: "Performansını\nYakından Takip Et",
+                    description: "Dağılım grafikleri ve zaman bazlı analizlerle varlıklarının seyrini net gör."
                 ).tag(2)
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
@@ -66,7 +67,7 @@ struct OnboardingView: View {
                 .padding(.bottom, 20)
 
             Button(action: advance) {
-                Text("Devam Et")
+                Text(page == pageCount - 1 ? "İlk Varlığını Ekle" : "Devam Et")
                     .font(.system(size: 17, weight: .bold))
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
@@ -92,8 +93,17 @@ struct OnboardingView: View {
         if ATTrackingManager.trackingAuthorizationStatus == .notDetermined {
             withAnimation { phase = .att }
         } else {
-            withAnimation { phase = .paywall }
+            completeAndArmFirstAsset()
         }
+    }
+
+    /// Finish onboarding and arm the post-onboarding hand-off: MainTabView will
+    /// auto-open the Add-Asset flow, then present the paywall once an asset is added.
+    private func completeAndArmFirstAsset() {
+        FirebaseAnalyticsHelper.shared.logOnboardingCompleted(reachedPage: page, skipped: skippedOnboarding)
+        UserDefaultsManager.shared.setValue(value: true, key: .pendingFirstAssetAdd)
+        UserDefaultsManager.shared.setValue(value: true, key: .pendingOnboardingPaywall)
+        coordinator.onboardingCompleted()
     }
 }
 
@@ -176,15 +186,15 @@ private struct FolderMock: View {
         // Symmetric fan: one card angled left, one angled right, the front card centered lower
         // so both back cards' icons + names stay visible above it.
         ZStack {
-            folderCard(name: "Araba", amount: "₺420B", colorHex: "#FF9500")
+            folderCard(name: "Araba", amount: "₺420.000", colorHex: "#FF9500")
                 .scaleEffect(0.88)
                 .rotationEffect(.degrees(-18), anchor: .bottom)
                 .offset(x: -66, y: -34)
-            folderCard(name: "Emeklilik", amount: "₺2,84M", colorHex: "#AF52DE")
+            folderCard(name: "Emeklilik", amount: "₺840.000", colorHex: "#AF52DE")
                 .scaleEffect(0.88)
                 .rotationEffect(.degrees(18), anchor: .bottom)
                 .offset(x: 66, y: -34)
-            folderCard(name: "Ev Peşinatı", amount: "₺684B", colorHex: "#007AFF")
+            folderCard(name: "Ev Peşinatı", amount: "₺680.000", colorHex: "#007AFF")
                 .offset(y: 82)
         }
     }

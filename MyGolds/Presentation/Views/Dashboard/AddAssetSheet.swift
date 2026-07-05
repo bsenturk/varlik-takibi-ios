@@ -17,11 +17,39 @@ struct AddAssetSheet: View {
     @EnvironmentObject private var interstitialAdManager: InterstitialAdManager
     @Query(sort: \Portfolio.sortOrder) private var portfolios: [Portfolio]
     @StateObject private var formViewModel = AssetsFormViewModel()
+    @ObservedObject private var marketData = MarketDataManager.shared
+
+    /// A selectable instrument — either a legacy gold/FX `AssetType` or a live
+    /// catalog row (crypto / stock) identified by `symbol`.
+    struct Instrument: Equatable, Hashable {
+        let type: AssetType
+        let category: AssetCategory
+        let symbol: String
+        let name: String
+        let unit: String
+        let iconName: String
+        let tintHex: String
+
+        static func legacy(_ t: AssetType) -> Instrument {
+            Instrument(type: t, category: t.category, symbol: t.supabaseSymbol,
+                       name: t.displayName, unit: t.unit,
+                       iconName: t.tileIcon, tintHex: t.tileTintHex)
+        }
+
+        static func dynamic(_ row: AssetsPrice, category: AssetCategory) -> Instrument {
+            Instrument(type: category.dynamicAssetType ?? .crypto,
+                       category: category,
+                       symbol: row.code ?? row.name,
+                       name: row.name,
+                       unit: category == .crypto ? "adet" : "lot",
+                       iconName: category.iconName, tintHex: category.tintHex)
+        }
+    }
 
     private enum Step: Equatable {
         case category
         case typeList(AssetCategory)
-        case amount(AssetType)
+        case amount(Instrument)
     }
 
     private enum InputField { case amount, purchasePrice }
@@ -34,6 +62,11 @@ struct AddAssetSheet: View {
     @State private var selectedPortfolio: Portfolio?
     @State private var showAlert = false
     @State private var alertMessage = ""
+    @State private var showingPaywall = false
+
+    // Debounced TEFAS fund search (funds the user types that aren't cached locally).
+    @State private var fundSearchTask: Task<Void, Never>?
+    @State private var isSearchingFunds = false
 
     private var realPortfolios: [Portfolio] { portfolios.filter { !$0.isGeneral } }
 
@@ -47,20 +80,33 @@ struct AddAssetSheet: View {
                 categoryGrid
             case .typeList(let category):
                 typeList(for: category)
-            case .amount(let type):
-                amountEntry(for: type)
+            case .amount(let instrument):
+                amountEntry(for: instrument)
             }
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .onAppear {
             selectedPortfolio = targetPortfolio ?? realPortfolios.first
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                interstitialAdManager.showAdIfAvailable()
-            }
+            // No ad on open — the interstitial is shown after a successful add, when
+            // the sheet closes (see AddAssetPresenter.scheduleInterstitialAfterClose).
         }
         .alert("Hata", isPresented: $showAlert) {
             Button("Tamam", role: .cancel) {}
         } message: { Text(alertMessage) }
+        .sheet(isPresented: $showingPaywall) {
+            PaywallView(onClose: { showingPaywall = false }, context: .fund)
+        }
+    }
+
+    /// Opens a category, or the paywall when a non-Pro user taps a premium category.
+    private func openCategory(_ category: AssetCategory) {
+        if category.isPremium && !UserDefaultsManager.shared.isPro {
+            FirebaseAnalyticsHelper.shared.logPremiumCategoryLocked(category: String(describing: category))
+            showingPaywall = true
+            UINotificationFeedbackGenerator().notificationOccurred(.warning)
+        } else {
+            withAnimation(.easeInOut(duration: 0.2)) { step = .typeList(category) }
+        }
     }
 
     // MARK: - Nav bar
@@ -111,8 +157,8 @@ struct AddAssetSheet: View {
     private func goBack() {
         withAnimation(.easeInOut(duration: 0.2)) {
             switch step {
-            case .amount(let type):
-                step = .typeList(type.category)
+            case .amount(let instrument):
+                step = .typeList(instrument.category)
             case .typeList:
                 step = .category
             case .category:
@@ -129,16 +175,13 @@ struct AddAssetSheet: View {
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)], spacing: 14) {
                 ForEach(AssetCategory.allCases) { category in
                     Button {
-                        withAnimation(.easeInOut(duration: 0.2)) { step = .typeList(category) }
+                        openCategory(category)
                     } label: {
                         VStack(spacing: 12) {
                             AssetIconTile(icon: category.iconName, tintHex: category.tintHex, size: 56)
                             Text(category.displayName)
                                 .font(.system(size: 16, weight: .semibold))
                                 .foregroundColor(.primary)
-                            Text("\(category.assetTypes.count) tür")
-                                .font(.system(size: 13))
-                                .foregroundColor(.secondary)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 22)
@@ -146,6 +189,23 @@ struct AddAssetSheet: View {
                             RoundedRectangle(cornerRadius: 20, style: .continuous)
                                 .fill(Color(.secondarySystemGroupedBackground))
                         )
+                        .overlay(alignment: .topTrailing) {
+                            // Pro badge on premium categories (until the user subscribes).
+                            if category.isPremium && !UserDefaultsManager.shared.isPro {
+                                Image(systemName: "crown.fill")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .padding(7)
+                                    .background(
+                                        LinearGradient(
+                                            colors: [Color(hex: "#0A84FF"), Color(hex: "#AF52DE")],
+                                            startPoint: .topLeading, endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .clipShape(Circle())
+                                    .padding(10)
+                            }
+                        }
                     }
                     .buttonStyle(.plain)
                 }
@@ -156,28 +216,61 @@ struct AddAssetSheet: View {
 
     // MARK: - Step 2: type list
 
+    /// All selectable instruments for a category — legacy enum types or live
+    /// catalog rows (crypto / stocks).
+    private func instrumentsForCategory(_ category: AssetCategory) -> [Instrument] {
+        if category.isDynamic {
+            return marketData.instruments(for: category).map { Instrument.dynamic($0, category: category) }
+        }
+        return category.assetTypes.map { Instrument.legacy($0) }
+    }
+
     private func typeList(for category: AssetCategory) -> some View {
-        let types = category.assetTypes.filter {
-            searchText.isEmpty || $0.displayName.localizedCaseInsensitiveContains(searchText)
+        let items = instrumentsForCategory(category).filter {
+            searchText.isEmpty
+                || $0.name.localizedCaseInsensitiveContains(searchText)
+                || $0.symbol.localizedCaseInsensitiveContains(searchText)
         }
         return VStack(spacing: 0) {
             searchBar
             ScrollView {
                 LazyVStack(spacing: 10) {
-                    ForEach(types, id: \.self) { type in
+                    if items.isEmpty {
+                        if isSearchingFunds {
+                            ProgressView()
+                                .padding(.top, 40)
+                            Text("Fon aranıyor…")
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                        } else if category.isDynamic && searchText.isEmpty {
+                            ProgressView()
+                                .padding(.top, 40)
+                            Text("Fiyatlar yükleniyor…")
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                        } else if category == .fund && searchText.count >= 2 {
+                            Text("“\(searchText)” için fon bulunamadı.")
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.top, 40)
+                                .padding(.horizontal, 24)
+                        }
+                    }
+                    ForEach(items, id: \.self) { instrument in
                         Button {
                             amount = ""
                             purchasePrice = ""
                             activeField = .amount
-                            withAnimation(.easeInOut(duration: 0.2)) { step = .amount(type) }
+                            withAnimation(.easeInOut(duration: 0.2)) { step = .amount(instrument) }
                         } label: {
                             HStack(spacing: 12) {
-                                AssetIconTile(icon: type.tileIcon, tintHex: type.tileTintHex, size: 40)
+                                AssetIconTile(icon: instrument.iconName, tintHex: instrument.tintHex, size: 40)
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(type.displayName)
+                                    Text(instrument.name)
                                         .font(.system(size: 16, weight: .semibold))
                                         .foregroundColor(.primary)
-                                    Text(priceLabel(for: type))
+                                    Text(priceLabel(for: instrument))
                                         .font(.system(size: 13))
                                         .foregroundColor(.secondary)
                                 }
@@ -199,6 +292,40 @@ struct AddAssetSheet: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 16)
             }
+        }
+        .onChange(of: searchText) { _, newValue in
+            scheduleFundSearch(category: category, query: newValue)
+        }
+        .onDisappear {
+            fundSearchTask?.cancel()
+            isSearchingFunds = false
+        }
+    }
+
+    /// Debounced TEFAS search. When the user types a query in the fund list that
+    /// isn't already matched by a locally-cached fund, ask the backend to fetch
+    /// it live (~400ms after they stop typing). Results flow back through
+    /// `marketData.fundPrices`, so the list updates automatically.
+    private func scheduleFundSearch(category: AssetCategory, query: String) {
+        fundSearchTask?.cancel()
+        let trimmed = query.trimmingCharacters(in: .whitespaces)
+        guard category == .fund, trimmed.count >= 2 else {
+            isSearchingFunds = false
+            return
+        }
+        // Skip the round-trip if a cached fund already matches the query.
+        let hasLocalMatch = marketData.instruments(for: .fund).contains {
+            $0.name.localizedCaseInsensitiveContains(trimmed)
+                || ($0.code ?? "").localizedCaseInsensitiveContains(trimmed)
+        }
+        if hasLocalMatch { isSearchingFunds = false; return }
+
+        fundSearchTask = Task {
+            try? await Task.sleep(nanoseconds: 400_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run { isSearchingFunds = true }
+            await marketData.searchRemoteFunds(query: trimmed)
+            await MainActor.run { isSearchingFunds = false }
         }
     }
 
@@ -230,21 +357,21 @@ struct AddAssetSheet: View {
         .padding(.vertical, 12)
     }
 
-    private func priceLabel(for type: AssetType) -> String {
-        guard let price = formViewModel.getSelectedAsset(from: type.displayName)?.sellPrice,
-              !price.isEmpty else { return type.unit }
-        return "₺\(price) / \(type.unit)"
+    private func priceLabel(for instrument: Instrument) -> String {
+        let price = currentMarketPrice(for: instrument)
+        guard price > 0 else { return instrument.unit }
+        return "₺\(String(format: "%.2f", price)) / \(instrument.unit)"
     }
 
     // MARK: - Step 3: amount entry
 
-    private func amountEntry(for type: AssetType) -> some View {
+    private func amountEntry(for instrument: Instrument) -> some View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(spacing: 16) {
                     HStack(spacing: 10) {
-                        AssetIconTile(icon: type.tileIcon, tintHex: type.tileTintHex, size: 34)
-                        Text(type.displayName)
+                        AssetIconTile(icon: instrument.iconName, tintHex: instrument.tintHex, size: 34)
+                        Text(instrument.name)
                             .font(.system(size: 18, weight: .bold))
                     }
                     .padding(.top, 8)
@@ -259,7 +386,7 @@ struct AddAssetSheet: View {
                                 Text(amount.isEmpty ? "0" : amount)
                                     .font(.system(size: 44, weight: .heavy))
                                     .foregroundColor(amount.isEmpty ? .secondary : .primary)
-                                Text(type.unit)
+                                Text(instrument.unit)
                                     .font(.system(size: 20, weight: .medium))
                                     .foregroundColor(.secondary)
                             }
@@ -274,9 +401,12 @@ struct AddAssetSheet: View {
 
                     portfolioPicker
 
-                    purchasePriceField(for: type)
-
-                    profitLossPreview(for: type)
+                    // Türk Lirası has no purchase rate (it's the base currency).
+                    if instrument.symbol != "TRY" {
+                        purchasePriceField(for: instrument)
+                        liveValuePreview(for: instrument)
+                        profitLossPreview(for: instrument)
+                    }
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 8)
@@ -290,51 +420,104 @@ struct AddAssetSheet: View {
             )
             .padding(.horizontal, 12)
 
-            saveButton(for: type)
+            saveButton(for: instrument)
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
                 .padding(.bottom, 16)
         }
     }
 
-    // Optional purchase-rate input (price the user paid per unit).
-    private func purchasePriceField(for type: AssetType) -> some View {
-        Button { activeField = .purchasePrice } label: {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Satın Alınan Kur")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(.primary)
-                    Text("(Opsiyonel)")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
+    // Optional cost-basis input. For stocks/crypto/funds it's the "average cost";
+    // for gold/FX it's the "purchased rate". Left empty -> current price is used.
+    private func purchasePriceField(for instrument: Instrument) -> some View {
+        let label = instrument.category.isDynamic ? "Ortalama Maliyet" : "Satın Alınan Kur"
+        return VStack(alignment: .leading, spacing: 6) {
+            Button { activeField = .purchasePrice } label: {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(label)
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(.primary)
+                        Text("(Opsiyonel)")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    if purchasePrice.isEmpty {
+                        Text("Güncel fiyat")
+                            .font(.system(size: 16))
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text("₺\(purchasePrice)")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.primary)
+                    }
                 }
-                Spacer()
-                if purchasePrice.isEmpty {
-                    Text("Güncel kur")
-                        .font(.system(size: 16))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+                .background(Color(.secondarySystemGroupedBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(activeField == .purchasePrice ? Color.accentColor : Color.clear, lineWidth: 2)
+                )
+            }
+            .buttonStyle(.plain)
+
+            HStack(spacing: 5) {
+                Image(systemName: "info.circle")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                Text("Belirtmezseniz güncel fiyattan alınmış kabul edilir.")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal, 4)
+        }
+    }
+
+    /// Live summary under the purchase-rate field: the current market price per
+    /// unit and the entered amount × that price (total value), updated as the user
+    /// types the quantity.
+    @ViewBuilder
+    private func liveValuePreview(for instrument: Instrument) -> some View {
+        let unitPrice = currentMarketPrice(for: instrument)
+        if unitPrice > 0 {
+            let qty = Double(amount.replacingOccurrences(of: ",", with: ".")) ?? 0
+            VStack(spacing: 0) {
+                HStack {
+                    Text("Güncel Fiyat")
+                        .font(.system(size: 14))
                         .foregroundColor(.secondary)
-                } else {
-                    Text("₺\(purchasePrice)")
-                        .font(.system(size: 16, weight: .semibold))
+                    Spacer()
+                    Text("\(unitPrice.formatAsCurrency()) / \(instrument.unit)")
+                        .font(.system(size: 15, weight: .semibold))
                         .foregroundColor(.primary)
                 }
+                .padding(.vertical, 12)
+
+                Divider()
+
+                HStack {
+                    Text("Toplam Değer")
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text((qty * unitPrice).formatAsCurrency())
+                        .font(.system(size: 18, weight: .heavy))
+                        .foregroundColor(.primary)
+                }
+                .padding(.vertical, 12)
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 14)
             .background(Color(.secondarySystemGroupedBackground))
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(activeField == .purchasePrice ? Color.accentColor : Color.clear, lineWidth: 2)
-            )
         }
-        .buttonStyle(.plain)
     }
 
     @ViewBuilder
-    private func profitLossPreview(for type: AssetType) -> some View {
-        if let pl = estimatedProfitLoss(for: type) {
+    private func profitLossPreview(for instrument: Instrument) -> some View {
+        if let pl = estimatedProfitLoss(for: instrument) {
             HStack(spacing: 6) {
                 Image(systemName: pl.value >= 0 ? "arrow.up.right" : "arrow.down.right")
                     .font(.system(size: 12, weight: .bold))
@@ -376,8 +559,8 @@ struct AddAssetSheet: View {
         }
     }
 
-    private func saveButton(for type: AssetType) -> some View {
-        Button(action: { save(type: type) }) {
+    private func saveButton(for instrument: Instrument) -> some View {
+        Button(action: { save(instrument: instrument) }) {
             Text("Kaydet")
                 .font(.system(size: 17, weight: .bold))
                 .foregroundColor(.white)
@@ -402,16 +585,17 @@ struct AddAssetSheet: View {
         (Double(amount.replacingOccurrences(of: ",", with: ".")) ?? 0) > 0 && selectedPortfolio != nil
     }
 
-    private func currentMarketPrice(for type: AssetType) -> Double {
-        formViewModel.getSelectedAsset(from: type.displayName)?.sellPrice.parseToDouble() ?? 0.0
+    private func currentMarketPrice(for instrument: Instrument) -> Double {
+        if instrument.symbol == "TRY" { return 1.0 }
+        return marketData.tryPrice(forSymbol: instrument.symbol) ?? 0.0
     }
 
     /// Live profit/loss estimate from the entered purchase rate vs the current market rate.
-    private func estimatedProfitLoss(for type: AssetType) -> (value: Double, percent: Double)? {
+    private func estimatedProfitLoss(for instrument: Instrument) -> (value: Double, percent: Double)? {
         guard let amountValue = Double(amount.replacingOccurrences(of: ",", with: ".")), amountValue > 0,
               let purchase = Double(purchasePrice.replacingOccurrences(of: ",", with: ".")), purchase > 0
         else { return nil }
-        let current = currentMarketPrice(for: type)
+        let current = currentMarketPrice(for: instrument)
         guard current > 0 else { return nil }
         let value = (current - purchase) * amountValue
         let percent = (current - purchase) / purchase * 100.0
@@ -456,7 +640,7 @@ struct AddAssetSheet: View {
 
     // MARK: - Save
 
-    private func save(type: AssetType) {
+    private func save(instrument: Instrument) {
         guard let amountValue = Double(amount.replacingOccurrences(of: ",", with: ".")), amountValue > 0 else {
             alertMessage = "Lütfen geçerli bir miktar girin."
             showAlert = true
@@ -468,14 +652,14 @@ struct AddAssetSheet: View {
             return
         }
 
-        let currentPrice = currentMarketPrice(for: type)
+        let currentPrice = currentMarketPrice(for: instrument)
 
         // Use the entered purchase rate as the cost basis when provided; otherwise the current rate.
         let enteredPurchase = Double(purchasePrice.replacingOccurrences(of: ",", with: "."))
         let costBasis = (enteredPurchase != nil && enteredPurchase! > 0) ? enteredPurchase! : currentPrice
 
-        // Merge into an existing asset of the same type within this portfolio, if any.
-        let existing = (portfolio.assets ?? []).first(where: { $0.type == type })
+        // Merge into an existing holding of the same instrument (by symbol) in this portfolio.
+        let existing = (portfolio.assets ?? []).first(where: { $0.symbol == instrument.symbol })
 
         if let existing {
             let oldAmount = existing.amount
@@ -492,12 +676,16 @@ struct AddAssetSheet: View {
 
             AssetHistoryManager.shared.recordDailySnapshot(for: existing, modelContext: modelContext)
             AssetHistoryManager.shared.recordTransaction(
-                assetType: type, transactionType: .add,
+                symbol: existing.symbol, assetType: existing.type, transactionType: .add,
                 amount: amountValue, totalAmount: existing.amount,
                 price: costBasis, context: modelContext
             )
         } else {
-            let newAsset = Asset(type: type, amount: amountValue, currentRate: 0.0, currentPrice: currentPrice)
+            let newAsset = Asset(
+                type: instrument.type, symbol: instrument.symbol,
+                name: instrument.name, unit: instrument.unit,
+                amount: amountValue, currentRate: 0.0, currentPrice: currentPrice
+            )
             newAsset.portfolio = portfolio
             PortfolioManager.shared.storePurchasePrice(for: newAsset.id, price: costBasis)
             modelContext.insert(newAsset)
@@ -505,7 +693,7 @@ struct AddAssetSheet: View {
 
             AssetHistoryManager.shared.createInitialSnapshot(for: newAsset, purchasePrice: costBasis, modelContext: modelContext)
             AssetHistoryManager.shared.recordTransaction(
-                assetType: type, transactionType: .initial,
+                symbol: newAsset.symbol, assetType: newAsset.type, transactionType: .initial,
                 amount: amountValue, totalAmount: amountValue,
                 price: costBasis, context: modelContext
             )
@@ -515,7 +703,19 @@ struct AddAssetSheet: View {
             let all = (try? modelContext.fetch(FetchDescriptor<Asset>())) ?? []
             PortfolioManager.shared.forceUpdate(with: all)
         }
+        // Privacy-safe: only the instrument class/symbol + behavioural flags — never
+        // the amount, value, or entered purchase price.
+        FirebaseAnalyticsHelper.shared.logAssetAdded(
+            category: String(describing: instrument.category),
+            symbol: instrument.symbol,
+            isMerge: existing != nil,
+            hasPurchasePrice: enteredPurchase != nil && enteredPurchase! > 0
+        )
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        // Show the interstitial at the natural transition after this sheet closes,
+        // not on open. Gated/frequency-capped by the ad managers (and skipped for
+        // Pro). MainTabView shows it once the sheet has dismissed.
+        AddAssetPresenter.shared.scheduleInterstitialAfterClose()
         dismiss()
     }
 }

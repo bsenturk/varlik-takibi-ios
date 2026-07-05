@@ -8,6 +8,11 @@ class UserDefaultsManager: ObservableObject {
         case darkModePreference = "dark_mode_preference"
         case didCreateDefaultPortfolios = "did_create_default_portfolios"
         case isPro = "is_pro"
+        // Onboarding hand-off: after the intro pages, auto-open the Add-Asset flow
+        // so the user's first action is adding a real asset (the "aha" moment),
+        // then surface the paywall only once they've added it.
+        case pendingFirstAssetAdd = "pending_first_asset_add"
+        case pendingOnboardingPaywall = "pending_onboarding_paywall"
     }
 
     /// Local "Varlık Pro" entitlement flag. Real StoreKit purchases will set this later.

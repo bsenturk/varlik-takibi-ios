@@ -13,6 +13,7 @@ struct RatesView: View {
     @State private var searchText = ""
 
     private var allRates: [RateDisplayModel] {
+        // Kurlar shows only gold & currencies; crypto/stocks live in the portfolio flow.
         viewModel.currencyRates + viewModel.goldRates
     }
 

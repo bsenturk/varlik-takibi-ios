@@ -125,6 +125,22 @@ struct AnalysisView: View {
     private var valueCard: some View {
         let series = valueSeries()
         let convertedValue = portfolioManager.convertToTargetCurrency(metrics.totalValue, targetCurrency: selectedCurrency)
+        // Profit/loss over the SELECTED RANGE drives both the change badge and the
+        // chart color, so the number and the graphic always agree (green = up).
+        let firstValue = series.first?.value ?? 0
+        let lastValue = series.last?.value ?? 0
+        let rangeChangePercent = firstValue > 0 ? ((lastValue - firstValue) / firstValue) * 100 : 0
+        let isProfit = lastValue >= firstValue
+        let trendColor: Color = isProfit ? Color(hex: "#34C759") : Color(hex: "#FF3B30")
+        // Require a real stretch of history before showing the range % + chart,
+        // so a couple of early snapshots don't render an exaggerated trend.
+        let hasEnoughHistory: Bool = {
+            guard series.count >= 3,
+                  let first = series.first?.date,
+                  let last = series.last?.date else { return false }
+            let spanDays = Calendar.current.dateComponents([.day], from: first, to: last).day ?? 0
+            return spanDays >= 5
+        }()
         return VStack(alignment: .leading, spacing: 14) {
             Text("Güncel Değer")
                 .font(.system(size: 14))
@@ -134,29 +150,29 @@ struct AnalysisView: View {
                 .minimumScaleFactor(0.6)
                 .lineLimit(1)
 
-            if metrics.hasDayChange {
+            if hasEnoughHistory {
                 HStack(spacing: 6) {
-                    Image(systemName: metrics.isPositive ? "arrow.up" : "arrow.down")
+                    Image(systemName: isProfit ? "arrow.up" : "arrow.down")
                         .font(.system(size: 11, weight: .bold))
-                    Text("%\(String(format: "%.2f", abs(metrics.dayChangePercent)).replacingOccurrences(of: ".", with: ","))")
+                    Text("%\(String(format: "%.2f", abs(rangeChangePercent)).replacingOccurrences(of: ".", with: ","))")
                         .font(.system(size: 14, weight: .semibold))
-                    Text("Bugün").font(.system(size: 13)).foregroundColor(.secondary)
+                    Text(rangeLabel).font(.system(size: 13)).foregroundColor(.secondary)
                 }
-                .foregroundColor(metrics.isPositive ? .green : .red)
+                .foregroundColor(trendColor)
             }
 
-            if series.count > 1 {
-                Chart(series, id: \.date) { point in
+            if hasEnoughHistory {
+                Chart(downsample(series), id: \.date) { point in
                     let converted = portfolioManager.convertToTargetCurrency(point.value, targetCurrency: selectedCurrency)
                     AreaMark(x: .value("Tarih", point.date), y: .value("Değer", converted))
                         .foregroundStyle(
                             LinearGradient(
-                                colors: [(selectedPortfolio?.color ?? .blue).color.opacity(0.25), .clear],
+                                colors: [trendColor.opacity(0.25), .clear],
                                 startPoint: .top, endPoint: .bottom
                             )
                         )
                     LineMark(x: .value("Tarih", point.date), y: .value("Değer", converted))
-                        .foregroundStyle((selectedPortfolio?.color ?? .blue).color)
+                        .foregroundStyle(trendColor)
                         .interpolationMethod(.catmullRom)
                 }
                 .chartXAxis(.hidden)
@@ -176,6 +192,16 @@ struct AnalysisView: View {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .fill(Color(.secondarySystemGroupedBackground))
         )
+    }
+
+    private var rangeLabel: String {
+        switch range {
+        case .week: return "Son 1 Hafta"
+        case .month: return "Son 1 Ay"
+        case .quarter: return "Son 3 Ay"
+        case .year: return "Son 1 Yıl"
+        case .all: return "Tüm Zamanlar"
+        }
     }
 
     private var rangePicker: some View {
@@ -237,11 +263,12 @@ struct AnalysisView: View {
                             HStack(spacing: 10) {
                                 Circle().fill(slice.color).frame(width: 11, height: 11)
                                 Text(slice.name)
-                                    .font(.system(size: 16, weight: .semibold))
+                                    .font(.system(size: 13, weight: .semibold))
                                     .lineLimit(1)
+                                    .minimumScaleFactor(0.7)
                                 Spacer(minLength: 6)
-                                Text("%\(String(format: "%.0f", slice.percent))")
-                                    .font(.system(size: 16, weight: .semibold))
+                                Text(Self.percentLabel(slice.percent))
+                                    .font(.system(size: 14, weight: .semibold))
                                     .foregroundColor(.secondary)
                             }
                         }
@@ -278,20 +305,74 @@ struct AnalysisView: View {
 
     // MARK: - Data
 
+    /// Daily portfolio-value series for the selected range, sourced from
+    /// `PortfolioSnapshot` (uncapped, and built with the *historical* holdings by
+    /// the Time Machine — so past days aren't valued with today's amounts). For
+    /// "Genel" we sum snapshots across all real portfolios per day. The final
+    /// point is pinned to the live total so the chart ends at the current value.
     private func valueSeries() -> [(date: Date, value: Double)] {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
-        let start = calendar.date(byAdding: .day, value: -range.days, to: today) ?? today
+        let rangeStart = calendar.date(byAdding: .day, value: -range.days, to: today) ?? today
+
+        // Never chart value from before the user actually held any of their CURRENT
+        // assets: clamp the window to the earliest current-holding date. This drops
+        // stale snapshots left over from a previous holdings composition (e.g. assets
+        // that were replaced), which would otherwise value past days on holdings the
+        // user no longer owns and produce a nonsensical range % (e.g. −94%).
+        let earliestHoldingDay = scopedAssets
+            .map { calendar.startOfDay(for: $0.dateAdded) }
+            .min()
+        let start = max(rangeStart, earliestHoldingDay ?? rangeStart)
+
+        let snapshots: [PortfolioSnapshot]
+        if isGeneral {
+            snapshots = portfolios.filter { !$0.isGeneral }.flatMap { $0.snapshots ?? [] }
+        } else {
+            snapshots = selectedPortfolio?.snapshots ?? []
+        }
 
         var byDay: [Date: Double] = [:]
-        for asset in scopedAssets {
-            let history = AssetHistoryManager.shared.getHistory(for: asset.type, from: start, to: today, context: modelContext)
-            for point in history {
-                let day = calendar.startOfDay(for: point.date)
-                byDay[day, default: 0] += asset.amount * point.price
-            }
+        for snap in snapshots {
+            let day = calendar.startOfDay(for: snap.date)
+            guard day >= start && day <= today else { continue }
+            byDay[day, default: 0] += snap.totalValue
         }
-        return byDay.keys.sorted().map { (date: $0, value: byDay[$0] ?? 0) }
+
+        // Pin the most recent point to the live total (snapshots are once/day).
+        let liveValue = metrics.totalValue
+        if liveValue > 0 { byDay[today] = liveValue }
+
+        // Drop days we couldn't value (totalValue 0): the Time Machine stores a 0
+        // when historical prices were unavailable, and a leading 0 would both flatten
+        // the chart to the baseline and collapse the range % to "%0,00" (firstValue 0),
+        // contradicting the dashboard's cost-basis P/L.
+        return byDay.keys.sorted()
+            .map { (date: $0, value: byDay[$0] ?? 0) }
+            .filter { $0.value > 0 }
+    }
+
+    /// Downsample a daily series so long ranges stay readable: weekly buckets for
+    /// 3A, monthly for 1Y/Tümü (keeping the latest point in each bucket). 1H/1A
+    /// stay daily.
+    private func downsample(_ series: [(date: Date, value: Double)]) -> [(date: Date, value: Double)] {
+        let component: Calendar.Component?
+        switch range {
+        case .week, .month: component = nil
+        case .quarter: component = .weekOfYear
+        case .year, .all: component = .month
+        }
+        guard let comp = component, series.count > 2 else { return series }
+
+        let calendar = Calendar.current
+        var byBucket: [Date: (date: Date, value: Double)] = [:]
+        for point in series {
+            let key = calendar.dateInterval(of: comp, for: point.date)?.start
+                ?? calendar.startOfDay(for: point.date)
+            if let existing = byBucket[key], existing.date >= point.date { continue }
+            byBucket[key] = point
+        }
+        return byBucket.values.sorted { $0.date < $1.date }
     }
 
     // MARK: - Movers (gainers / losers)
@@ -326,7 +407,7 @@ struct AnalysisView: View {
         return HStack(spacing: 12) {
             AssetIconTile(icon: asset.type.tileIcon, tintHex: asset.type.tileTintHex, size: 48)
             VStack(alignment: .leading, spacing: 3) {
-                Text(asset.type.displayName)
+                Text(asset.name)
                     .font(.system(size: 16, weight: .semibold))
                     .lineLimit(1)
                 Text(value.formatAsCurrency(currency: selectedCurrency))
@@ -353,7 +434,7 @@ struct AnalysisView: View {
     private func assetDayChangePercent(_ asset: Asset) -> Double {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
-        let history = AssetHistoryManager.shared.getHistory(for: asset.type, context: modelContext)
+        let history = AssetHistoryManager.shared.getHistory(for: asset.symbol, context: modelContext)
         guard let prev = history.filter({ calendar.startOfDay(for: $0.date) < today })
             .sorted(by: { $0.date < $1.date }).last?.price, prev > 0 else { return 0 }
         return ((asset.currentPrice - prev) / prev) * 100.0
@@ -377,25 +458,32 @@ struct AnalysisView: View {
 
     private struct Slice { let name: String; let value: Double; let percent: Double; let color: Color }
 
+    /// Distribution by ASSET CLASS (category): all holdings of the same class are
+    /// one slice (e.g. the 3 BIST stocks → a single "Borsa İstanbul" slice), so the
+    /// "Tür" count reflects asset classes — not individual instruments.
     private func distribution() -> [Slice] {
         let total = scopedAssets.reduce(0) { $0 + $1.totalValue }
         guard total > 0 else { return [] }
 
-        if isGeneral {
-            let grouped = Dictionary(grouping: scopedAssets) { $0.type.category }
-            return AssetCategory.allCases.compactMap { category in
-                guard let items = grouped[category] else { return nil }
-                let value = items.reduce(0) { $0 + $1.totalValue }
-                guard value > 0 else { return nil }
-                return Slice(name: category.displayName, value: value, percent: value / total * 100, color: Color(hex: category.tintHex))
-            }.sorted { $0.value > $1.value }
-        } else {
-            let grouped = Dictionary(grouping: scopedAssets) { $0.type }
-            return grouped.compactMap { (type, items) in
-                let value = items.reduce(0) { $0 + $1.totalValue }
-                guard value > 0 else { return nil }
-                return Slice(name: type.displayName, value: value, percent: value / total * 100, color: Color(hex: type.tileTintHex))
-            }.sorted { $0.value > $1.value }
+        let grouped = Dictionary(grouping: scopedAssets) { $0.type.category }
+        return AssetCategory.allCases.compactMap { category -> Slice? in
+            guard let items = grouped[category] else { return nil }
+            let value = items.reduce(0) { $0 + $1.totalValue }
+            guard value > 0 else { return nil }
+            return Slice(
+                name: category.displayName,
+                value: value,
+                percent: value / total * 100,
+                color: Color(hex: category.tintHex)
+            )
         }
+        .sorted { $0.value > $1.value }
+    }
+
+    /// Percentage label that doesn't mislead: a small-but-present slice shows
+    /// "<%1" instead of a flat "%0".
+    static func percentLabel(_ p: Double) -> String {
+        if p > 0 && p < 1 { return "<%1" }
+        return "%\(String(format: "%.0f", p))"
     }
 }

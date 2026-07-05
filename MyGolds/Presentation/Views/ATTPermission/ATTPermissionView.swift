@@ -36,11 +36,11 @@ struct ATTPermissionView: View {
             
             // Content
             VStack(spacing: 16) {
-                Text("Gizlilik İzni")
+                Text("İzleme İzni")
                     .font(.title.bold())
                     .foregroundColor(.primary)
-                
-                Text("Size daha iyi hizmet verebilmek için uygulamanın performansını analiz etmemize izin verin. Verileriniz güvende kalacak.")
+
+                Text("Sana daha uygun reklamlar gösterebilmemiz için bir sonraki ekranda izleme izni isteyeceğiz. Onay vermesen de uygulama tüm özellikleriyle çalışır; yalnızca reklamlar sana daha az ilgili olur.")
                     .font(.body)
                     .multilineTextAlignment(.center)
                     .foregroundColor(.secondary)

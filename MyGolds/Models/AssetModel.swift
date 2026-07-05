@@ -12,6 +12,11 @@ import Foundation
 final class Asset {
     var id: UUID
     var type: AssetType
+    /// Canonical price/history key — matches `assets_prices.symbol`. For legacy
+    /// gold/FX this equals `type.supabaseSymbol`; for crypto/stocks it's the
+    /// instrument symbol (e.g. "BTC", "THYAO.IS", "AAPL"). Defaulted for
+    /// SwiftData lightweight migration; backfilled on launch for old rows.
+    var symbol: String = ""
     var name: String
     var amount: Double
     var unit: String
@@ -24,9 +29,11 @@ final class Asset {
     /// pre-v3.0.0 data; the launch migration assigns every orphan asset to "Portföyüm".
     var portfolio: Portfolio?
 
+    /// Legacy gold/FX initializer — identity comes from the closed `AssetType`.
     init(type: AssetType, amount: Double, currentRate: Double = 0.0, currentPrice: Double) {
         self.id = UUID()
         self.type = type
+        self.symbol = type.supabaseSymbol
         self.name = type.displayName
         self.amount = amount
         self.unit = type.unit
@@ -34,8 +41,25 @@ final class Asset {
         self.lastUpdated = Date()
         self.currentRate = currentRate
         self.currentPrice = currentPrice
-        
+
         Logger.log("💰 Asset created: \(name), Amount: \(amount), Price: \(currentPrice)")
+    }
+
+    /// Dynamic market initializer — crypto / BIST / US instruments identified by `symbol`.
+    init(type: AssetType, symbol: String, name: String, unit: String,
+         amount: Double, currentRate: Double = 0.0, currentPrice: Double) {
+        self.id = UUID()
+        self.type = type
+        self.symbol = symbol
+        self.name = name
+        self.amount = amount
+        self.unit = unit
+        self.dateAdded = Date()
+        self.lastUpdated = Date()
+        self.currentRate = currentRate
+        self.currentPrice = currentPrice
+
+        Logger.log("💰 Asset created: \(name) [\(symbol)], Amount: \(amount), Price: \(currentPrice)")
     }
     
     var totalValue: Double {

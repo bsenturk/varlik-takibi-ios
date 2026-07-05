@@ -21,7 +21,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // Configure Firebase
         FirebaseApp.configure()
         Logger.log("🔧 Firebase configured")
-        
+
+        // Configure RevenueCat, then start observing entitlements / offerings.
+        PurchaseManager.configure()
+        Logger.log("🔧 RevenueCat configured")
+        Task { @MainActor in PurchaseManager.shared.start() }
+
         // Start AdMob (handled by AdMobManager)
         Logger.log("🔧 AdMob initialization will be handled by AdMobManager")
         
@@ -52,13 +57,39 @@ struct VarlikDefterimApp: App {
             Asset.self,
             AssetPriceHistory.self,
             AssetTransactionHistory.self,
-            Portfolio.self
+            Portfolio.self,
+            PortfolioSnapshot.self
         ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        let persistent = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+
+        // 1) Normal persistent store.
         do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
+            return try ModelContainer(for: schema, configurations: [persistent])
         } catch {
-            fatalError("Could not create ModelContainer: \(error)")
+            Logger.log("⚠️ ModelContainer failed (\(error)). Attempting store reset.")
+            Crashlytics.crashlytics().record(error: error)
+        }
+
+        // 2) Migration/corruption recovery: delete the on-disk store (and its
+        //    -shm/-wal sidecars) and retry once, so an incompatible schema change
+        //    can't hard-crash existing users.
+        let storeBase = URL.applicationSupportDirectory.appending(path: "default.store")
+        for path in [storeBase.path, storeBase.path + "-shm", storeBase.path + "-wal"] {
+            try? FileManager.default.removeItem(atPath: path)
+        }
+        if let recovered = try? ModelContainer(for: schema, configurations: [persistent]) {
+            Logger.log("✅ ModelContainer recovered after store reset.")
+            return recovered
+        }
+
+        // 3) Last resort: in-memory store so the app still launches (data not persisted).
+        Logger.log("⚠️ Falling back to in-memory ModelContainer.")
+        do {
+            let inMemory = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+            return try ModelContainer(for: schema, configurations: [inMemory])
+        } catch {
+            Crashlytics.crashlytics().record(error: error)
+            fatalError("Could not create even an in-memory ModelContainer: \(error)")
         }
     }()
     
@@ -93,8 +124,26 @@ struct VarlikDefterimApp: App {
     private func setupInitialState() {
         Logger.log("🚀 App: Initial setup")
 
+        // Track distinct-day engagement for the rating prompt.
+        RatingManager.shared.recordAppOpen()
+
         // Create default portfolios & migrate pre-v3.0.0 assets into "Portföyüm"
         PortfolioStore.ensureDefaults(context: sharedModelContainer.mainContext)
+
+        // Backfill `symbol` on legacy rows added before the symbol-based model.
+        backfillSymbols()
+
+        // "Time Machine": rebuild any missing daily portfolio snapshots so charts
+        // stay continuous. Best-effort & offline-safe (no-ops if prices unavailable).
+        Task { @MainActor in
+            let repository = PortfolioRepository(context: sharedModelContainer.mainContext)
+            let calculator = PortfolioCalculatorService(
+                context: sharedModelContainer.mainContext,
+                repository: repository,
+                marketData: MarketDataService()
+            )
+            await calculator.reconstructAllPortfolios()
+        }
 
         // Clear badge on app launch
         notificationManager.clearBadge()
@@ -122,6 +171,38 @@ struct VarlikDefterimApp: App {
         hasInitialSetupCompleted = true
     }
     
+    /// One-time backfill: legacy `Asset` / history rows created before the
+    /// symbol-based model have an empty `symbol`. Derive it from the stored
+    /// `AssetType` so symbol-keyed lookups work for existing data.
+    private func backfillSymbols() {
+        let context = sharedModelContainer.mainContext
+        var changed = false
+
+        if let assets = try? context.fetch(FetchDescriptor<Asset>()) {
+            for asset in assets where asset.symbol.isEmpty {
+                asset.symbol = asset.type.supabaseSymbol
+                changed = true
+            }
+        }
+        if let history = try? context.fetch(FetchDescriptor<AssetPriceHistory>()) {
+            for row in history where row.symbol.isEmpty {
+                row.symbol = row.assetType.supabaseSymbol
+                changed = true
+            }
+        }
+        if let txns = try? context.fetch(FetchDescriptor<AssetTransactionHistory>()) {
+            for row in txns where row.symbol.isEmpty {
+                row.symbol = row.assetType.supabaseSymbol
+                changed = true
+            }
+        }
+
+        if changed {
+            try? context.save()
+            Logger.log("🔁 Backfilled symbol on legacy rows")
+        }
+    }
+
     private func recordDailySnapshots() {
         Logger.log("📸 App: Recording daily snapshots")
         
@@ -142,7 +223,7 @@ struct VarlikDefterimApp: App {
             
             // 1. Price History kontrolü - Yoksa initial oluştur
             let priceHistory = AssetHistoryManager.shared.getHistory(
-                for: asset.type,
+                for: asset.symbol,
                 context: sharedModelContainer.mainContext
             )
             
@@ -167,7 +248,7 @@ struct VarlikDefterimApp: App {
             
             // 2. Transaction history kontrolü - Yoksa initial oluştur
             let transactions = AssetHistoryManager.shared.getTransactionHistory(
-                for: asset.type,
+                for: asset.symbol,
                 context: sharedModelContainer.mainContext
             )
             
@@ -180,6 +261,7 @@ struct VarlikDefterimApp: App {
                 // Initial transaction için asset.dateAdded tarihini kullan
                 let initialTransaction = AssetTransactionHistory(
                     assetType: asset.type,
+                    symbol: asset.symbol,
                     date: asset.dateAdded, // BURADA ORIGINAL DATE KULLANILIYOR
                     transactionType: .initial,
                     amount: asset.amount,
