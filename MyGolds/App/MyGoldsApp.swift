@@ -7,20 +7,22 @@
 
 import SwiftUI
 import FirebaseCore
+import FirebaseMessaging
 import GoogleMobileAds
 import FirebaseCrashlytics
 import AppTrackingTransparency
 import SwiftData
 
-final class AppDelegate: NSObject, UIApplicationDelegate {
+final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil
     ) -> Bool {
-        
+
         // Configure Firebase
         FirebaseApp.configure()
         Logger.log("🔧 Firebase configured")
+        Messaging.messaging().delegate = self
 
         // Configure RevenueCat, then start observing entitlements / offerings.
         PurchaseManager.configure()
@@ -29,10 +31,19 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 
         // Start AdMob (handled by AdMobManager)
         Logger.log("🔧 AdMob initialization will be handled by AdMobManager")
-        
+
         UNUserNotificationCenter.current().setBadgeCount(0) { _ in }
-        
+
         return true
+    }
+
+    // Firebase forwards the APNs token here automatically (method swizzling)
+    // and issues/refreshes the FCM token, which we then push to Supabase so
+    // a backend job can target this device.
+    func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+        guard let fcmToken else { return }
+        Logger.log("📱 FCM token received")
+        PushTokenService.syncToken(fcmToken, enabled: NotificationManager.shared.isAuthorized)
     }
 }
 

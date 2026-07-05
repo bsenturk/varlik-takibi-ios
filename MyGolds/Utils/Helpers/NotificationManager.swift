@@ -8,6 +8,7 @@
 import UserNotifications
 import Foundation
 import SwiftUI
+import UIKit
 
 final class NotificationManager: ObservableObject {
     static let shared = NotificationManager()
@@ -42,6 +43,12 @@ final class NotificationManager: ObservableObject {
                 self.authorizationStatus = settings.authorizationStatus
                 self.isAuthorized = settings.authorizationStatus == .authorized
                 Logger.log("📱 Notification status: \(settings.authorizationStatus.rawValue)")
+
+                if self.isAuthorized {
+                    UIApplication.shared.registerForRemoteNotifications()
+                } else {
+                    PushTokenService.setEnabled(false)
+                }
             }
         }
     }
@@ -53,6 +60,7 @@ final class NotificationManager: ObservableObject {
                     Logger.log("📱 Notification: Permission granted")
                     self?.isAuthorized = true
                     self?.authorizationStatus = .authorized
+                    UIApplication.shared.registerForRemoteNotifications()
                 } else {
                     Logger.log("📱 Notification: Permission denied")
                     self?.isAuthorized = false
