@@ -45,6 +45,17 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
         Logger.log("📱 FCM token received")
         PushTokenService.syncToken(fcmToken, enabled: NotificationManager.shared.isAuthorized)
     }
+
+    // Diagnostic only: Firebase swizzles these too, but doesn't log them, so
+    // add our own to see directly whether Apple actually issued a token.
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        let hex = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
+        Logger.log("📱 APNs device token received: \(hex)")
+    }
+
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        Logger.log("📱 APNs registration FAILED: \(error)")
+    }
 }
 
 @main

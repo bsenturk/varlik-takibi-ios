@@ -169,7 +169,7 @@ Reuses the `SYNC_SECRET` guard (same convention as `tefas-sync`) and calls
 above; add `supabase secrets set SYNC_SECRET="<a-random-string>"` if not
 already set from the TEFAS setup).
 
-Schedule it once a day, after BIST closes (18:00 Europe/Istanbul):
+Schedule it once a day, at 14:00 Europe/Istanbul:
 
 ```sql
 create extension if not exists pg_cron;
@@ -177,7 +177,7 @@ create extension if not exists pg_net;
 
 select cron.schedule(
   'daily-market-alert',
-  '30 15 * * *',                          -- 15:30 UTC ≈ 18:30 TR
+  '0 11 * * *',                          -- 11:00 UTC ≈ 14:00 TR
   $$
   select net.http_post(
     url     := 'https://bpiclzhpxkmnqxqvlnmu.functions.supabase.co/market-alert',
