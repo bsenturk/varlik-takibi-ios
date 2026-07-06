@@ -125,12 +125,12 @@ struct AnalysisView: View {
     private var valueCard: some View {
         let series = valueSeries()
         let convertedValue = portfolioManager.convertToTargetCurrency(metrics.totalValue, targetCurrency: selectedCurrency)
-        // Profit/loss over the SELECTED RANGE drives both the change badge and the
-        // chart color, so the number and the graphic always agree (green = up).
-        let firstValue = series.first?.value ?? 0
-        let lastValue = series.last?.value ?? 0
-        let rangeChangePercent = firstValue > 0 ? ((lastValue - firstValue) / firstValue) * 100 : 0
-        let isProfit = lastValue >= firstValue
+        // Profit/loss is measured against the COST BASIS (what the user paid), not the
+        // raw range value change: adding a new asset raises value and cost basis by
+        // the same amount, so it must NOT read as profit. A raw value-change % counts
+        // deposits as gains and explodes when several assets are added (e.g. %39600).
+        let plPercent = metrics.profitLossPercent
+        let isProfit = metrics.profitLoss >= 0
         let trendColor: Color = isProfit ? Color(hex: "#34C759") : Color(hex: "#FF3B30")
         // Require a real stretch of history before showing the range % + chart,
         // so a couple of early snapshots don't render an exaggerated trend.
@@ -150,13 +150,13 @@ struct AnalysisView: View {
                 .minimumScaleFactor(0.6)
                 .lineLimit(1)
 
-            if hasEnoughHistory {
+            if metrics.hasProfitLoss {
                 HStack(spacing: 6) {
                     Image(systemName: isProfit ? "arrow.up" : "arrow.down")
                         .font(.system(size: 11, weight: .bold))
-                    Text("%\(String(format: "%.2f", abs(rangeChangePercent)).replacingOccurrences(of: ".", with: ","))")
+                    Text("%\(String(format: "%.2f", abs(plPercent)).replacingOccurrences(of: ".", with: ","))")
                         .font(.system(size: 14, weight: .semibold))
-                    Text(rangeLabel).font(.system(size: 13)).foregroundColor(.secondary)
+                    Text("Kar/Zarar").font(.system(size: 13)).foregroundColor(.secondary)
                 }
                 .foregroundColor(trendColor)
             }
@@ -192,16 +192,6 @@ struct AnalysisView: View {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .fill(Color(.secondarySystemGroupedBackground))
         )
-    }
-
-    private var rangeLabel: String {
-        switch range {
-        case .week: return "Son 1 Hafta"
-        case .month: return "Son 1 Ay"
-        case .quarter: return "Son 3 Ay"
-        case .year: return "Son 1 Yıl"
-        case .all: return "Tüm Zamanlar"
-        }
     }
 
     private var rangePicker: some View {
