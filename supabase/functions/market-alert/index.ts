@@ -5,7 +5,7 @@
 // schedule). Protected by the same shared-secret convention as tefas-sync.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { handleOptions, json } from "../_shared/cors.ts";
+import { errorResponse, handlePreflight, jsonResponse } from "../_shared/cors.ts";
 
 const THRESHOLD_PERCENT = 1.5;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -32,12 +32,12 @@ async function fetchBist100ChangePercent(): Promise<number | null> {
 }
 
 Deno.serve(async (req) => {
-  const preflight = handleOptions(req);
+  const preflight = handlePreflight(req);
   if (preflight) return preflight;
 
   const expected = Deno.env.get("SYNC_SECRET");
   if (expected && req.headers.get("x-sync-secret") !== expected) {
-    return json({ error: "unauthorized" }, 401);
+    return jsonResponse({ error: "unauthorized" }, 401);
   }
 
   const supabase = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
     );
 
     if (candidates.length === 0) {
-      return json({ sent: false, reason: "no threshold crossed", gold: byPct.get("GRAM_ALTIN"), usd: byPct.get("USD"), bist });
+      return jsonResponse({ sent: false, reason: "no threshold crossed", gold: byPct.get("GRAM_ALTIN"), usd: byPct.get("USD"), bist });
     }
 
     const title = "Piyasalarda hareketlilik";
@@ -78,9 +78,9 @@ Deno.serve(async (req) => {
     });
     const push = await pushRes.json();
 
-    return json({ sent: true, title, movements: candidates, push });
+    return jsonResponse({ sent: true, title, movements: candidates, push });
   } catch (err) {
     console.error("market-alert error:", err);
-    return json({ error: String(err) }, 500);
+    return errorResponse(err);
   }
 });

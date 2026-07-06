@@ -1,116 +1,135 @@
-// Minimal TEFAS (Türkiye Elektronik Fon Alım Satım Platformu) client.
+// Shared TEFAS (Türkiye Elektronik Fon Alım Satım Platformu) helpers.
 //
-// TEFAS exposes a JSON endpoint used by its own website. We call it server-side
-// only (never from the iOS app) and cache the results in our own tables.
-//
-// NOTE: TEFAS is an undocumented/3rd-party endpoint. If the response shape or
-// anti-bot headers change, adjust `TEFAS_HEADERS` / field names below.
+// NOTE: TEFAS retired the old `api/DB/BindHistoryInfo` gateway (it now returns
+// ERR-006 "method disabled" behind F5 Shape bot-defense). The current source is
+// the JSON API the new site uses: POST `api/funds/fonGnlBlgSiraliGetir`, which
+// works over plain HTTP and returns numeric prices. Both `scrape-tefas`
+// (popular funds) and `search-tefas` (search by code/name) use these helpers.
 
-const TEFAS_BASE = "https://www.tefas.gov.tr";
+import { type AssetPrice } from "./prices.ts";
 
-const TEFAS_HEADERS: HeadersInit = {
-  "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-  "Accept": "application/json, text/javascript, */*; q=0.01",
-  "X-Requested-With": "XMLHttpRequest",
-  "Referer": `${TEFAS_BASE}/TarihselVeriler.aspx`,
-  "Origin": TEFAS_BASE,
-  "User-Agent":
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 " +
-    "(KHTML, like Gecko) Version/17.0 Safari/605.1.15",
-};
+export const TEFAS_URL =
+  "https://www.tefas.gov.tr/api/funds/fonGnlBlgSiraliGetir";
 
-export interface FundRow {
-  code: string;        // FONKODU
-  name: string;        // FONUNVAN
-  price: number;       // FIYAT (unit price, TRY)
-  date: Date;          // TARIH
-  investors: number;   // KISISAYISI
-  size: number;        // PORTBUYUKLUK
+export interface TefasFundRow {
+  fonKodu: string;
+  fonUnvan?: string;
+  tarih: string; // "YYYY-MM-DD"
+  fiyat: number;
+  tedPaySayisi?: number;
+  kisiSayisi?: number;
+  portfoyBuyukluk?: number;
 }
 
-/** dd.MM.yyyy — the format TEFAS expects. */
-function formatDate(d: Date): string {
-  const dd = String(d.getUTCDate()).padStart(2, "0");
-  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
-  return `${dd}.${mm}.${d.getUTCFullYear()}`;
-}
-
-async function tefasPost(path: string, body: Record<string, string>): Promise<any> {
-  const res = await fetch(`${TEFAS_BASE}${path}`, {
-    method: "POST",
-    headers: TEFAS_HEADERS,
-    body: new URLSearchParams(body).toString(),
-  });
-  if (!res.ok) {
-    throw new Error(`TEFAS ${path} failed: ${res.status} ${res.statusText}`);
-  }
-  return await res.json();
+// Format a Date as YYYYMMDD (the format the new TEFAS API expects).
+export function tefasDate(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}${month}${day}`;
 }
 
 /**
- * Fetches the latest available row for EVERY fund (empty `fonkod` returns all
- * funds in the date window). We look back a few days to skip weekends/holidays
- * and keep the newest row per fund code.
+ * POST to the TEFAS funds API for a date range. Pass a `code` to fetch a single
+ * fund, or `null` to fetch *every* YAT fund in the range (used by search, which
+ * then filters by code/name client-side).
  */
-export async function fetchAllFundsLatest(lookbackDays = 7): Promise<FundRow[]> {
-  const to = new Date();
-  const from = new Date();
-  from.setUTCDate(from.getUTCDate() - lookbackDays);
-
-  const json = await tefasPost("/api/DB/BindHistoryInfo", {
-    fontip: "YAT",          // YAT = securities mutual funds
-    sfontur: "",
-    fonkod: "",             // empty => all funds
-    fongrup: "",
-    bastarih: formatDate(from),
-    bittarih: formatDate(to),
-    fonturkod: "",
-    fonunvantip: "",
-    strperiod: "1,1,1,1,1,1",
-    islemdurum: "1",
+export async function fetchTefasFunds(
+  code: string | null,
+  start: Date,
+  end: Date,
+): Promise<TefasFundRow[]> {
+  const res = await fetch(TEFAS_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "*/*",
+      "Origin": "https://www.tefas.gov.tr",
+      "Referer": "https://www.tefas.gov.tr/tr/fon-verileri",
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+        "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    },
+    body: JSON.stringify({
+      fonTipi: "YAT",
+      fonKodu: code, // null = every fund
+      basTarih: tefasDate(start),
+      bitTarih: tefasDate(end),
+      basSira: 1,
+      bitSira: 100000,
+      aramaMetni: "",
+      fonTurKod: "",
+      fonGrubu: "",
+      sfonTurKod: "",
+      fonTurAciklama: "",
+      kurucuKod: "",
+      dil: "TR",
+    }),
   });
 
-  const rows: any[] = json?.data ?? [];
-  const latest = new Map<string, FundRow>();
-  for (const r of rows) {
-    const code = String(r.FONKODU ?? "").trim();
-    if (!code) continue;
-    const date = new Date(Number(r.TARIH)); // epoch ms
-    const prev = latest.get(code);
-    if (!prev || date > prev.date) {
-      latest.set(code, {
-        code,
-        name: String(r.FONUNVAN ?? "").trim(),
-        price: Number(r.FIYAT ?? 0),
-        date,
-        investors: Number(r.KISISAYISI ?? 0),
-        size: Number(r.PORTBUYUKLUK ?? 0),
-      });
-    }
+  if (!res.ok) {
+    throw new Error(
+      `TEFAS HTTP ${res.status} for "${code ?? "ALL"}": ${await res.text()}`,
+    );
   }
-  return [...latest.values()].filter((f) => f.price > 0);
+
+  const json = (await res.json()) as {
+    errorCode?: string | null;
+    errorMessage?: string | null;
+    resultList?: TefasFundRow[];
+  };
+  if (json.errorCode) {
+    throw new Error(`TEFAS error ${json.errorCode}: ${json.errorMessage ?? ""}`);
+  }
+  return json.resultList ?? [];
 }
 
-/** Daily historical prices for a single fund (used for chart backfill). */
-export async function fetchFundHistory(
-  code: string,
-  from: Date,
-  to: Date,
-): Promise<{ date: Date; price: number }[]> {
-  const json = await tefasPost("/api/DB/BindHistoryInfo", {
-    fontip: "YAT",
-    sfontur: "",
-    fonkod: code,
-    fongrup: "",
-    bastarih: formatDate(from),
-    bittarih: formatDate(to),
-    fonturkod: "",
-    fonunvantip: "",
-    strperiod: "1,1,1,1,1,1",
-    islemdurum: "1",
-  });
-  return (json?.data ?? [])
-    .map((r: any) => ({ date: new Date(Number(r.TARIH)), price: Number(r.FIYAT ?? 0) }))
-    .filter((p: { price: number }) => p.price > 0)
-    .sort((a: { date: Date }, b: { date: Date }) => a.date.getTime() - b.date.getTime());
+/**
+ * Collapse a multi-day range to the most recent NAV row per fund code. Covers
+ * weekends/holidays where there is no NAV published "today". `tarih` is
+ * "YYYY-MM-DD", so a lexical comparison is also chronological.
+ */
+export function latestRowPerFund(rows: TefasFundRow[]): TefasFundRow[] {
+  const byCode = new Map<string, TefasFundRow>();
+  for (const row of rows) {
+    if (!row.fonKodu) continue;
+    const prev = byCode.get(row.fonKodu);
+    if (!prev || row.tarih > prev.tarih) {
+      byCode.set(row.fonKodu, row);
+    }
+  }
+  return [...byCode.values()];
+}
+
+/** Map a TEFAS row to an `assets_prices` row. Returns null if the price is junk. */
+export function rowToAssetPrice(row: TefasFundRow): AssetPrice | null {
+  const price = typeof row.fiyat === "number" ? row.fiyat : Number(row.fiyat);
+  if (!Number.isFinite(price)) return null;
+  return {
+    symbol: row.fonKodu,
+    name: row.fonUnvan ?? null,
+    asset_type: "fund",
+    price,
+    currency: "TRY",
+    change_percent: null,
+    source: "tefas",
+  };
+}
+
+/**
+ * Fold a Turkish string for accent/case-insensitive matching so a search for
+ * "teknoloji" matches "TEKNOLOJİ" and "para" matches "PARA". Maps Turkish
+ * letters (ı/İ/ş/ğ/ü/ö/ç) to their ASCII counterparts.
+ */
+export function foldTr(s: string): string {
+  return s
+    .toLocaleLowerCase("tr-TR")
+    .replaceAll("ı", "i")
+    .replaceAll("i̇", "i") // dotted-i that some locales emit
+    .replaceAll("ş", "s")
+    .replaceAll("ğ", "g")
+    .replaceAll("ü", "u")
+    .replaceAll("ö", "o")
+    .replaceAll("ç", "c")
+    .trim();
 }

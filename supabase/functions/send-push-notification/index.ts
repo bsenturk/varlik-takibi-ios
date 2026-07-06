@@ -9,7 +9,7 @@
 // / schedule, which is wired up separately from this generic sender).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { handleOptions, json } from "../_shared/cors.ts";
+import { errorResponse, handlePreflight, jsonResponse } from "../_shared/cors.ts";
 
 const FCM_PROJECT_ID = Deno.env.get("FCM_PROJECT_ID")!;
 const FCM_SERVICE_ACCOUNT = JSON.parse(Deno.env.get("FCM_SERVICE_ACCOUNT_JSON")!);
@@ -67,17 +67,17 @@ async function getAccessToken(): Promise<string> {
 }
 
 Deno.serve(async (req) => {
-  const preflight = handleOptions(req);
+  const preflight = handlePreflight(req);
   if (preflight) return preflight;
 
   const expected = Deno.env.get("PUSH_SECRET");
   if (expected && req.headers.get("x-push-secret") !== expected) {
-    return json({ error: "unauthorized" }, 401);
+    return jsonResponse({ error: "unauthorized" }, 401);
   }
 
   const { title, body, data } = await req.json().catch(() => ({}));
   if (!title || !body) {
-    return json({ error: "title and body are required" }, 400);
+    return jsonResponse({ error: "title and body are required" }, 400);
   }
 
   const supabase = createClient(
@@ -132,9 +132,9 @@ Deno.serve(async (req) => {
       await supabase.from("device_tokens").delete().in("device_id", staleDeviceIds);
     }
 
-    return json({ sent, total: tokens?.length ?? 0, removed_stale: staleDeviceIds.length });
+    return jsonResponse({ sent, total: tokens?.length ?? 0, removed_stale: staleDeviceIds.length });
   } catch (err) {
     console.error("send-push-notification error:", err);
-    return json({ error: String(err) }, 500);
+    return errorResponse(err);
   }
 });
