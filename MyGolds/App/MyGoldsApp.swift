@@ -72,7 +72,6 @@ struct VarlikDefterimApp: App {
     // State tracking için
     @State private var lastScenePhase: ScenePhase = .active
     @State private var hasInitialSetupCompleted = false
-    @State private var hasHandledInitialAuth = false
     
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
@@ -129,12 +128,6 @@ struct VarlikDefterimApp: App {
                 .onChange(of: lifecycleObserver.scenePhase) { oldPhase, newPhase in
                     handleScenePhaseChange(oldPhase, newPhase)
                 }
-                .onChange(of: notificationManager.isAuthorized) { oldValue, newValue in
-                    if newValue && !hasHandledInitialAuth {
-                        notificationManager.handleAppLaunch()
-                        hasHandledInitialAuth = true
-                    }
-                }
                 .onAppear {
                     setupInitialState()
                 }
@@ -180,13 +173,7 @@ struct VarlikDefterimApp: App {
         
         // Check notification status on app launch
         notificationManager.checkAuthorizationStatus()
-        
-        // Handle notification scheduling on app launch if already authorized
-        if notificationManager.isAuthorized {
-            notificationManager.handleAppLaunch()
-            hasHandledInitialAuth = true
-        }
-        
+
         // Record daily snapshots for all assets
         recordDailySnapshots()
         
@@ -352,12 +339,11 @@ struct VarlikDefterimApp: App {
         
         // Clear badge when app returns
         notificationManager.clearBadge()
-        
-        // Handle notification scheduling
-        if notificationManager.isAuthorized {
-            notificationManager.handleAppLaunch()
-        }
-        
+
+        // Re-check in case the user changed the permission in iOS Settings
+        // while the app was backgrounded (e.g. via our "open Settings" link).
+        notificationManager.checkAuthorizationStatus()
+
         // Record daily snapshots when returning from background
         recordDailySnapshots()
         
