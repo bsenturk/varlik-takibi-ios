@@ -43,6 +43,17 @@ Deno.serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
   try {
+    // Belt-and-suspenders: the cron already skips us once today's alert is
+    // logged, but guard here too so a manual re-run can't double-send.
+    const { data: already } = await supabase
+      .from("market_alert_log")
+      .select("alert_date")
+      .eq("alert_date", new Date().toISOString().slice(0, 10))
+      .maybeSingle();
+    if (already) {
+      return jsonResponse({ sent: false, reason: "already sent today" });
+    }
+
     const { data: rows, error } = await supabase
       .from("assets_prices")
       .select("symbol, change_percent")
@@ -77,6 +88,12 @@ Deno.serve(async (req) => {
       body: JSON.stringify({ title, body }),
     });
     const push = await pushRes.json();
+
+    // Mark today as done so no further alert goes out (and the cron stops
+    // invoking us for the rest of today's window).
+    await supabase
+      .from("market_alert_log")
+      .insert({ alert_date: new Date().toISOString().slice(0, 10) });
 
     return jsonResponse({ sent: true, title, movements: candidates, push });
   } catch (err) {

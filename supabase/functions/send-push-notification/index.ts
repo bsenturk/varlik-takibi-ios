@@ -1,7 +1,10 @@
 // send-push-notification — broadcasts a push notification to every device
 // with notifications enabled, via Firebase Cloud Messaging (FCM HTTP v1).
 //
-// Body: { "title": string, "body": string, "data"?: Record<string, string> }
+// Body: { "title": string, "body": string, "data"?: Record<string, string>,
+//          "device_ids"?: string[] }
+// `device_ids` narrows the broadcast to specific devices (e.g. testing on
+// your own device_id); omit it to send to everyone opted in.
 //
 // Intended to be called by a scheduled job (pg_cron) or manually, e.g. for
 // market fluctuation alerts. Protected by a shared secret header so it can't
@@ -75,7 +78,7 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "unauthorized" }, 401);
   }
 
-  const { title, body, data } = await req.json().catch(() => ({}));
+  const { title, body, data, device_ids } = await req.json().catch(() => ({}));
   if (!title || !body) {
     return jsonResponse({ error: "title and body are required" }, 400);
   }
@@ -86,10 +89,11 @@ Deno.serve(async (req) => {
   );
 
   try {
-    const { data: tokens, error } = await supabase
-      .from("device_tokens")
-      .select("device_id, fcm_token")
-      .eq("notifications_enabled", true);
+    let query = supabase.from("device_tokens").select("device_id, fcm_token");
+    query = Array.isArray(device_ids) && device_ids.length > 0
+      ? query.in("device_id", device_ids)
+      : query.eq("notifications_enabled", true);
+    const { data: tokens, error } = await query;
     if (error) throw error;
 
     const accessToken = await getAccessToken();

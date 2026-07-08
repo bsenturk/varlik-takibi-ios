@@ -169,20 +169,33 @@ Reuses the `SYNC_SECRET` guard (same convention as `tefas-sync`) and calls
 above; add `supabase secrets set SYNC_SECRET="<a-random-string>"` if not
 already set from the TEFAS setup).
 
-Schedule it once a day, at 14:00 Europe/Istanbul:
+Runs every 15 minutes between 10:00–14:00 Europe/Istanbul. The first check
+that finds a ±1.5% move sends the push and writes a row to
+`market_alert_log`; the cron's `where not exists` guard then **stops invoking
+the function** for the rest of the day, so at most one alert goes out daily
+and no ticks run pointlessly after it has fired.
 
 ```sql
 create extension if not exists pg_cron;
 create extension if not exists pg_net;
 
+-- Replaces the old once-a-day 'daily-market-alert' job, if present.
+select cron.unschedule('daily-market-alert');
+
 select cron.schedule(
-  'daily-market-alert',
-  '0 11 * * *',                          -- 11:00 UTC ≈ 14:00 TR
+  'market-alert-window',
+  '*/15 7-10 * * 1-5',                   -- every 15 min, 10:00–13:45 TR, Mon–Fri (07:00–10:45 UTC)
   $$
   select net.http_post(
     url     := 'https://bpiclzhpxkmnqxqvlnmu.functions.supabase.co/market-alert',
     headers := jsonb_build_object('x-sync-secret', '<the-SYNC_SECRET>')
+  )
+  where not exists (
+    select 1 from public.market_alert_log where alert_date = current_date
   );
   $$
 );
 ```
+
+> TR has no DST, so `07:00–10:45 UTC` is a stable `10:00–13:45` window. To also
+> check at exactly 14:00, change the hours to `7-11` (last tick 14:45 TR).
