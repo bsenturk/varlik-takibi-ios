@@ -7,20 +7,22 @@
 
 import SwiftUI
 import FirebaseCore
+import FirebaseMessaging
 import GoogleMobileAds
 import FirebaseCrashlytics
 import AppTrackingTransparency
 import SwiftData
 
-final class AppDelegate: NSObject, UIApplicationDelegate {
+final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil
     ) -> Bool {
-        
+
         // Configure Firebase
         FirebaseApp.configure()
         Logger.log("🔧 Firebase configured")
+        Messaging.messaging().delegate = self
 
         // Configure RevenueCat, then start observing entitlements / offerings.
         PurchaseManager.configure()
@@ -29,10 +31,30 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 
         // Start AdMob (handled by AdMobManager)
         Logger.log("🔧 AdMob initialization will be handled by AdMobManager")
-        
+
         UNUserNotificationCenter.current().setBadgeCount(0) { _ in }
-        
+
         return true
+    }
+
+    // Firebase forwards the APNs token here automatically (method swizzling)
+    // and issues/refreshes the FCM token, which we then push to Supabase so
+    // a backend job can target this device.
+    func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+        guard let fcmToken else { return }
+        Logger.log("📱 FCM token received")
+        PushTokenService.syncToken(fcmToken, enabled: NotificationManager.shared.isAuthorized)
+    }
+
+    // Diagnostic only: Firebase swizzles these too, but doesn't log them, so
+    // add our own to see directly whether Apple actually issued a token.
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        let hex = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
+        Logger.log("📱 APNs device token received: \(hex)")
+    }
+
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        Logger.log("📱 APNs registration FAILED: \(error)")
     }
 }
 
@@ -50,7 +72,6 @@ struct VarlikDefterimApp: App {
     // State tracking için
     @State private var lastScenePhase: ScenePhase = .active
     @State private var hasInitialSetupCompleted = false
-    @State private var hasHandledInitialAuth = false
     
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
@@ -107,12 +128,6 @@ struct VarlikDefterimApp: App {
                 .onChange(of: lifecycleObserver.scenePhase) { oldPhase, newPhase in
                     handleScenePhaseChange(oldPhase, newPhase)
                 }
-                .onChange(of: notificationManager.isAuthorized) { oldValue, newValue in
-                    if newValue && !hasHandledInitialAuth {
-                        notificationManager.handleAppLaunch()
-                        hasHandledInitialAuth = true
-                    }
-                }
                 .onAppear {
                     setupInitialState()
                 }
@@ -158,13 +173,7 @@ struct VarlikDefterimApp: App {
         
         // Check notification status on app launch
         notificationManager.checkAuthorizationStatus()
-        
-        // Handle notification scheduling on app launch if already authorized
-        if notificationManager.isAuthorized {
-            notificationManager.handleAppLaunch()
-            hasHandledInitialAuth = true
-        }
-        
+
         // Record daily snapshots for all assets
         recordDailySnapshots()
         
@@ -330,12 +339,11 @@ struct VarlikDefterimApp: App {
         
         // Clear badge when app returns
         notificationManager.clearBadge()
-        
-        // Handle notification scheduling
-        if notificationManager.isAuthorized {
-            notificationManager.handleAppLaunch()
-        }
-        
+
+        // Re-check in case the user changed the permission in iOS Settings
+        // while the app was backgrounded (e.g. via our "open Settings" link).
+        notificationManager.checkAuthorizationStatus()
+
         // Record daily snapshots when returning from background
         recordDailySnapshots()
         

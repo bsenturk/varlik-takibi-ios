@@ -9,3 +9,9 @@ verify_jwt = false
 
 [functions.tefas-search]
 verify_jwt = false
+
+[functions.send-push-notification]
+verify_jwt = false
+
+[functions.market-alert]
+verify_jwt = false

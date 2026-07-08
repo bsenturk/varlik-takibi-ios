@@ -86,3 +86,116 @@ select cron.schedule(
 > The iOS side currently reads funds from `assets_prices` (the popular 10).
 > Wiring the search bar to call `tefas-search` for the long tail is the next
 > client-side step.
+
+# Push notifications
+
+Broadcasts a push to every device that has notifications enabled (e.g. for
+market fluctuation alerts). The app is anonymous, so devices register
+themselves by `identifierForVendor`, not by user account.
+
+```
+supabase/
+├── migrations/
+│   └── 20260705120000_device_tokens.sql   # device_tokens table + RLS
+└── functions/
+    ├── send-push-notification/index.ts    # broadcasts via FCM HTTP v1
+    └── market-alert/index.ts              # daily gold/USD/BIST 100 check (cron)
+```
+
+## Data model
+
+- **`device_tokens`** — one row per device (`device_id` = `identifierForVendor`),
+  holding its current FCM token and `notifications_enabled` (kept in sync by
+  the app whenever the user grants/revokes notification permission).
+
+## iOS side
+
+Already wired up: `AppDelegate` registers for remote notifications once
+permission is granted, receives the FCM token via `MessagingDelegate`, and
+`PushTokenService` upserts it into `device_tokens`.
+
+## One-time setup (Firebase + Apple Developer)
+
+1. **Apple Developer Portal**: on the App ID (`com.xptapps.assetbook`), enable
+   the **Push Notifications** capability. (`MyGolds/MyGolds.entitlements`
+   already has `aps-environment` on the client, just needs the portal-side
+   capability + a re-provisioned profile.)
+2. **Firebase Console → Project settings → Cloud Messaging**: upload the APNs
+   Auth Key (`.p8`) so FCM can deliver to iOS. This app's Firebase project is
+   `varlikdefterim`.
+3. **Firebase Console → Project settings → Service accounts**: generate a new
+   private key (JSON) for a service account with the "Firebase Cloud
+   Messaging API" role — this is `FCM_SERVICE_ACCOUNT_JSON` below.
+
+## Deploy
+
+```bash
+supabase link --project-ref bpiclzhpxkmnqxqvlnmu      # if not already linked
+
+# 1. Apply the migration (device_tokens table)
+supabase db push
+
+# 2. Set the function secrets
+supabase secrets set FCM_PROJECT_ID="varlikdefterim"
+supabase secrets set FCM_SERVICE_ACCOUNT_JSON="$(cat service-account.json)"
+supabase secrets set PUSH_SECRET="<a-random-string>"
+
+# 3. Deploy the function
+supabase functions deploy send-push-notification
+
+# 4. Deploy the daily market-alert checker (calls send-push-notification internally)
+supabase functions deploy market-alert
+
+# 5. Send a one-off broadcast (manual test)
+curl -X POST "https://bpiclzhpxkmnqxqvlnmu.functions.supabase.co/send-push-notification" \
+     -H "x-push-secret: <the-PUSH_SECRET>" \
+     -H "Content-Type: application/json" \
+     -d '{"title": "Altın yükselişte 📈", "body": "Son 1 saatte %2 arttı."}'
+```
+
+## Daily market-fluctuation alert
+
+`market-alert` checks gold (`GRAM_ALTIN/TRY`), USD/TRY (both from
+`assets_prices`) and the BIST 100 index (fetched directly from Yahoo
+Finance, since only individual BIST stocks — not the index — live in
+`assets_prices`). If any moved **±1.5% or more** that day, it calls
+`send-push-notification` with a fixed title (`"Piyasalarda hareketlilik"`)
+and body
+(`"📈 Piyasalarda hareketlilik var, portföyünüzü kontrol etmeyi unutmayın."`).
+If nothing crossed the threshold, it sends nothing.
+
+Reuses the `SYNC_SECRET` guard (same convention as `tefas-sync`) and calls
+`send-push-notification` using `PUSH_SECRET` — both must be set (see step 2
+above; add `supabase secrets set SYNC_SECRET="<a-random-string>"` if not
+already set from the TEFAS setup).
+
+Runs every 15 minutes between 10:00–14:00 Europe/Istanbul. The first check
+that finds a ±1.5% move sends the push and writes a row to
+`market_alert_log`; the cron's `where not exists` guard then **stops invoking
+the function** for the rest of the day, so at most one alert goes out daily
+and no ticks run pointlessly after it has fired.
+
+```sql
+create extension if not exists pg_cron;
+create extension if not exists pg_net;
+
+-- Replaces the old once-a-day 'daily-market-alert' job, if present.
+select cron.unschedule('daily-market-alert');
+
+select cron.schedule(
+  'market-alert-window',
+  '*/15 7-10 * * 1-5',                   -- every 15 min, 10:00–13:45 TR, Mon–Fri (07:00–10:45 UTC)
+  $$
+  select net.http_post(
+    url     := 'https://bpiclzhpxkmnqxqvlnmu.functions.supabase.co/market-alert',
+    headers := jsonb_build_object('x-sync-secret', '<the-SYNC_SECRET>')
+  )
+  where not exists (
+    select 1 from public.market_alert_log where alert_date = current_date
+  );
+  $$
+);
+```
+
+> TR has no DST, so `07:00–10:45 UTC` is a stable `10:00–13:45` window. To also
+> check at exactly 14:00, change the hours to `7-11` (last tick 14:45 TR).

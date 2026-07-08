@@ -409,7 +409,12 @@ struct DashboardView: View {
     private func updateAssetPrices() async {
         var changed = false
         for asset in assets {
-            if let newPrice = currentMarketPrice(for: asset), abs(newPrice - asset.currentPrice) > 0.01 {
+            // Relative threshold: a flat 0.01 TL floor swallowed the entire daily
+            // move of sub-TL funds (e.g. ALC at ~0.35 TL moving 0.0014), freezing
+            // their price and pinning profit/loss at 0%. Compare proportionally so
+            // cheap funds update while pricey assets still skip float noise.
+            if let newPrice = currentMarketPrice(for: asset),
+               abs(newPrice - asset.currentPrice) > max(asset.currentPrice, 1) * 1e-6 {
                 asset.currentPrice = newPrice
                 asset.lastUpdated = Date()
                 changed = true

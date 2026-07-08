@@ -7,6 +7,7 @@
 
 import SwiftUI
 import StoreKit
+import UIKit
 
 struct SettingsView: View {
     @State private var showingRateApp = false
@@ -19,7 +20,7 @@ struct SettingsView: View {
 
     @StateObject private var userDefaults = UserDefaultsManager.shared
     @AppStorage("selectedCurrency") private var selectedCurrency: Currency = .TRY
-    @AppStorage("notificationsEnabled") private var notificationsEnabled = true
+    @Environment(\.openURL) private var openURL
 
     // Debug helpers
     @StateObject private var appOpenAdManager = AppOpenAdManager.shared
@@ -84,6 +85,11 @@ struct SettingsView: View {
             } else {
                 ActivityViewController(activityItems: [item.text])
             }
+        }
+        .onAppear {
+            // Re-check every time this screen appears, so the status shown
+            // reflects any change the user just made in iOS Settings.
+            notificationManager.checkAuthorizationStatus()
         }
     }
 
@@ -182,19 +188,33 @@ struct SettingsView: View {
 
             divider
 
-            settingsRow(
-                icon: "bell.fill", color: Color(hex: "#FF3B30"),
-                title: "Bildirimler",
-                trailing: .toggle($notificationsEnabled)
-            )
-            .onChange(of: notificationsEnabled) { _, enabled in
-                if enabled {
-                    notificationManager.requestNotificationPermission()
-                    notificationManager.handleAppLaunch()
-                } else {
-                    notificationManager.cancelAllPortfolioNotifications()
-                }
+            Button(action: handleNotificationRowTap) {
+                settingsRow(
+                    icon: "bell.fill", color: Color(hex: "#FF3B30"),
+                    title: "Bildirimler",
+                    trailing: .value(notificationStatusText)
+                )
             }
+            .buttonStyle(.plain)
+        }
+    }
+
+    /// `.notDetermined` asks in-app (iOS only shows that dialog once); any
+    /// other state can only be changed in iOS Settings, so send them there.
+    private func handleNotificationRowTap() {
+        if notificationManager.authorizationStatus == .notDetermined {
+            notificationManager.requestNotificationPermission()
+        } else if let url = URL(string: UIApplication.openSettingsURLString) {
+            openURL(url)
+        }
+    }
+
+    private var notificationStatusText: String {
+        switch notificationManager.authorizationStatus {
+        case .authorized, .provisional, .ephemeral: return "Açık"
+        case .denied: return "Kapalı"
+        case .notDetermined: return "İzin Ver"
+        @unknown default: return "Kapalı"
         }
     }
 
@@ -332,12 +352,9 @@ struct SettingsView: View {
                 Button("Load Ad") { appOpenAdManager.loadAd() }.buttonStyle(.bordered)
                 Button("Force Ad") { appOpenAdManager.forceShowAd() }.buttonStyle(.borderedProminent)
             }
-            HStack(spacing: 10) {
-                Button("Test Notif") { notificationManager.scheduleTestNotification() }.buttonStyle(.bordered)
-                Button("Reset Onboarding") {
-                    UserDefaultsManager.shared.setValue(value: false, key: .hasSeenOnboarding)
-                }.buttonStyle(.bordered)
-            }
+            Button("Reset Onboarding") {
+                UserDefaultsManager.shared.setValue(value: false, key: .hasSeenOnboarding)
+            }.buttonStyle(.bordered)
         }
         .padding()
         .background(Color.orange.opacity(0.1))
@@ -369,12 +386,20 @@ private struct MembershipSheet: View {
             VStack(spacing: 24) {
                 statusCard
                 actions
-                if !isPro { upgradeButton }
             }
             .padding(20)
             .padding(.top, 8)
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .safeAreaInset(edge: .bottom) {
+            if !isPro {
+                upgradeButton
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
+                    .padding(.bottom, 12)
+                    .background(Color(.systemGroupedBackground).ignoresSafeArea(edges: .bottom))
+            }
+        }
         .manageSubscriptionsSheet(isPresented: $showingManageSubscriptions)
         .alert("Bilgi", isPresented: Binding(
             get: { resultMessage != nil },

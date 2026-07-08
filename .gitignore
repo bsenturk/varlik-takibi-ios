@@ -28,3 +28,7 @@ xcuserdata/
 # macOS sistem dosyaları
 .DS_Store
 ._*
+
+# Supabase CLI local state
+supabase/.temp/
+supabase/.branches/
