@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UserNotifications
 
 struct NotificationPermissionView: View {
     let onPermissionGranted: (Bool) -> Void
@@ -74,32 +75,7 @@ struct NotificationPermissionView: View {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
             DispatchQueue.main.async {
                 onPermissionGranted(granted)
-                if granted {
-                    scheduleNotifications()
-                }
             }
-        }
-    }
-    
-    private func scheduleNotifications() {
-        let messages = [
-            "💰 Varlıklarınızı takip edin! Güncel değerlerini kontrol etmeyi unutmayın.",
-            "📈 Güncel kurları görün! Piyasa hareketlerini kaçırmayın.",
-            "🔔 Portföyünüzü güncellemek için harika bir zaman!",
-            "💎 Altın ve döviz kurlarında değişiklikler var. Hemen kontrol edin!"
-        ]
-        
-        for (index, message) in messages.enumerated() {
-            let content = UNMutableNotificationContent()
-            content.title = "Varlık Takibi"
-            content.body = message
-            content.sound = .default
-            
-            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: TimeInterval(5 + index * 86400 * 2), repeats: false)
-            
-            let request = UNNotificationRequest(identifier: "reminder_\(index)", content: content, trigger: trigger)
-            
-            UNUserNotificationCenter.current().add(request)
         }
     }
 }

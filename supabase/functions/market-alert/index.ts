@@ -43,12 +43,13 @@ Deno.serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
   try {
-    // Belt-and-suspenders: the cron already skips us once today's alert is
-    // logged, but guard here too so a manual re-run can't double-send.
+    const today = new Date().toISOString().slice(0, 10);
+
+    // Fast path: today's alert already went out — skip the price/Yahoo fetch.
     const { data: already } = await supabase
       .from("market_alert_log")
       .select("alert_date")
-      .eq("alert_date", new Date().toISOString().slice(0, 10))
+      .eq("alert_date", today)
       .maybeSingle();
     if (already) {
       return jsonResponse({ sent: false, reason: "already sent today" });
@@ -76,6 +77,17 @@ Deno.serve(async (req) => {
       return jsonResponse({ sent: false, reason: "no threshold crossed", gold: byPct.get("GRAM_ALTIN"), usd: byPct.get("USD"), bist });
     }
 
+    // Atomically claim today BEFORE sending. alert_date is the PK, so if two
+    // invocations race (two cron ticks, or a manual re-run alongside the cron),
+    // only the one that wins this insert sends — the loser bails here. This is
+    // the real dedup guard; the SELECT above is just a cheap fast path.
+    const { error: claimErr } = await supabase
+      .from("market_alert_log")
+      .insert({ alert_date: today });
+    if (claimErr) {
+      return jsonResponse({ sent: false, reason: "already claimed today" });
+    }
+
     const title = "Piyasalarda hareketlilik";
     const body = "📈 Piyasalarda hareketlilik var, portföyünüzü kontrol etmeyi unutmayın.";
 
@@ -87,13 +99,14 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({ title, body }),
     });
-    const push = await pushRes.json();
+    const push = await pushRes.json().catch(() => ({}));
 
-    // Mark today as done so no further alert goes out (and the cron stops
-    // invoking us for the rest of today's window).
-    await supabase
-      .from("market_alert_log")
-      .insert({ alert_date: new Date().toISOString().slice(0, 10) });
+    // If the push didn't actually go out, release today's claim so a later
+    // tick can retry instead of silently swallowing the alert.
+    if (!pushRes.ok) {
+      await supabase.from("market_alert_log").delete().eq("alert_date", today);
+      return jsonResponse({ sent: false, reason: "push failed", push }, 502);
+    }
 
     return jsonResponse({ sent: true, title, movements: candidates, push });
   } catch (err) {

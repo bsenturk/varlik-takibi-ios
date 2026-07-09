@@ -96,13 +96,22 @@ Deno.serve(async (req) => {
     const { data: tokens, error } = await query;
     if (error) throw error;
 
+    // Safety net: collapse rows that share an FCM token (same physical device
+    // registered under multiple device_ids) so each device is messaged once.
+    const seenTokens = new Set<string>();
+    const uniqueTokens = (tokens ?? []).filter((row) => {
+      if (seenTokens.has(row.fcm_token)) return false;
+      seenTokens.add(row.fcm_token);
+      return true;
+    });
+
     const accessToken = await getAccessToken();
     const staleDeviceIds: string[] = [];
     let sent = 0;
 
     // ponytail: sequential sends, fine at current device counts. Batch with
     // Promise.all(chunks) if the audience grows large enough to be slow.
-    for (const row of tokens ?? []) {
+    for (const row of uniqueTokens) {
       const res = await fetch(
         `https://fcm.googleapis.com/v1/projects/${FCM_PROJECT_ID}/messages:send`,
         {
@@ -136,7 +145,7 @@ Deno.serve(async (req) => {
       await supabase.from("device_tokens").delete().in("device_id", staleDeviceIds);
     }
 
-    return jsonResponse({ sent, total: tokens?.length ?? 0, removed_stale: staleDeviceIds.length });
+    return jsonResponse({ sent, total: uniqueTokens.length, removed_stale: staleDeviceIds.length });
   } catch (err) {
     console.error("send-push-notification error:", err);
     return errorResponse(err);
