@@ -34,6 +34,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
 
         UNUserNotificationCenter.current().setBadgeCount(0) { _ in }
 
+        // One-time cleanup: older versions scheduled local reminder notifications
+        // (2/4/6 days out). We no longer schedule any local notifications — all
+        // alerts are server push — so purge anything still pending on existing
+        // installs before it fires. Safe because we never schedule locals now.
+        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+
         return true
     }
 
