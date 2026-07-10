@@ -26,9 +26,30 @@ async function fetchBist100ChangePercent(): Promise<number | null> {
   );
   if (!res.ok) return null;
   const data = await res.json();
-  const meta = data?.chart?.result?.[0]?.meta;
-  if (!meta?.regularMarketPrice || !meta?.chartPreviousClose) return null;
-  return ((meta.regularMarketPrice - meta.chartPreviousClose) / meta.chartPreviousClose) * 100;
+  const result = data?.chart?.result?.[0];
+  const current = result?.meta?.regularMarketPrice;
+  const timestamps: number[] = result?.timestamp ?? [];
+  const closes: (number | null)[] = result?.indicators?.quote?.[0]?.close ?? [];
+  if (typeof current !== "number") return null;
+
+  // NOTE: Yahoo's meta.chartPreviousClose is the close of the day *before the
+  // range window* (~5 days ago for range=5d), NOT yesterday — using it gives
+  // wildly wrong daily % changes (and false alerts). Derive the real previous
+  // close from the daily candles instead: the most recent bar dated before
+  // today (Europe/Istanbul). The cron only runs on weekdays during market
+  // hours, so today's (forming) bar is always present.
+  const dateFmt = (ms: number) =>
+    new Date(ms).toLocaleDateString("en-CA", { timeZone: "Europe/Istanbul" });
+  const today = dateFmt(Date.now());
+  let prevClose: number | null = null;
+  for (let i = timestamps.length - 1; i >= 0; i--) {
+    if (dateFmt(timestamps[i] * 1000) < today && typeof closes[i] === "number") {
+      prevClose = closes[i];
+      break;
+    }
+  }
+  if (prevClose === null) return null;
+  return ((current - prevClose) / prevClose) * 100;
 }
 
 Deno.serve(async (req) => {
@@ -76,6 +97,10 @@ Deno.serve(async (req) => {
     if (candidates.length === 0) {
       return jsonResponse({ sent: false, reason: "no threshold crossed", gold: byPct.get("GRAM_ALTIN"), usd: byPct.get("USD"), bist });
     }
+
+    // Durable-ish trail in the Edge function logs (net._http_response is purged
+    // within hours) so a future "why did this fire?" is answerable.
+    console.log("market-alert triggering:", JSON.stringify({ candidates, gold: byPct.get("GRAM_ALTIN"), usd: byPct.get("USD"), bist }));
 
     // Atomically claim today BEFORE sending. alert_date is the PK, so if two
     // invocations race (two cron ticks, or a manual re-run alongside the cron),
