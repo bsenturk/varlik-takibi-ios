@@ -9,6 +9,8 @@
 
 import SwiftUI
 import AppTrackingTransparency
+import Charts
+import UserNotifications
 
 struct OnboardingView: View {
     @EnvironmentObject var coordinator: AppCoordinator
@@ -16,12 +18,16 @@ struct OnboardingView: View {
     @State private var phase: Phase = .pages
     @State private var skippedOnboarding = false
 
-    private enum Phase { case pages, att }
+    private enum Phase { case pages, notifications, att }
 
     private let pageCount = 3
 
     var body: some View {
         switch phase {
+        case .notifications:
+            NotificationPermissionView(onPermissionGranted: { _ in
+                goToATTOrFinish()
+            })
         case .att:
             ATTPermissionView(onPermissionGranted: { _ in
                 completeAndArmFirstAsset()
@@ -44,19 +50,19 @@ struct OnboardingView: View {
 
             TabView(selection: $page) {
                 OnboardingPage(
-                    mock: AnyView(WelcomeMock()),
+                    mock: AnyView(DashboardMock()),
                     title: "Tüm Varlıkların Tek Yerde",
                     description: "Altın, döviz, hisse ve kriptonu tek uygulamada, canlı fiyatlarla takip et."
                 ).tag(0)
 
                 OnboardingPage(
-                    mock: AnyView(FolderMock()),
+                    mock: AnyView(PortfoliosMock()),
                     title: "Farklı Hedefler,\nFarklı Portföyler",
                     description: "Emeklilik, ev peşinatı ya da günlük takip — hedeflerine göre ayrı portföyler oluştur."
                 ).tag(1)
 
                 OnboardingPage(
-                    mock: AnyView(ChartMock()),
+                    mock: AnyView(AnalysisMock()),
                     title: "Performansını\nYakından Takip Et",
                     description: "Dağılım grafikleri ve zaman bazlı analizlerle varlıklarının seyrini net gör."
                 ).tag(2)
@@ -90,6 +96,18 @@ struct OnboardingView: View {
     }
 
     private func finishPages() {
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            DispatchQueue.main.async {
+                if settings.authorizationStatus == .notDetermined {
+                    withAnimation { phase = .notifications }
+                } else {
+                    goToATTOrFinish()
+                }
+            }
+        }
+    }
+
+    private func goToATTOrFinish() {
         if ATTrackingManager.trackingAuthorizationStatus == .notDetermined {
             withAnimation { phase = .att }
         } else {
@@ -119,7 +137,7 @@ private struct OnboardingPage: View {
             Spacer()
             mock
                 .frame(maxWidth: .infinity)
-                .frame(height: 280)
+                .frame(height: 320)
             Spacer()
             VStack(spacing: 14) {
                 Text(title)
@@ -153,94 +171,146 @@ private struct PageDots: View {
 }
 
 // MARK: - Mock illustrations
+//
+// Ekranlar uygulamanın gerçek bileşenleriyle kurulur (BalanceCardView,
+// DashboardRowView, PortfolioChip, Analiz'in donut kartı) — onboarding'de
+// gördüğü ekran, uygulamaya girince karşılaştığı ekranla birebir olsun diye.
 
-private let onboardGradient = LinearGradient(
-    colors: [Color(hex: "#007AFF"), Color(hex: "#AF52DE")],
-    startPoint: .topLeading, endPoint: .bottomTrailing
-)
+/// Portföy sekmesi: bakiye kartı + varlık satırları.
+private struct DashboardMock: View {
+    @State private var currency: Currency = .TRY
 
-private struct WelcomeMock: View {
+    var body: some View {
+        VStack(spacing: 10) {
+            BalanceCardView(
+                portfolioColor: .blue,
+                metrics: PortfolioMetrics(totalValue: 1_250_430, profitLoss: 182_640, profitLossPercent: 17.08),
+                selectedCurrency: $currency
+            )
+            DashboardRowView(item: DashboardRowItem(
+                id: "gold",
+                title: AssetCategory.gold.displayName,
+                subtitle: "3 varlık",
+                value: 620_400,
+                changePercent: 2.41,
+                sparkline: [10, 11, 10.4, 12, 13, 12.6, 14, 15.2],
+                icon: AssetCategory.gold.iconName,
+                tintHex: AssetCategory.gold.tintHex,
+                assetID: nil
+            ))
+            DashboardRowView(item: DashboardRowItem(
+                id: "usd",
+                title: AssetCategory.currency.displayName,
+                subtitle: "2 varlık",
+                value: 358_700,
+                changePercent: 0.86,
+                sparkline: [14, 13.6, 14.2, 14, 14.8, 15, 14.7, 15.4],
+                icon: AssetCategory.currency.iconName,
+                tintHex: AssetCategory.currency.tintHex,
+                assetID: nil
+            ))
+        }
+        .frame(width: 358)
+    }
+}
+
+/// Portföy chip'leri: hedeflere göre ayrılmış portföyler.
+private struct PortfoliosMock: View {
+    @State private var currency: Currency = .TRY
+
+    private static let portfolios: [Portfolio] = [
+        Portfolio(name: "Genel", isGeneral: true),
+        Portfolio(name: "Emeklilik", colorHex: PortfolioColor.purple.rawValue),
+        Portfolio(name: "Ev Peşinatı", colorHex: PortfolioColor.orange.rawValue)
+    ]
+
+    var body: some View {
+        VStack(spacing: 16) {
+            HStack(spacing: 8) {
+                ForEach(Self.portfolios, id: \.id) { portfolio in
+                    PortfolioChip(
+                        portfolio: portfolio,
+                        isSelected: portfolio.name == "Emeklilik",
+                        showsEditAffordance: false,
+                        showsEditPencil: false,
+                        onTap: {}
+                    )
+                }
+            }
+            BalanceCardView(
+                portfolioColor: .purple,
+                metrics: PortfolioMetrics(totalValue: 840_000, profitLoss: 96_400, profitLossPercent: 12.96),
+                selectedCurrency: $currency
+            )
+        }
+        .frame(width: 358)
+    }
+}
+
+/// Analiz sekmesi: varlık dağılımı donut'u + açıklama listesi.
+private struct AnalysisMock: View {
+    private struct Slice { let name: String; let percent: Double; let color: Color }
+
+    private static let slices: [Slice] = [
+        Slice(name: "Altın", percent: 46, color: Color(hex: AssetCategory.gold.tintHex)),
+        Slice(name: "Döviz", percent: 29, color: Color(hex: AssetCategory.currency.tintHex)),
+        Slice(name: "Borsa İstanbul", percent: 15, color: Color(hex: AssetCategory.bistStock.tintHex)),
+        Slice(name: "Kripto", percent: 10, color: Color(hex: AssetCategory.crypto.tintHex))
+    ]
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Toplam Bakiye").font(.system(size: 13, weight: .medium)).foregroundColor(.white.opacity(0.85))
-            Text("₺1.250.430").font(.system(size: 30, weight: .heavy)).foregroundColor(.white)
-            HStack(spacing: 6) {
-                Image(systemName: "arrow.up").font(.system(size: 10, weight: .bold))
-                Text("%0,29 · Bugün").font(.system(size: 12, weight: .semibold))
-            }
-            .foregroundColor(.white)
-            .padding(.horizontal, 10).padding(.vertical, 6)
-            .background(Color.white.opacity(0.2)).clipShape(Capsule())
-        }
-        .padding(22)
-        .frame(width: 270, alignment: .leading)
-        .background(onboardGradient)
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .shadow(color: Color(hex: "#AF52DE").opacity(0.35), radius: 18, x: 0, y: 12)
-        .rotationEffect(.degrees(-4))
-    }
-}
+            Text("Varlık Dağılımı").font(.system(size: 20, weight: .bold))
 
-private struct FolderMock: View {
-    var body: some View {
-        // Symmetric fan: one card angled left, one angled right, the front card centered lower
-        // so both back cards' icons + names stay visible above it.
-        ZStack {
-            folderCard(name: "Araba", amount: "₺420.000", colorHex: "#FF9500")
-                .scaleEffect(0.88)
-                .rotationEffect(.degrees(-18), anchor: .bottom)
-                .offset(x: -66, y: -34)
-            folderCard(name: "Emeklilik", amount: "₺840.000", colorHex: "#AF52DE")
-                .scaleEffect(0.88)
-                .rotationEffect(.degrees(18), anchor: .bottom)
-                .offset(x: 66, y: -34)
-            folderCard(name: "Ev Peşinatı", amount: "₺680.000", colorHex: "#007AFF")
-                .offset(y: 82)
-        }
-    }
+            HStack(spacing: 18) {
+                ZStack {
+                    Chart(Self.slices, id: \.name) { slice in
+                        SectorMark(
+                            angle: .value("Değer", slice.percent),
+                            innerRadius: .ratio(0.66),
+                            angularInset: 2
+                        )
+                        .foregroundStyle(slice.color)
+                        .cornerRadius(4)
+                    }
+                    .frame(width: 130, height: 130)
 
-    private func folderCard(name: String, amount: String, colorHex: String) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color(hex: colorHex).opacity(0.15))
-                .frame(width: 42, height: 42)
-                .overlay(Image(systemName: "folder.fill").foregroundColor(Color(hex: colorHex)))
-            Text(name).font(.system(size: 17, weight: .bold))
-            Text(amount).font(.system(size: 14)).foregroundColor(.secondary)
-        }
-        .padding(20)
-        .frame(width: 176, alignment: .leading)
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .shadow(color: .black.opacity(0.12), radius: 16, x: 0, y: 10)
-    }
-}
-
-private struct ChartMock: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Toplam Değer").font(.system(size: 12)).foregroundColor(.secondary)
-                    Text("₺1.250.430").font(.system(size: 20, weight: .heavy))
+                    VStack(spacing: 2) {
+                        Text("Tür").font(.system(size: 13)).foregroundColor(.secondary)
+                        Text("\(Self.slices.count)").font(.system(size: 26, weight: .heavy))
+                    }
                 }
-                Spacer()
-                HStack(spacing: 3) {
-                    Image(systemName: "arrowtriangle.up.fill").font(.system(size: 9))
-                    Text("%46,2").font(.system(size: 13, weight: .bold))
+
+                VStack(spacing: 14) {
+                    ForEach(Self.slices, id: \.name) { slice in
+                        HStack(spacing: 10) {
+                            Circle().fill(slice.color).frame(width: 11, height: 11)
+                            Text(slice.name)
+                                .font(.system(size: 13, weight: .semibold))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                            Spacer(minLength: 6)
+                            Text("%\(Int(slice.percent))")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(.secondary)
+                        }
+                    }
                 }
-                .foregroundColor(.green)
             }
-            SparklineView(
-                values: [10, 12, 11, 14, 16, 15, 19, 22, 21, 26, 30, 34],
-                lineColor: Color(hex: "#FF2D55")
+            .padding(18)
+            .frame(maxWidth: .infinity)
+            // Analiz sekmesinde kart gri zemine oturuyor; burada zemin beyaz
+            // olduğu için satır kartlarıyla aynı gölge/çerçeve ile ayrıştırılıyor.
+            .background(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(Color(.secondarySystemGroupedBackground))
+                    .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 3)
             )
-            .frame(height: 90)
+            .overlay(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+            )
         }
-        .padding(20)
-        .frame(width: 280)
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .shadow(color: .black.opacity(0.12), radius: 18, x: 0, y: 12)
+        .frame(width: 358)
     }
 }

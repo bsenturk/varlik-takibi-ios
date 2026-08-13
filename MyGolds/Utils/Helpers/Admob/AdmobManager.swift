@@ -39,10 +39,10 @@ class AdMobManager: ObservableObject {
     
     @Published var showBanner = true
     @Published var adError = false
-    @Published var bannerHeight: CGFloat = 50
     @Published var isAppOpenAdShowing = false
     
-    private var initializationComplete = false
+    /// GADMobileAds.start() tamamlandı mı — SDK hazır olmadan reklam isteği atılmamalı.
+    private(set) var initializationComplete = false
     
     private init() {
         initializeAdMob()
@@ -92,10 +92,6 @@ class AdMobManager: ObservableObject {
         withAnimation(.easeIn(duration: 0.3)) {
             showBanner = true
         }
-    }
-    
-    func setBannerHeight(_ height: CGFloat) {
-        bannerHeight = height
     }
     
     // MARK: - State Management

@@ -47,9 +47,11 @@ final class NotificationManager: ObservableObject {
         }
     }
 
-    func requestNotificationPermission() {
+    func requestNotificationPermission(completion: ((Bool) -> Void)? = nil) {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { [weak self] granted, error in
             DispatchQueue.main.async {
+                defer { completion?(granted) }
+
                 if granted {
                     Logger.log("📱 Notification: Permission granted")
                     self?.isAuthorized = true

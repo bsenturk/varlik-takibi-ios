@@ -46,7 +46,7 @@ struct MainTabView: View {
             switch self {
             case .portfolio: return "Portföy"
             case .analysis: return "Analiz"
-            case .rates: return "Kurlar"
+            case .rates: return "Piyasalar"
             case .settings: return "Ayarlar"
             }
         }
@@ -54,7 +54,8 @@ struct MainTabView: View {
         var iconName: String {
             switch self {
             case .portfolio: return "creditcard.fill"
-            case .analysis: return "chart.xyaxis.line"
+            // Piyasalar'ın çizgi grafiğine benzemesin diye pasta grafik.
+            case .analysis: return "chart.pie.fill"
             case .rates: return "chart.line.uptrend.xyaxis"
             case .settings: return "gearshape.fill"
             }

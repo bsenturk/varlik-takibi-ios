@@ -18,6 +18,7 @@ struct DashboardView: View {
 
     @AppStorage("selectedCurrency") private var selectedCurrency: Currency = .TRY
     @AppStorage("selectedPortfolioID") private var selectedPortfolioIDString: String = ""
+    @AppStorage(UserDefaultsManager.maskedPortfoliosKey) private var maskedPortfolios = ""
 
     @State private var editorMode: EditorMode?
     @State private var assetToDelete: Asset?
@@ -50,6 +51,11 @@ struct DashboardView: View {
     }
 
     private var isGeneralSelected: Bool { selectedPortfolio?.isGeneral ?? false }
+
+    /// Seçili portföyün gözü kapalı mı — satır tutarları buna göre maskelenir.
+    private var valuesMasked: Bool {
+        UserDefaultsManager.isPortfolioMasked(maskedPortfolios, selectedPortfolio?.id)
+    }
 
     /// Assets in scope for the current selection.
     private var scopedAssets: [Asset] {
@@ -203,6 +209,7 @@ struct DashboardView: View {
         BalanceCardView(
             portfolioColor: selectedPortfolio?.color ?? .blue,
             metrics: PortfolioMetrics.compute(for: scopedAssets, context: modelContext),
+            portfolioID: selectedPortfolio?.id,
             selectedCurrency: $selectedCurrency
         )
     }
@@ -227,7 +234,7 @@ struct DashboardView: View {
                         Button {
                             assetToEdit = asset
                         } label: {
-                            DashboardRowView(item: item)
+                            DashboardRowView(item: item, valuesMasked: valuesMasked)
                         }
                         .buttonStyle(.plain)
                         .contextMenu {
@@ -240,7 +247,7 @@ struct DashboardView: View {
                             } label: { Label("Sil", systemImage: "trash") }
                         }
                     } else {
-                        DashboardRowView(item: item)
+                        DashboardRowView(item: item, valuesMasked: valuesMasked)
                     }
                 }
             }

@@ -103,28 +103,32 @@ class RatesViewModel: ObservableObject {
         }
     }
     
-    func updateCurrencyRates(rate: [AssetsPrice]) {
-        let currencyNames: [String: String] = ["USD": "Dolar", "EUR": "Euro", "GBP": "Sterlin"]
-        let currenciesIconName: [String: String] = ["USD": "dollarsign.circle.fill", "EUR": "eurosign.circle.fill", "GBP": "sterlingsign.circle.fill"]
-        let currenciesColor: [String: Color] = ["USD": Color(hex: "#34C759"), "EUR": Color(hex: "#0A84FF"), "GBP": Color(hex: "#AF52DE")]
-        
-        currencyRates = rate.compactMap { price -> RateDisplayModel? in
-            guard let code = price.code, !code.isEmpty else { return nil }
-            
-            let title = currencyNames[code] ?? price.name
-            let iconName = currenciesIconName[code] ?? "questionmark.circle"
-            let iconColor = currenciesColor[code] ?? .gray
-            
-            return RateDisplayModel(
-                title: title,
-                iconName: iconName,
-                iconColor: iconColor,
-                buyRate: price.buyPrice,
-                sellRate: price.sellPrice,
-                change: price.changePercent,
-                isChangeRatePositive: isRateChangePercentagePositive(from: price.changePercent)
-            )
+    /// Döviz satırlarının adı/bayrağı/rengi tek kaynaktan: `AssetType.fx`.
+    /// Sıra `AssetType.allCases` sırası (varlık ekleme listesiyle aynı).
+    private static let fxBySymbol: [String: (order: Int, info: AssetType.FXInfo)] = {
+        var map: [String: (Int, AssetType.FXInfo)] = [:]
+        for (index, type) in AssetType.allCases.enumerated() {
+            if let info = AssetType.fx[type] { map[info.symbol] = (index, info) }
         }
+        return map
+    }()
+
+    func updateCurrencyRates(rate: [AssetsPrice]) {
+        currencyRates = rate
+            .compactMap { price -> (Int, RateDisplayModel)? in
+                guard let code = price.code, let fx = Self.fxBySymbol[code] else { return nil }
+                return (fx.order, RateDisplayModel(
+                    title: fx.info.name,
+                    iconName: fx.info.flag,
+                    iconColor: Color(hex: fx.info.tintHex),
+                    buyRate: price.buyPrice,
+                    sellRate: price.sellPrice,
+                    change: price.changePercent,
+                    isChangeRatePositive: isRateChangePercentagePositive(from: price.changePercent)
+                ))
+            }
+            .sorted { $0.0 < $1.0 }
+            .map(\.1)
     }
     
     /// Maps live crypto / stock instruments (already TRY-priced) to display rows.

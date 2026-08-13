@@ -353,10 +353,7 @@ struct VarlikDefterimApp: App {
         // Record daily snapshots when returning from background
         recordDailySnapshots()
         
-        // App Open Ad'ı göster (arka plandan dönüşte)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            Logger.log("🔄 Attempting to show App Open Ad due to background return")
-            appOpenAdManager.showAdIfAvailable()
-        }
+        // App-open reklamının tek sahibi AppLifecycleObserver (arka planda geçen
+        // süreyi o biliyor); burada ikinci kez tetiklenmiyor.
     }
 }

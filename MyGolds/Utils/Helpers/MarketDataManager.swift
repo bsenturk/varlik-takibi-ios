@@ -36,8 +36,10 @@ final class MarketDataManager: ObservableObject {
     private var timer: Timer?
     private var currentRefreshTask: Task<Void, Never>?
 
-    /// Currency symbols surfaced in the FX rates list.
-    private static let displayedCurrencies: Set<String> = ["USD", "EUR", "GBP"]
+    /// Currency symbols surfaced in the FX rates list — uygulamanın desteklediği
+    /// tüm dövizler (TRY hariç; 1 TRY = 1 TRY satırının kur listesinde işi yok).
+    private static let displayedCurrencies: Set<String> =
+        Set(AssetType.fx.values.map(\.symbol)).subtracting(["TRY"])
 
     private init() {
         self.marketData = MarketDataService()

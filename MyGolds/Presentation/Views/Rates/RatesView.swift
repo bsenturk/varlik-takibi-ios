@@ -11,10 +11,19 @@ struct RatesView: View {
     @StateObject private var viewModel = RatesViewModel()
     @StateObject private var marketData = MarketDataManager.shared
     @State private var searchText = ""
+    @State private var tab: Tab = .gold
+
+    /// Kurlar shows only gold & currencies; crypto/stocks live in the portfolio flow.
+    private enum Tab: String, CaseIterable, Identifiable {
+        case gold = "Altın"
+        case currency = "Döviz"
+
+        var id: String { rawValue }
+        var tintHex: String { self == .gold ? AssetCategory.gold.tintHex : AssetCategory.currency.tintHex }
+    }
 
     private var allRates: [RateDisplayModel] {
-        // Kurlar shows only gold & currencies; crypto/stocks live in the portfolio flow.
-        viewModel.currencyRates + viewModel.goldRates
+        tab == .gold ? viewModel.goldRates : viewModel.currencyRates
     }
 
     private var filteredRates: [RateDisplayModel] {
@@ -29,6 +38,7 @@ struct RatesView: View {
             ScrollView {
                 VStack(spacing: 14) {
                     header
+                    tabChips
                     searchBar
 
                     if filteredRates.isEmpty {
@@ -71,7 +81,7 @@ struct RatesView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Güncel Kurlar")
+            Text("Piyasalar")
                 .font(.system(size: 32, weight: .heavy))
             HStack(spacing: 6) {
                 Circle()
@@ -90,6 +100,28 @@ struct RatesView: View {
         formatter.dateFormat = "HH:mm"
         let time = formatter.string(from: marketData.lastUpdateTime ?? Date())
         return "Canlı · \(time) itibarıyla"
+    }
+
+    // MARK: - Chips
+
+    private var tabChips: some View {
+        HStack(spacing: 8) {
+            ForEach(Tab.allCases) { option in
+                let isSelected = tab == option
+                Text(option.rawValue)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(isSelected ? .white : .primary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 9)
+                    .background(isSelected ? AnyShapeStyle(Color(hex: option.tintHex)) : AnyShapeStyle(Color(.systemGray5)))
+                    .clipShape(Capsule())
+                    .contentShape(Capsule())
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.2)) { tab = option }
+                    }
+            }
+            Spacer(minLength: 0)
+        }
     }
 
     // MARK: - Search

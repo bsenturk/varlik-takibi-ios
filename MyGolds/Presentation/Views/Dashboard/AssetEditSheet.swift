@@ -17,6 +17,12 @@ struct AssetEditSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @StateObject private var marketData = MarketDataManager.shared
+    @AppStorage(UserDefaultsManager.maskedPortfoliosKey) private var maskedPortfolios = ""
+
+    /// Varlığın ait olduğu portföyün gözü kapalıysa tutarlar maskelenir.
+    private var valuesMasked: Bool {
+        UserDefaultsManager.isPortfolioMasked(maskedPortfolios, asset.portfolio?.id)
+    }
 
     @State private var amountText: String = ""
     @State private var costText: String = ""
@@ -144,13 +150,13 @@ struct AssetEditSheet: View {
         }()
 
         return VStack(spacing: 0) {
-            infoRow("Güncel Değer", value.formatAsCurrency())
+            infoRow("Güncel Değer", value.formatAsCurrency().maskedIfNeeded(valuesMasked))
             if let pl = profitLoss {
                 Divider().padding(.leading, 16)
                 HStack {
                     Text("Kâr / Zarar").foregroundColor(.secondary)
                     Spacer()
-                    Text("\(pl.value >= 0 ? "+" : "-")\(abs(pl.value).formatAsCurrency()) (%\(String(format: "%.2f", abs(pl.percent)).replacingOccurrences(of: ".", with: ",")))")
+                    Text("\(pl.value >= 0 ? "+" : "-")\(abs(pl.value).formatAsCurrency().maskedIfNeeded(valuesMasked)) (%\(String(format: "%.2f", abs(pl.percent)).replacingOccurrences(of: ".", with: ",")))")
                         .font(.system(size: 15, weight: .bold))
                         .foregroundColor(pl.value >= 0 ? .green : .red)
                 }

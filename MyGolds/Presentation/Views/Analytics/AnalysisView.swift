@@ -17,6 +17,7 @@ struct AnalysisView: View {
     @StateObject private var portfolioManager = PortfolioManager.shared
 
     @AppStorage("selectedCurrency") private var selectedCurrency: Currency = .TRY
+    @AppStorage(UserDefaultsManager.maskedPortfoliosKey) private var maskedPortfolios = ""
     @AppStorage("selectedPortfolioID") private var selectedPortfolioIDString: String = ""
     @State private var range: TimeRange = .month
 
@@ -43,6 +44,11 @@ struct AnalysisView: View {
     }
 
     private var isGeneral: Bool { selectedPortfolio?.isGeneral ?? false }
+
+    /// Seçili portföyün gözü kapalıysa tutarlar maskelenir (Portföy sekmesiyle aynı tercih).
+    private var valuesMasked: Bool {
+        UserDefaultsManager.isPortfolioMasked(maskedPortfolios, selectedPortfolio?.id)
+    }
 
     private var scopedAssets: [Asset] {
         guard let selected = selectedPortfolio else { return [] }
@@ -145,7 +151,7 @@ struct AnalysisView: View {
             Text("Güncel Değer")
                 .font(.system(size: 14))
                 .foregroundColor(.secondary)
-            Text(convertedValue.formatAsCurrency(currency: selectedCurrency))
+            Text(convertedValue.formatAsCurrency(currency: selectedCurrency).maskedIfNeeded(valuesMasked))
                 .font(.system(size: 30, weight: .heavy))
                 .minimumScaleFactor(0.6)
                 .lineLimit(1)
@@ -400,7 +406,7 @@ struct AnalysisView: View {
                 Text(asset.name)
                     .font(.system(size: 16, weight: .semibold))
                     .lineLimit(1)
-                Text(value.formatAsCurrency(currency: selectedCurrency))
+                Text(value.formatAsCurrency(currency: selectedCurrency).maskedIfNeeded(valuesMasked))
                     .font(.system(size: 13))
                     .foregroundColor(.secondary)
             }

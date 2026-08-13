@@ -16,7 +16,10 @@ class AppLifecycleObserver: ObservableObject {
     
     private let appOpenAdManager = AppOpenAdManager.shared
     private var backgroundTime: Date?
-    private let minimumBackgroundTime: TimeInterval = 1 // TEST İÇİN 1 SANİYE
+    /// Kısa bir uygulama değişiminden (bildirim çekmecesi, hızlı kopyala-yapıştır)
+    /// dönüşte reklam göstermemek için eşik. Google'ın önerdiği davranış: app-open
+    /// yalnızca gerçek bir "geri dönüş"te.
+    private let minimumBackgroundTime: TimeInterval = 30
     
     private init() {
         setupNotifications()
@@ -56,6 +59,8 @@ class AppLifecycleObserver: ObservableObject {
         DispatchQueue.main.async {
             self.isActive = true
             self.scenePhase = .active
+            // Sunumu yarıda kalan bir app-open reklamı banner'ı gizli bırakmasın.
+            self.appOpenAdManager.clearStaleShowingState()
         }
         
         // Check if app was in background long enough to show ad
@@ -64,7 +69,7 @@ class AppLifecycleObserver: ObservableObject {
             
             if backgroundDuration >= minimumBackgroundTime {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    self.appOpenAdManager.showAdIfAvailable()
+                    self.appOpenAdManager.showAdIfAvailable(trigger: .foregroundReturn)
                 }
             } else {
                 Logger.log("🔄 App: Background duration too short (\(backgroundDuration)s < \(minimumBackgroundTime)s)")
