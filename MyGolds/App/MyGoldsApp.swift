@@ -44,7 +44,23 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
         // installs before it fires. Safe because we never schedule locals now.
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
 
+        // Ana ekran kısayolu soğuk açılışta launchOptions'tan, uygulama zaten
+        // açıkken `performActionFor`dan gelir. Burada `false` dönmek sistemin
+        // ikinci kez `performActionFor` çağırmasını engelliyor.
+        if let shortcut = launchOptions?[.shortcutItem] as? UIApplicationShortcutItem,
+           OfferCode.handle(shortcut) {
+            return false
+        }
+
         return true
+    }
+
+    func application(
+        _ application: UIApplication,
+        performActionFor shortcutItem: UIApplicationShortcutItem,
+        completionHandler: @escaping (Bool) -> Void
+    ) {
+        completionHandler(OfferCode.handle(shortcutItem))
     }
 
     // Firebase forwards the APNs token here automatically (method swizzling)
@@ -349,6 +365,10 @@ struct VarlikDefterimApp: App {
         
         // Clear badge when app returns
         notificationManager.clearBadge()
+
+        // İndirim kodu App Store'da kullanılıp geri dönülmüş olabilir; Pro'nun
+        // hemen açılması için entitlement'ı tazele.
+        Task { await PurchaseManager.shared.refreshCustomerInfo() }
 
         // Re-check in case the user changed the permission in iOS Settings
         // while the app was backgrounded (e.g. via our "open Settings" link).

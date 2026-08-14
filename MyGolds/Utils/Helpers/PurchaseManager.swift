@@ -8,7 +8,58 @@
 //
 
 import Foundation
+import UIKit
 import RevenueCat
+
+/// Ana ekranda uygulamaya uzun basınca çıkan menüdeki "%30 indirim" kısayolu.
+///
+/// Kod App Store Connect'te yıllık abonelik altında **Custom Code** olarak
+/// tanımlı. Kısayol statik değil dinamik: Pro kullanıcıya indirim göstermenin
+/// anlamı yok, `refreshShortcut()` onu listeden çıkarıyor.
+enum OfferCode {
+    static let shortcutType = "com.xptapps.assetbook.offer30"
+    /// App Store Connect'teki Custom Code ile birebir aynı olmalı.
+    static let code = "VARLIK30"
+    private static let appleID = "6479618311"
+
+    /// Redeem sayfasını kod ön-doldurulmuş açar. StoreKit'in kendi
+    /// `presentCodeRedemptionSheet`'i kodu dolduramıyor, kullanıcıya elle
+    /// yazdırmak bu akışta kaybetmenin en garanti yolu.
+    static var redeemURL: URL {
+        URL(string: "https://apps.apple.com/redeem?ctx=offercodes&id=\(appleID)&code=\(code)")!
+    }
+
+    @MainActor
+    private static var item: UIApplicationShortcutItem {
+        UIApplicationShortcutItem(
+            type: shortcutType,
+            localizedTitle: "%30 indirim",
+            localizedSubtitle: "Yıllık Pro üyelikte",
+            icon: UIApplicationShortcutIcon(systemImageName: "gift.fill")
+        )
+    }
+
+    /// Pro durumuna göre kısayolu ekler/kaldırır. Entitlement her
+    /// güncellendiğinde çağrılıyor.
+    @MainActor
+    static func refreshShortcut() {
+        UIApplication.shared.shortcutItems = UserDefaultsManager.shared.isPro ? [] : [item]
+    }
+
+    /// Kısayol dokunuşunu karşılar. `true` dönerse olay bize aitti.
+    @MainActor
+    @discardableResult
+    static func handle(_ shortcut: UIApplicationShortcutItem) -> Bool {
+        guard shortcut.type == shortcutType else { return false }
+        FirebaseAnalyticsHelper.shared.logOfferCodeTapped()
+        // Soğuk açılışta uygulama henüz aktif değil ve `open` sessizce
+        // başarısız olabiliyor; bir tur bekletiyoruz.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            UIApplication.shared.open(redeemURL)
+        }
+        return true
+    }
+}
 
 @MainActor
 final class PurchaseManager: NSObject, ObservableObject {
@@ -55,6 +106,7 @@ final class PurchaseManager: NSObject, ObservableObject {
     /// Call after `configure()`.
     func start() {
         Purchases.shared.delegate = self
+        OfferCode.refreshShortcut()
         Task { await refreshCustomerInfo() }
         Task { await loadOfferings() }
     }
@@ -147,6 +199,7 @@ final class PurchaseManager: NSObject, ObservableObject {
             Logger.log("💎 RevenueCat: Pro entitlement → \(pro)")
         }
         if pro { AdMobManager.shared.hideBanner() }
+        OfferCode.refreshShortcut()
     }
 }
 

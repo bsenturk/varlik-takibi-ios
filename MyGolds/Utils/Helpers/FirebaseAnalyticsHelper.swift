@@ -172,6 +172,12 @@ final class FirebaseAnalyticsHelper {
         ])
     }
 
+    /// Ana ekran kısayolundaki indirim kodu kullanıldığında. Silme anına
+    /// müdahale ettiği için dönüşümü ayrıca izlenmeli.
+    func logOfferCodeTapped() {
+        Analytics.logEvent("offer_code_tapped", parameters: nil)
+    }
+
     /// Paywall açıldığında — hangi bağlamdan tetiklendiği.
     func logPaywallShown(context: String) {
         Analytics.logEvent("paywall_shown", parameters: [
