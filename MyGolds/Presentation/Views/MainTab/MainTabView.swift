@@ -33,7 +33,8 @@ struct MainTabView: View {
     @AppStorage("selectedPortfolioID") private var selectedPortfolioIDString: String = ""
 
     @State private var selectedTab: Tab = .portfolio
-    @State private var showOnboardingPaywall = false
+    /// Non-nil while a paywall is up; the case also picks the headline.
+    @State private var paywallContext: PaywallContext?
     @StateObject private var adManager = AdMobManager.shared
     @StateObject private var appOpenAdManager = AppOpenAdManager.shared
     @StateObject private var addPresenter = AddAssetPresenter.shared
@@ -100,8 +101,8 @@ struct MainTabView: View {
             AddAssetSheet(targetPortfolio: addTargetPortfolio)
                 .environmentObject(interstitialAdManager)
         }
-        .sheet(isPresented: $showOnboardingPaywall) {
-            PaywallView(onClose: { showOnboardingPaywall = false }, context: .onboarding)
+        .fullScreenCover(item: $paywallContext) { context in
+            PaywallView(onClose: { paywallContext = nil }, context: context)
         }
         .onAppear {
             if adManager.shouldShowBanner {
@@ -145,16 +146,27 @@ struct MainTabView: View {
             guard !UserDefaultsManager.shared.isPro, !assets.isEmpty else { return }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                 guard !UserDefaultsManager.shared.isPro else { return }
-                showOnboardingPaywall = true
+                paywallContext = .onboarding
             }
             return
         }
 
         // Normal flow: interstitial only if the user actually added something.
-        if didAddAsset {
+        guard didAddAsset else { return }
+
+        // Her 3. reklam fırsatında reklam yerine paywall. `canShowAd` önce
+        // sorulur ki sayaç sadece gerçekten reklam çıkacak anları saysın.
+        if !UserDefaultsManager.shared.isPro,
+           interstitialAdManager.canShowAd,
+           AdPaywallGate.shouldShowPaywall() {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                interstitialAdManager.showAdIfAvailable()
+                paywallContext = .ads
             }
+            return
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            interstitialAdManager.showAdIfAvailable()
         }
     }
 

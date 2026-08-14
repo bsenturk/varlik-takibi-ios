@@ -93,7 +93,7 @@ struct AddAssetSheet: View {
         .alert("Hata", isPresented: $showAlert) {
             Button("Tamam", role: .cancel) {}
         } message: { Text(alertMessage) }
-        .sheet(isPresented: $showingPaywall) {
+        .fullScreenCover(isPresented: $showingPaywall) {
             PaywallView(onClose: { showingPaywall = false }, context: .fund)
         }
     }

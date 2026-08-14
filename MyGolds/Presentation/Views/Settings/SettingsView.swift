@@ -69,7 +69,7 @@ struct SettingsView: View {
         .sheet(isPresented: $showingFeedback) { FeedbackView() }
         .sheet(isPresented: $showingPrivacyPolicy) { PrivacyPolicyView() }
         .sheet(isPresented: $showingDarkModeSettings) { DarkModeSettingsView() }
-        .sheet(isPresented: $showingPaywall) { PaywallView(onClose: { showingPaywall = false }) }
+        .fullScreenCover(isPresented: $showingPaywall) { PaywallView(onClose: { showingPaywall = false }) }
         .sheet(isPresented: $showingMembership) {
             MembershipSheet(isPro: userDefaults.isPro, onUpgrade: {
                 showingMembership = false
@@ -95,41 +95,85 @@ struct SettingsView: View {
 
     // MARK: - Pro banner
 
+    /// Fiyat, paywall'daki yıllık planın aya düşen tutarı — "aylık şu kadar"
+    /// çapası kartın kendisinde duruyor ki kullanıcı tıklamadan maliyeti bilsin.
     private var proBanner: some View {
         Button(action: { showingPaywall = true }) {
-            HStack(spacing: 14) {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color.white.opacity(0.22))
-                    .frame(width: 50, height: 50)
-                    .overlay(
-                        Image(systemName: "crown.fill")
-                            .font(.system(size: 22, weight: .bold))
-                            .foregroundColor(.white)
-                    )
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Varlık Takibi Pro'ya Geç")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundColor(.white)
-                    Text("Sınırsız portföy ve gelişmiş analiz")
-                        .font(.system(size: 13))
-                        .foregroundColor(.white.opacity(0.9))
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    RoundedRectangle(cornerRadius: 11, style: .continuous)
+                        .fill(ProStyle.accent.opacity(0.14))
+                        .frame(width: 42, height: 42)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                                .stroke(ProStyle.border, lineWidth: 1)
+                        )
+                        .overlay(
+                            Image(systemName: "crown.fill")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(ProStyle.accent)
+                        )
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Pro'ya geç")
+                            .font(.system(size: 17, weight: .bold))
+                            .foregroundColor(.primary)
+                        Text("Kilitli 3 özelliği aç")
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary)
+                    }
+
+                    Spacer(minLength: 8)
+
+                    if let monthly = ProPlan.monthlyEquivalent {
+                        HStack(alignment: .firstTextBaseline, spacing: 2) {
+                            Text(monthly)
+                                .font(.system(size: 17, weight: .heavy))
+                                .foregroundColor(ProStyle.accent)
+                            Text("/ay")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                        }
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    }
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.secondary.opacity(0.6))
                 }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(.white.opacity(0.9))
+
+                HStack(spacing: 14) {
+                    proPerk("Reklamsız")
+                    proPerk("TEFAS")
+                    proPerk("Sınırsız portföy")
+                    Spacer(minLength: 0)
+                }
             }
             .padding(16)
             .background(
-                LinearGradient(
-                    colors: [Color(hex: "#0A84FF"), Color(hex: "#AF52DE")],
-                    startPoint: .leading, endPoint: .trailing
-                )
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(ProStyle.accent.opacity(0.08))
             )
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .shadow(color: Color(hex: "#AF52DE").opacity(0.3), radius: 12, x: 0, y: 6)
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(ProStyle.border, lineWidth: 1)
+            )
         }
         .buttonStyle(.plain)
+    }
+
+    private func proPerk(_ title: String) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: "checkmark")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(ProStyle.accent)
+            Text(title)
+                .font(.system(size: 13))
+                .foregroundColor(.primary.opacity(0.75))
+                .lineLimit(1)
+        }
+        .fixedSize()
     }
 
     // MARK: - Membership
@@ -142,10 +186,10 @@ struct SettingsView: View {
             Button(action: { showingMembership = true }) {
                 settingsRow(
                     icon: userDefaults.isPro ? "crown.fill" : "person.fill",
-                    color: userDefaults.isPro ? Color(hex: "#AF52DE") : Color(hex: "#8E8E93"),
+                    color: userDefaults.isPro ? ProStyle.accent : Color(hex: "#8E8E93"),
                     title: "Üyelik Durumu",
                     trailing: userDefaults.isPro
-                        ? .badge("Pro", Color(hex: "#AF52DE"))
+                        ? .badge("Pro", ProStyle.accent)
                         : .value("Ücretsiz")
                 )
             }
@@ -250,9 +294,6 @@ struct SettingsView: View {
 
     private var footer: some View {
         VStack(spacing: 6) {
-            Text(AppVersionHelper.appName)
-                .font(.system(size: 15, weight: .bold))
-                .foregroundColor(.primary)
             Text(AppVersionHelper.displayVersionString)
                 .font(.system(size: 13))
                 .foregroundColor(.secondary)
@@ -366,7 +407,7 @@ struct SettingsView: View {
 
 // MARK: - Membership detail sheet
 
-/// Membership detail: a status card (Pro gradient / Free muted) plus the two
+/// Membership detail: a status card (Pro accent / Free muted) plus the two
 /// account actions — manage subscription (system sheet) and restore purchases.
 private struct MembershipSheet: View {
     let isPro: Bool
@@ -375,11 +416,6 @@ private struct MembershipSheet: View {
     @State private var showingManageSubscriptions = false
     @State private var isRestoring = false
     @State private var resultMessage: String?
-
-    private let brandGradient = LinearGradient(
-        colors: [Color(hex: "#0A84FF"), Color(hex: "#AF52DE")],
-        startPoint: .leading, endPoint: .trailing
-    )
 
     var body: some View {
         ScrollView {
@@ -409,7 +445,7 @@ private struct MembershipSheet: View {
         } message: { Text(resultMessage ?? "") }
     }
 
-    // Status card: gradient + crown for subscribers, muted card for free users.
+    // Status card: solid accent + crown for subscribers, muted card for free users.
     // Compact horizontal layout so it stays a small header, not a hero banner.
     private var statusCard: some View {
         HStack(spacing: 14) {
@@ -436,14 +472,10 @@ private struct MembershipSheet: View {
         .padding(.vertical, 16)
         .padding(.horizontal, 16)
         .background(
-            Group {
-                if isPro { brandGradient }
-                else { Color(.secondarySystemGroupedBackground) }
-            }
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(isPro ? ProStyle.accent : Color(.secondarySystemGroupedBackground))
         )
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .shadow(color: (isPro ? Color(hex: "#AF52DE") : .black).opacity(0.18),
-                radius: 12, x: 0, y: 6)
+        .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 3)
     }
 
     private var actions: some View {
@@ -502,9 +534,8 @@ private struct MembershipSheet: View {
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 .frame(height: 54)
-                .background(brandGradient)
+                .background(ProStyle.accent)
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .shadow(color: Color(hex: "#AF52DE").opacity(0.35), radius: 12, x: 0, y: 6)
         }
     }
 

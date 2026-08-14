@@ -133,7 +133,7 @@ struct DashboardView: View {
             }
         }
         .onChange(of: assets) { _, _ in portfolioManager.updatePortfolio(with: assets) }
-        .sheet(isPresented: $showingPaywall) {
+        .fullScreenCover(isPresented: $showingPaywall) {
             PaywallView(onClose: { showingPaywall = false }, context: .portfolioLimit)
         }
         .sheet(item: $assetToEdit) { asset in

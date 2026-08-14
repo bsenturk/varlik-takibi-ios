@@ -32,6 +32,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
         // Start AdMob (handled by AdMobManager)
         Logger.log("🔧 AdMob initialization will be handled by AdMobManager")
 
+        #if DEBUG
+        AdPaywallGate.selfCheck()
+        #endif
+
         UNUserNotificationCenter.current().setBadgeCount(0) { _ in }
 
         // One-time cleanup: older versions scheduled local reminder notifications

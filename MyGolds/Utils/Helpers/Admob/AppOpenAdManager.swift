@@ -17,6 +17,9 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
     private var appOpenAd: GADAppOpenAd?
     private var loadTime = Date()
     @Published var isAdShowing = false
+    /// Gösterim istendi ama reklam henüz yüklü değildi — yükleme bitince gösterilir.
+    /// Bu olmadan her `loadAd` başarısı yeni bir gösterime yol açıyordu (döngü).
+    private var pendingShowTrigger: Trigger?
     @Published var isAdLoaded = false
     @Published var isLoadingAd = false
     
@@ -149,7 +152,10 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
                 self?.appOpenAd?.fullScreenContentDelegate = self
                 self?.loadTime = Date()
                 self?.isAdLoaded = true
-                self?.showAdIfAvailable()
+                if let trigger = self?.pendingShowTrigger {
+                    self?.pendingShowTrigger = nil
+                    self?.showAdIfAvailable(trigger: trigger)
+                }
             }
         }
     }
@@ -180,7 +186,8 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
         }
 
         guard isAdAvailable else {
-            // Henüz yüklenmediyse yükle; yükleme bitince buraya geri dönülüyor.
+            // Henüz yüklenmediyse yükle ve gösterimi beklet.
+            pendingShowTrigger = trigger
             if !isLoadingAd { loadAd() }
             return
         }
@@ -199,6 +206,7 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
         }
 
         Logger.log("📱 App Open Ad: Showing ad")
+        pendingShowTrigger = nil
         isAdShowing = true
         lastAdShowTime = Date()
         FullScreenAdGate.shared.recordShown()
@@ -229,16 +237,6 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
     func forceShowAd() {
          // Reset restrictions for test
          lastAdShowTime = nil
-         
-         if !isAdLoaded {
-             loadAd()
-             
-             // Wait for load and then show
-             DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                 self.showAdIfAvailable()
-             }
-             return
-         }
          
          showAdIfAvailable()
      }

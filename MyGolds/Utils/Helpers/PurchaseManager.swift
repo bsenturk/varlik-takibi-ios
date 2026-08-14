@@ -28,6 +28,12 @@ final class PurchaseManager: NSObject, ObservableObject {
     @Published private(set) var isLoadingOfferings = false
     /// True while a purchase or restore is in flight (drives the paywall spinner).
     @Published private(set) var purchaseInProgress = false
+    /// Deneme hakkı hâlâ duruyor mu? Ürünün intro offer'ı, denemeyi bir kez
+    /// kullanmış kullanıcıya da görünür; bu bayrak olmadan paywall "Ücretsiz
+    /// Dene" yazıp kullanıcıdan anında ücret alır.
+    /// ponytail: yalnızca `.ineligible` false sayılır — unknown (offline/sandbox)
+    /// eski davranışta kalsın.
+    @Published private(set) var trialEligible = true
 
     private override init() { super.init() }
 
@@ -64,6 +70,7 @@ final class PurchaseManager: NSObject, ObservableObject {
             self.currentOffering = offerings.current
             let current = offerings.current
             Logger.log("✅ RevenueCat: offering '\(current?.identifier ?? "nil")' loaded with \(current?.availablePackages.count ?? 0) package(s): \(current?.availablePackages.map { $0.storeProduct.productIdentifier } ?? [])")
+            await refreshTrialEligibility()
         } catch {
             let ns = error as NSError
             Logger.log("❌ RevenueCat: failed to load offerings - \(ns.localizedDescription)")
@@ -71,6 +78,15 @@ final class PurchaseManager: NSObject, ObservableObject {
                 Logger.log("   ↳ underlying: \(underlying.localizedDescription) | \(underlying.userInfo)")
             }
         }
+    }
+
+    /// Deneme uygunluğu abonelik grubu bazında olduğu için tek ürünü sormak yeter.
+    private func refreshTrialEligibility() async {
+        guard let product = (currentOffering?.annual ?? currentOffering?.availablePackages.first)?.storeProduct
+        else { return }
+        let status = await Purchases.shared.checkTrialOrIntroDiscountEligibility(product: product)
+        trialEligible = (status != .ineligible)
+        Logger.log("💎 RevenueCat: intro eligibility → \(status) (trialEligible: \(trialEligible))")
     }
 
     func refreshCustomerInfo() async {
