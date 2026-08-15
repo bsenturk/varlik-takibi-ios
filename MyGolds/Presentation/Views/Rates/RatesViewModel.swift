@@ -232,6 +232,21 @@ class RatesViewModel: ObservableObject {
     }
     
     private func isRateChangePercentagePositive(from string: String) -> Bool {
+        #if DEBUG
+        // Screenshot modu: yüzdenin büyüklüğü aynı kalır, yalnızca yön pozitife
+        // çevrilir. Ok, renk ve sparkline eğimi bu bayrağa bağlı olduğu için
+        // listeyi yükselişe çevirmek tek nokta. Gerçek fiyata dokunulmuyor.
+        if Self.demoAllUp { return true }
+        #endif
         return !string.contains("-")
     }
+
+    #if DEBUG
+    private static let demoAllUpKey = "debug_markets_all_up"
+
+    static var demoAllUp: Bool {
+        get { UserDefaults.standard.bool(forKey: demoAllUpKey) }
+        set { UserDefaults.standard.set(newValue, forKey: demoAllUpKey) }
+    }
+    #endif
 }

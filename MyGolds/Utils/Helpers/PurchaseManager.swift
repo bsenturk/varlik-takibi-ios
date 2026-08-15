@@ -193,8 +193,29 @@ final class PurchaseManager: NSObject, ObservableObject {
         return !info.entitlements.active.isEmpty
     }
 
+    #if DEBUG
+    /// Screenshot/QA için Pro'yu zorla açık tutar. RevenueCat senkronu artık her
+    /// foreground'da çalıştığı için düz bir `isPro = true` bir sonraki dönüşte
+    /// eziliyor; bayrak `updateEntitlement` tarafından dikkate alınıyor.
+    private static let forceProKey = "debug_force_pro"
+
+    static var debugForcePro: Bool {
+        get { UserDefaults.standard.bool(forKey: forceProKey) }
+        set {
+            UserDefaults.standard.set(newValue, forKey: forceProKey)
+            UserDefaultsManager.shared.isPro = newValue
+            if newValue { AdMobManager.shared.hideBanner() } else { AdMobManager.shared.showBannerAd() }
+            OfferCode.refreshShortcut()
+            Logger.log("🐛 DEBUG: force Pro → \(newValue)")
+        }
+    }
+    #endif
+
     private func updateEntitlement(from info: CustomerInfo) {
-        let pro = isSubscribed(info)
+        var pro = isSubscribed(info)
+        #if DEBUG
+        if Self.debugForcePro { pro = true }
+        #endif
         if UserDefaultsManager.shared.isPro != pro {
             UserDefaultsManager.shared.isPro = pro
             Logger.log("💎 RevenueCat: Pro entitlement → \(pro)")

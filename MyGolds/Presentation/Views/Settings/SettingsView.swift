@@ -8,8 +8,13 @@
 import SwiftUI
 import StoreKit
 import UIKit
+import SwiftData
 
 struct SettingsView: View {
+    @Environment(\.modelContext) private var modelContext
+    #if DEBUG
+    @State private var marketsAllUp = RatesViewModel.demoAllUp
+    #endif
     @State private var showingRateApp = false
     @State private var showingFeedback = false
     @State private var showingPrivacyPolicy = false
@@ -396,6 +401,24 @@ struct SettingsView: View {
             Button("Reset Onboarding") {
                 UserDefaultsManager.shared.setValue(value: false, key: .hasSeenOnboarding)
             }.buttonStyle(.bordered)
+            // Screenshot çekerken Pro ekranlarını görmek için.
+            Button(userDefaults.isPro ? "Pro: AÇIK ✅" : "Pro: KAPALI") {
+                PurchaseManager.debugForcePro.toggle()
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(userDefaults.isPro ? .green : .gray)
+            Button("📸 Demo Verisi Yükle") {
+                DemoData.load(context: modelContext)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.purple)
+            // Piyasalar listesinde her şey yükselişte görünsün (screenshot için).
+            Button(marketsAllUp ? "📈 Piyasalar: YÜKSELİŞ" : "📉 Piyasalar: gerçek") {
+                RatesViewModel.demoAllUp.toggle()
+                marketsAllUp = RatesViewModel.demoAllUp
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(marketsAllUp ? .green : .gray)
         }
         .padding()
         .background(Color.orange.opacity(0.1))
@@ -549,3 +572,194 @@ private struct MembershipSheet: View {
         }
     }
 }
+
+#if DEBUG
+
+// MARK: - Demo data (App Store screenshots)
+
+/// App Store ekran görüntüleri için gerçekçi bir portföy tohumlar. Sadece DEBUG
+/// derlemesinde var, Release'e hiç girmiyor.
+///
+/// Yalnızca altın / gümüş / döviz kullanıyor: bu türlerin sembolü `AssetType`
+/// üzerinden geliyor, dolayısıyla fiyat servisi bir sonraki yenilemede doğru
+/// fiyatı buluyor. Kripto ve BIST sembolleri canlı katalogdan geldiği için elle
+/// uydurmak, yenileme sonrası bozuk satır riski demek.
+enum DemoData {
+
+    private struct Holding {
+        let type: AssetType
+        /// Kripto / BIST / fon için katalogdaki (`assets_prices.symbol`) sembol.
+        /// Altın, gümüş ve dövizde nil — sembol `AssetType`'tan türüyor.
+        var symbol: String? = nil
+        var name: String? = nil
+        var unit: String? = nil
+        let amount: Double
+        /// Güncel birim fiyat (TRY). Kripto USD fiyatlansa da uygulama TRY
+        /// saklıyor, o yüzden buradaki değerler de TRY.
+        let price: Double
+        /// Alış birim fiyatı (TRY) — kâr yüzdesini bu belirliyor.
+        let cost: Double
+        /// Günlük değişim (%). Analiz'deki "En Çok Kazandıranlar / Kaybettirenler"
+        /// kâr/zarara değil bu güne göre sıralanıyor, o yüzden dünkü fiyatı
+        /// buradan geriye hesaplıyoruz.
+        var dayChange: Double = 0
+    }
+
+    /// Semboller ve fiyatlar canlı `assets_prices` katalogundan alındı; uydurma
+    /// sembol kullanılırsa fiyat yenilemesi satırı bulamaz ve demo bozulur.
+    private static let plan: [(name: String, color: PortfolioColor, holdings: [Holding])] = [
+        ("Portföyüm", .purple, [
+            Holding(type: .gold,        amount: 42,    price: 6_703.63,  cost: 5_610,  dayChange: 2.4),
+            Holding(type: .goldQuarter, amount: 12,    price: 10_968.53, cost: 9_180,  dayChange: 0.8),
+            Holding(type: .crypto, symbol: "BTC", name: "Bitcoin", unit: "adet",
+                    amount: 0.15,  price: 3_011_770, cost: 2_480_000, dayChange: 1.9),
+            Holding(type: .crypto, symbol: "ETH", name: "Ethereum", unit: "adet",
+                    amount: 2.5,   price: 89_813,    cost: 74_500,    dayChange: 1.2),
+            Holding(type: .usd,         amount: 4_500, price: 47.78,     cost: 41.20,  dayChange: 0.3),
+            Holding(type: .bistStock, symbol: "THYAO.IS", name: "THYAO", unit: "lot",
+                    amount: 400,   price: 305.25,    cost: 262.00,    dayChange: 0.5)
+        ]),
+        ("Emeklilik", .green, [
+            Holding(type: .goldFull,     amount: 6,     price: 43_739.96, cost: 36_900, dayChange: 0.7),
+            Holding(type: .goldRepublic, amount: 3,     price: 45_103.00, cost: 38_500, dayChange: 0.6),
+            Holding(type: .eur,          amount: 2_000, price: 55.25,     cost: 47.80,  dayChange: 0.2),
+            Holding(type: .fund, symbol: "TTE",
+                    name: "İŞ PORTFÖY BIST TEKNOLOJİ AĞIRLIK SINIRLAMALI ENDEKSİ HİSSE SENEDİ (TL) FONU",
+                    unit: "lot",
+                    amount: 60_000, price: 1.816762, cost: 1.58,      dayChange: 0.4),
+            Holding(type: .bistStock, symbol: "ASELS.IS", name: "ASELS", unit: "lot",
+                    amount: 250,   price: 387.50,    cost: 328.00,    dayChange: -1.1)
+        ]),
+        ("Ev Peşinatı", .blue, [
+            // Gram altın bilerek burada yok: aynı sembol iki portföyde olursa
+            // "Genel" kapsamında movers listesinde iki kez çıkıp Bitcoin'i
+            // ilk üçten düşürüyor.
+            Holding(type: .goldHalf, amount: 4,   price: 21_937.07, cost: 18_600, dayChange: 0.9),
+            Holding(type: .silver,   amount: 800, price: 99.25,     cost: 78.40,  dayChange: 3.1),
+            Holding(type: .bistStock, symbol: "GARAN.IS", name: "GARAN", unit: "lot",
+                    amount: 600,   price: 131.00,   cost: 112.00,    dayChange: 0.4),
+            // ABD borsası TRY karşılığıyla: 305,93 USD × 47,7776.
+            Holding(type: .usStock, symbol: "AAPL", name: "AAPL", unit: "lot",
+                    amount: 6,     price: 14_616.60, cost: 12_400,   dayChange: -1.4),
+            Holding(type: .fund, symbol: "DFI",
+                    name: "ATLAS PORTFÖY SERBEST FON",
+                    unit: "lot",
+                    amount: 15_000, price: 5.4381,  cost: 4.72,      dayChange: -2.0)
+        ])
+    ]
+
+    /// Grafiklerin dolu görünmesi için kaç günlük geçmiş üretilecek.
+    private static let historyDays = 90
+
+    @MainActor
+    static func load(context: ModelContext) {
+        wipe(context: context)
+
+        for (index, entry) in plan.enumerated() {
+            let portfolio = Portfolio(
+                name: entry.name,
+                colorHex: entry.color.rawValue,
+                sortOrder: index + 1
+            )
+            context.insert(portfolio)
+
+            for holding in entry.holdings {
+                let asset: Asset
+                if let symbol = holding.symbol {
+                    asset = Asset(
+                        type: holding.type,
+                        symbol: symbol,
+                        name: holding.name ?? symbol,
+                        unit: holding.unit ?? "adet",
+                        amount: holding.amount,
+                        currentPrice: holding.price
+                    )
+                } else {
+                    asset = Asset(
+                        type: holding.type,
+                        amount: holding.amount,
+                        currentPrice: holding.price
+                    )
+                }
+                // Analiz grafiği pencereyi en eski varlık tarihine kırpıyor;
+                // bugün eklenmiş varlıkta tek gün kalıp "yeterli geçmiş yok"
+                // diyor. Geriye tarihlemek grafiği dolduruyor.
+                asset.dateAdded = Calendar.current.date(
+                    byAdding: .day, value: -historyDays, to: Date()
+                ) ?? Date()
+                asset.portfolio = portfolio
+                context.insert(asset)
+                PortfolioManager.shared.storePurchasePrice(for: asset.id, price: holding.cost)
+                seedPriceHistory(for: holding, context: context)
+            }
+
+            seedSnapshots(for: portfolio, holdings: entry.holdings, context: context)
+        }
+
+        try? context.save()
+        Logger.log("📸 DemoData: \(plan.count) portföy tohumlandı")
+    }
+
+    /// Mevcut veriyi tamamen siler — ekran görüntüsü için temiz bir başlangıç
+    /// gerekiyor, üstüne eklemek karışık portföyler üretirdi. "Genel" korunur,
+    /// silinemez bir toplam görünümü olduğu için.
+    @MainActor
+    private static func wipe(context: ModelContext) {
+        try? context.delete(model: Asset.self)
+        try? context.delete(model: AssetPriceHistory.self)
+        try? context.delete(model: PortfolioSnapshot.self)
+        let existing = (try? context.fetch(FetchDescriptor<Portfolio>())) ?? []
+        for portfolio in existing where !portfolio.isGeneral {
+            context.delete(portfolio)
+        }
+        PortfolioManager.shared.resetPortfolio()
+    }
+
+    /// Alış fiyatından bugünkü fiyata doğru yükselen, hafif dalgalı bir eğri.
+    /// Düz çizgi sahte duruyor, tamamen rastgele olan da trendi kaybettiriyor.
+    private static func curve(from start: Double, to end: Double, day: Int) -> Double {
+        let progress = Double(day) / Double(historyDays)
+        let trend = start + (end - start) * progress
+        // Genlik ilerledikçe küçülüyor: eski günlerde daha oynak görünsün.
+        let wobble = sin(Double(day) * 0.7) * trend * 0.012 * (1 - progress * 0.5)
+        return trend + wobble
+    }
+
+    @MainActor
+    private static func seedPriceHistory(for holding: Holding, context: ModelContext) {
+        let calendar = Calendar.current
+        for day in 0...historyDays {
+            guard let date = calendar.date(byAdding: .day, value: day - historyDays, to: Date()) else { continue }
+            // Dünkü fiyat, istenen günlük değişimden geriye hesaplanıyor —
+            // movers listesini belirleyen tek nokta bu.
+            let price: Double
+            if day == historyDays - 1 {
+                price = holding.price / (1 + holding.dayChange / 100)
+            } else {
+                price = curve(from: holding.cost, to: holding.price, day: day)
+            }
+            let entry = AssetPriceHistory(
+                assetType: holding.type,
+                symbol: holding.symbol,
+                date: date,
+                price: price,
+                amount: holding.amount
+            )
+            context.insert(entry)
+        }
+    }
+
+    @MainActor
+    private static func seedSnapshots(for portfolio: Portfolio, holdings: [Holding], context: ModelContext) {
+        let calendar = Calendar.current
+        for day in 0...historyDays {
+            guard let date = calendar.date(byAdding: .day, value: day - historyDays, to: Date()) else { continue }
+            let total = holdings.reduce(0.0) { sum, holding in
+                sum + curve(from: holding.cost, to: holding.price, day: day) * holding.amount
+            }
+            context.insert(PortfolioSnapshot(date: date, totalValue: total, portfolio: portfolio))
+        }
+    }
+}
+
+#endif
