@@ -73,28 +73,33 @@ struct MainTabView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Group {
-                switch selectedTab {
-                case .portfolio:
-                    DashboardView()
-                case .analysis:
-                    AnalysisView()
-                case .rates:
-                    RatesView()
-                case .settings:
-                    SettingsView()
+        Group {
+            switch selectedTab {
+            case .portfolio:
+                DashboardView()
+            case .analysis:
+                AnalysisView()
+            case .rates:
+                RatesView()
+            case .settings:
+                SettingsView()
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // VStack yerine safeAreaInset: tab bar kendi satırında oturmayınca
+        // arkasındaki beyaz şerit kalkıyor, hap içerik üzerinde yüzüyor.
+        // Inset yine de yer ayırdığı için listelerin sonu tab bar'ın altında
+        // kaybolmuyor.
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(spacing: 0) {
+                if adManager.shouldShowBanner {
+                    SmartAdBannerView()
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .animation(.easeInOut(duration: 0.3), value: adManager.shouldShowBanner)
                 }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            if adManager.shouldShowBanner {
-                SmartAdBannerView()
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .animation(.easeInOut(duration: 0.3), value: adManager.shouldShowBanner)
+                customTabBar
             }
-
-            customTabBar
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .fullScreenCover(isPresented: $addPresenter.isPresented) {

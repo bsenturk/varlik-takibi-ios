@@ -66,11 +66,12 @@ struct DashboardView: View {
 
     // MARK: - Body
 
+    /// NavigationStack yok: içeride tek bir NavigationLink/navigationDestination
+    /// bulunmuyordu ve bar zaten gizleniyordu, ama kendi layout kabını kurduğu
+    /// için tab bar'ın safe-area inset'ini içeri geçirmiyor, son varlık satırı
+    /// tab bar'ın altında kalıyordu.
     var body: some View {
-        NavigationStack {
-            content
-                .navigationBarHidden(true)
-        }
+        content
     }
 
     private var content: some View {

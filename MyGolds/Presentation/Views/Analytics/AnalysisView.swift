@@ -436,18 +436,27 @@ struct AnalysisView: View {
         return ((asset.currentPrice - prev) / prev) * 100.0
     }
 
+    /// Günlük değişimi varlık başına **bir kez** hesaplar. Doğrudan `sorted`
+    /// karşılaştırıcısında çağrılınca her karşılaştırma yeni bir geçmiş sorgusu
+    /// açıyordu (n log n sorgu); artık n sorgu ve sıralama hazır değerler üzerinde.
+    private var dayChanges: [UUID: Double] {
+        Dictionary(uniqueKeysWithValues: scopedAssets.map { ($0.id, assetDayChangePercent($0)) })
+    }
+
     private var topGainers: [Asset] {
-        scopedAssets
-            .filter { assetDayChangePercent($0) > 0.001 }
-            .sorted { assetDayChangePercent($0) > assetDayChangePercent($1) }
+        let changes = dayChanges
+        return scopedAssets
+            .filter { (changes[$0.id] ?? 0) > 0.001 }
+            .sorted { (changes[$0.id] ?? 0) > (changes[$1.id] ?? 0) }
             .prefix(3)
             .map { $0 }
     }
 
     private var topLosers: [Asset] {
-        scopedAssets
-            .filter { assetDayChangePercent($0) < -0.001 }
-            .sorted { assetDayChangePercent($0) < assetDayChangePercent($1) }
+        let changes = dayChanges
+        return scopedAssets
+            .filter { (changes[$0.id] ?? 0) < -0.001 }
+            .sorted { (changes[$0.id] ?? 0) < (changes[$1.id] ?? 0) }
             .prefix(3)
             .map { $0 }
     }

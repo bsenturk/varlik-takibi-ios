@@ -119,12 +119,15 @@ class AssetHistoryManager {
     // MARK: - History Retrieval
 
     /// All price history for a symbol.
+    /// Sembol filtresi predicate'te: bellekte filtrelemek tüm geçmiş tablosunu
+    /// her çağrıda materyalize ediyordu ve bu fonksiyon dashboard'da varlık
+    /// başına, analizde sıralama karşılaştırıcısının içinde çağrılıyor.
     func getHistory(for symbol: String, context: ModelContext) -> [AssetPriceHistory] {
         let descriptor = FetchDescriptor<AssetPriceHistory>(
+            predicate: #Predicate { $0.symbol == symbol },
             sortBy: [SortDescriptor(\.date, order: .forward)]
         )
-        let allHistory = (try? context.fetch(descriptor)) ?? []
-        return allHistory.filter { $0.symbol == symbol }
+        return (try? context.fetch(descriptor)) ?? []
     }
 
     /// Price history within a date range.
@@ -140,12 +143,11 @@ class AssetHistoryManager {
 
         let descriptor = FetchDescriptor<AssetPriceHistory>(
             predicate: #Predicate { history in
-                history.date >= start && history.date <= end
+                history.symbol == symbol && history.date >= start && history.date <= end
             },
             sortBy: [SortDescriptor(\.date, order: .forward)]
         )
-        let allHistory = (try? context.fetch(descriptor)) ?? []
-        return allHistory.filter { $0.symbol == symbol }
+        return (try? context.fetch(descriptor)) ?? []
     }
 
     // MARK: - Cleanup
