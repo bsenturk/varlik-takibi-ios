@@ -44,19 +44,44 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
         // installs before it fires. Safe because we never schedule locals now.
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
 
-        // Ana ekran kısayolu soğuk açılışta launchOptions'tan, uygulama zaten
-        // açıkken `performActionFor`dan gelir. Burada `false` dönmek sistemin
-        // ikinci kez `performActionFor` çağırmasını engelliyor.
-        if let shortcut = launchOptions?[.shortcutItem] as? UIApplicationShortcutItem,
-           OfferCode.handle(shortcut) {
-            return false
-        }
-
         return true
     }
 
+    /// Ana ekran kısayolu `AppDelegate`e değil sahne delegesine gidiyor: SwiftUI
+    /// uygulamaları sahne tabanlı, o yüzden `application(_:performActionFor:)`
+    /// hiç çağrılmıyor. Kısayolu görebilmek için kendi sahne delegemizi
+    /// tanıtıyoruz.
     func application(
         _ application: UIApplication,
+        configurationForConnecting connectingSceneSession: UISceneSession,
+        options: UIScene.ConnectionOptions
+    ) -> UISceneConfiguration {
+        let configuration = UISceneConfiguration(
+            name: nil,
+            sessionRole: connectingSceneSession.role
+        )
+        configuration.delegateClass = SceneDelegate.self
+        return configuration
+    }
+}
+
+/// Yalnızca ana ekran kısayolunu karşılar — pencereyi SwiftUI kuruyor, burada
+/// ona dokunulmuyor.
+final class SceneDelegate: NSObject, UIWindowSceneDelegate {
+    /// Uygulama kapalıyken kısayola basıldığında.
+    func scene(
+        _ scene: UIScene,
+        willConnectTo session: UISceneSession,
+        options connectionOptions: UIScene.ConnectionOptions
+    ) {
+        if let shortcut = connectionOptions.shortcutItem {
+            OfferCode.handle(shortcut)
+        }
+    }
+
+    /// Uygulama arka plandayken kısayola basıldığında.
+    func windowScene(
+        _ windowScene: UIWindowScene,
         performActionFor shortcutItem: UIApplicationShortcutItem,
         completionHandler: @escaping (Bool) -> Void
     ) {

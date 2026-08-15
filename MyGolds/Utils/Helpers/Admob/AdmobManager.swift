@@ -60,8 +60,11 @@ class AdMobManager: ObservableObject {
                 self?.initializationComplete = true
                 Logger.log("🔧 AdMob: Initialization completed")
                 
-                // Start loading app open ad after AdMob is initialized
-                AppOpenAdManager.shared.preloadAd()
+                // Soğuk açılışın tek gösterim noktası burası: `initializeAdMob`
+                // süreç başına bir kez çalışıyor. Reklam henüz yüklü olmadığı
+                // için bu çağrı gösterimi `pendingShowTrigger`a yazıp yüklemeyi
+                // başlatır, yükleme bitince reklam bir kez gösterilir.
+                AppOpenAdManager.shared.showAdIfAvailable(trigger: .coldStart)
             }
         }
     }

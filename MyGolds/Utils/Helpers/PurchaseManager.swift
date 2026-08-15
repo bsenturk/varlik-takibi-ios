@@ -50,6 +50,7 @@ enum OfferCode {
     @MainActor
     @discardableResult
     static func handle(_ shortcut: UIApplicationShortcutItem) -> Bool {
+        Logger.log("🎁 OfferCode: handle çağrıldı — type=\(shortcut.type)")
         guard shortcut.type == shortcutType else { return false }
         FirebaseAnalyticsHelper.shared.logOfferCodeTapped()
         // Soğuk açılışta uygulama henüz aktif değil ve `open` sessizce
