@@ -24,11 +24,7 @@ struct RateCardView: View {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(iconColor.opacity(0.16))
                 .frame(width: 52, height: 52)
-                .overlay(
-                    Image(systemName: iconName)
-                        .font(.system(size: 24, weight: .semibold))
-                        .foregroundColor(iconColor)
-                )
+                .overlay(AssetGlyph(icon: iconName, color: iconColor, size: 24))
 
             // Name + buy/sell
             VStack(alignment: .leading, spacing: 6) {

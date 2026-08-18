@@ -62,10 +62,15 @@ struct ATTPermissionView: View {
                         .cornerRadius(16)
                 }
                 
-                Button(action: { onPermissionGranted(false) }) {
+                // İzin verme de sistem diyalogunu açar; reddi kullanıcı orada verir,
+                // yoksa ATT durumu "notDetermined" kalıp bir daha hiç sorulamıyor.
+                Button(action: { requestATTPermission() }) {
                     Text("İzin Verme")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .contentShape(Rectangle())
                 }
                 .padding(.top, 8)
             }

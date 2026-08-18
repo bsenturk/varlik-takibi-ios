@@ -32,6 +32,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
         // Start AdMob (handled by AdMobManager)
         Logger.log("🔧 AdMob initialization will be handled by AdMobManager")
 
+        #if DEBUG
+        AdPaywallGate.selfCheck()
+        #endif
+
         UNUserNotificationCenter.current().setBadgeCount(0) { _ in }
 
         // One-time cleanup: older versions scheduled local reminder notifications
@@ -41,6 +45,47 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
 
         return true
+    }
+
+    /// Ana ekran kısayolu `AppDelegate`e değil sahne delegesine gidiyor: SwiftUI
+    /// uygulamaları sahne tabanlı, o yüzden `application(_:performActionFor:)`
+    /// hiç çağrılmıyor. Kısayolu görebilmek için kendi sahne delegemizi
+    /// tanıtıyoruz.
+    func application(
+        _ application: UIApplication,
+        configurationForConnecting connectingSceneSession: UISceneSession,
+        options: UIScene.ConnectionOptions
+    ) -> UISceneConfiguration {
+        let configuration = UISceneConfiguration(
+            name: nil,
+            sessionRole: connectingSceneSession.role
+        )
+        configuration.delegateClass = SceneDelegate.self
+        return configuration
+    }
+}
+
+/// Yalnızca ana ekran kısayolunu karşılar — pencereyi SwiftUI kuruyor, burada
+/// ona dokunulmuyor.
+final class SceneDelegate: NSObject, UIWindowSceneDelegate {
+    /// Uygulama kapalıyken kısayola basıldığında.
+    func scene(
+        _ scene: UIScene,
+        willConnectTo session: UISceneSession,
+        options connectionOptions: UIScene.ConnectionOptions
+    ) {
+        if let shortcut = connectionOptions.shortcutItem {
+            OfferCode.handle(shortcut)
+        }
+    }
+
+    /// Uygulama arka plandayken kısayola basıldığında.
+    func windowScene(
+        _ windowScene: UIWindowScene,
+        performActionFor shortcutItem: UIApplicationShortcutItem,
+        completionHandler: @escaping (Bool) -> Void
+    ) {
+        completionHandler(OfferCode.handle(shortcutItem))
     }
 
     // Firebase forwards the APNs token here automatically (method swizzling)
@@ -346,6 +391,10 @@ struct VarlikDefterimApp: App {
         // Clear badge when app returns
         notificationManager.clearBadge()
 
+        // İndirim kodu App Store'da kullanılıp geri dönülmüş olabilir; Pro'nun
+        // hemen açılması için entitlement'ı tazele.
+        Task { await PurchaseManager.shared.refreshCustomerInfo() }
+
         // Re-check in case the user changed the permission in iOS Settings
         // while the app was backgrounded (e.g. via our "open Settings" link).
         notificationManager.checkAuthorizationStatus()
@@ -353,10 +402,7 @@ struct VarlikDefterimApp: App {
         // Record daily snapshots when returning from background
         recordDailySnapshots()
         
-        // App Open Ad'ı göster (arka plandan dönüşte)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            Logger.log("🔄 Attempting to show App Open Ad due to background return")
-            appOpenAdManager.showAdIfAvailable()
-        }
+        // App-open reklamının tek sahibi AppLifecycleObserver (arka planda geçen
+        // süreyi o biliyor); burada ikinci kez tetiklenmiyor.
     }
 }

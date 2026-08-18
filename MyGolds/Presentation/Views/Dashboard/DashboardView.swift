@@ -18,6 +18,7 @@ struct DashboardView: View {
 
     @AppStorage("selectedCurrency") private var selectedCurrency: Currency = .TRY
     @AppStorage("selectedPortfolioID") private var selectedPortfolioIDString: String = ""
+    @AppStorage(UserDefaultsManager.maskedPortfoliosKey) private var maskedPortfolios = ""
 
     @State private var editorMode: EditorMode?
     @State private var assetToDelete: Asset?
@@ -51,6 +52,11 @@ struct DashboardView: View {
 
     private var isGeneralSelected: Bool { selectedPortfolio?.isGeneral ?? false }
 
+    /// Seçili portföyün gözü kapalı mı — satır tutarları buna göre maskelenir.
+    private var valuesMasked: Bool {
+        UserDefaultsManager.isPortfolioMasked(maskedPortfolios, selectedPortfolio?.id)
+    }
+
     /// Assets in scope for the current selection.
     private var scopedAssets: [Asset] {
         guard let selected = selectedPortfolio else { return [] }
@@ -60,11 +66,12 @@ struct DashboardView: View {
 
     // MARK: - Body
 
+    /// NavigationStack yok: içeride tek bir NavigationLink/navigationDestination
+    /// bulunmuyordu ve bar zaten gizleniyordu, ama kendi layout kabını kurduğu
+    /// için tab bar'ın safe-area inset'ini içeri geçirmiyor, son varlık satırı
+    /// tab bar'ın altında kalıyordu.
     var body: some View {
-        NavigationStack {
-            content
-                .navigationBarHidden(true)
-        }
+        content
     }
 
     private var content: some View {
@@ -127,7 +134,7 @@ struct DashboardView: View {
             }
         }
         .onChange(of: assets) { _, _ in portfolioManager.updatePortfolio(with: assets) }
-        .sheet(isPresented: $showingPaywall) {
+        .fullScreenCover(isPresented: $showingPaywall) {
             PaywallView(onClose: { showingPaywall = false }, context: .portfolioLimit)
         }
         .sheet(item: $assetToEdit) { asset in
@@ -203,6 +210,7 @@ struct DashboardView: View {
         BalanceCardView(
             portfolioColor: selectedPortfolio?.color ?? .blue,
             metrics: PortfolioMetrics.compute(for: scopedAssets, context: modelContext),
+            portfolioID: selectedPortfolio?.id,
             selectedCurrency: $selectedCurrency
         )
     }
@@ -227,7 +235,7 @@ struct DashboardView: View {
                         Button {
                             assetToEdit = asset
                         } label: {
-                            DashboardRowView(item: item)
+                            DashboardRowView(item: item, valuesMasked: valuesMasked)
                         }
                         .buttonStyle(.plain)
                         .contextMenu {
@@ -240,7 +248,7 @@ struct DashboardView: View {
                             } label: { Label("Sil", systemImage: "trash") }
                         }
                     } else {
-                        DashboardRowView(item: item)
+                        DashboardRowView(item: item, valuesMasked: valuesMasked)
                     }
                 }
             }

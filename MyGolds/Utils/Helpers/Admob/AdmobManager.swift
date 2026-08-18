@@ -39,10 +39,10 @@ class AdMobManager: ObservableObject {
     
     @Published var showBanner = true
     @Published var adError = false
-    @Published var bannerHeight: CGFloat = 50
     @Published var isAppOpenAdShowing = false
     
-    private var initializationComplete = false
+    /// GADMobileAds.start() tamamlandı mı — SDK hazır olmadan reklam isteği atılmamalı.
+    private(set) var initializationComplete = false
     
     private init() {
         initializeAdMob()
@@ -60,8 +60,11 @@ class AdMobManager: ObservableObject {
                 self?.initializationComplete = true
                 Logger.log("🔧 AdMob: Initialization completed")
                 
-                // Start loading app open ad after AdMob is initialized
-                AppOpenAdManager.shared.preloadAd()
+                // Soğuk açılışın tek gösterim noktası burası: `initializeAdMob`
+                // süreç başına bir kez çalışıyor. Reklam henüz yüklü olmadığı
+                // için bu çağrı gösterimi `pendingShowTrigger`a yazıp yüklemeyi
+                // başlatır, yükleme bitince reklam bir kez gösterilir.
+                AppOpenAdManager.shared.showAdIfAvailable(trigger: .coldStart)
             }
         }
     }
@@ -92,10 +95,6 @@ class AdMobManager: ObservableObject {
         withAnimation(.easeIn(duration: 0.3)) {
             showBanner = true
         }
-    }
-    
-    func setBannerHeight(_ height: CGFloat) {
-        bannerHeight = height
     }
     
     // MARK: - State Management

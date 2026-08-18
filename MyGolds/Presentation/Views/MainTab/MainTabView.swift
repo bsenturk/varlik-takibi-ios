@@ -33,7 +33,8 @@ struct MainTabView: View {
     @AppStorage("selectedPortfolioID") private var selectedPortfolioIDString: String = ""
 
     @State private var selectedTab: Tab = .portfolio
-    @State private var showOnboardingPaywall = false
+    /// Non-nil while a paywall is up; the case also picks the headline.
+    @State private var paywallContext: PaywallContext?
     @StateObject private var adManager = AdMobManager.shared
     @StateObject private var appOpenAdManager = AppOpenAdManager.shared
     @StateObject private var addPresenter = AddAssetPresenter.shared
@@ -46,7 +47,7 @@ struct MainTabView: View {
             switch self {
             case .portfolio: return "Portföy"
             case .analysis: return "Analiz"
-            case .rates: return "Kurlar"
+            case .rates: return "Piyasalar"
             case .settings: return "Ayarlar"
             }
         }
@@ -54,7 +55,8 @@ struct MainTabView: View {
         var iconName: String {
             switch self {
             case .portfolio: return "creditcard.fill"
-            case .analysis: return "chart.xyaxis.line"
+            // Piyasalar'ın çizgi grafiğine benzemesin diye pasta grafik.
+            case .analysis: return "chart.pie.fill"
             case .rates: return "chart.line.uptrend.xyaxis"
             case .settings: return "gearshape.fill"
             }
@@ -71,36 +73,41 @@ struct MainTabView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Group {
-                switch selectedTab {
-                case .portfolio:
-                    DashboardView()
-                case .analysis:
-                    AnalysisView()
-                case .rates:
-                    RatesView()
-                case .settings:
-                    SettingsView()
+        Group {
+            switch selectedTab {
+            case .portfolio:
+                DashboardView()
+            case .analysis:
+                AnalysisView()
+            case .rates:
+                RatesView()
+            case .settings:
+                SettingsView()
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // VStack yerine safeAreaInset: tab bar kendi satırında oturmayınca
+        // arkasındaki beyaz şerit kalkıyor, hap içerik üzerinde yüzüyor.
+        // Inset yine de yer ayırdığı için listelerin sonu tab bar'ın altında
+        // kaybolmuyor.
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(spacing: 0) {
+                if adManager.shouldShowBanner {
+                    SmartAdBannerView()
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .animation(.easeInOut(duration: 0.3), value: adManager.shouldShowBanner)
                 }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            if adManager.shouldShowBanner {
-                SmartAdBannerView()
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .animation(.easeInOut(duration: 0.3), value: adManager.shouldShowBanner)
+                customTabBar
             }
-
-            customTabBar
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .fullScreenCover(isPresented: $addPresenter.isPresented) {
             AddAssetSheet(targetPortfolio: addTargetPortfolio)
                 .environmentObject(interstitialAdManager)
         }
-        .sheet(isPresented: $showOnboardingPaywall) {
-            PaywallView(onClose: { showOnboardingPaywall = false }, context: .onboarding)
+        .fullScreenCover(item: $paywallContext) { context in
+            PaywallView(onClose: { paywallContext = nil }, context: context)
         }
         .onAppear {
             if adManager.shouldShowBanner {
@@ -144,16 +151,27 @@ struct MainTabView: View {
             guard !UserDefaultsManager.shared.isPro, !assets.isEmpty else { return }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                 guard !UserDefaultsManager.shared.isPro else { return }
-                showOnboardingPaywall = true
+                paywallContext = .onboarding
             }
             return
         }
 
         // Normal flow: interstitial only if the user actually added something.
-        if didAddAsset {
+        guard didAddAsset else { return }
+
+        // Her 3. reklam fırsatında reklam yerine paywall. `canShowAd` önce
+        // sorulur ki sayaç sadece gerçekten reklam çıkacak anları saysın.
+        if !UserDefaultsManager.shared.isPro,
+           interstitialAdManager.canShowAd,
+           AdPaywallGate.shouldShowPaywall() {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                interstitialAdManager.showAdIfAvailable()
+                paywallContext = .ads
             }
+            return
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            interstitialAdManager.showAdIfAvailable()
         }
     }
 

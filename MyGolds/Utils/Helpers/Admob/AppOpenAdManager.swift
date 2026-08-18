@@ -17,6 +17,9 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
     private var appOpenAd: GADAppOpenAd?
     private var loadTime = Date()
     @Published var isAdShowing = false
+    /// Gösterim istendi ama reklam henüz yüklü değildi — yükleme bitince gösterilir.
+    /// Bu olmadan her `loadAd` başarısı yeni bir gösterime yol açıyordu (döngü).
+    private var pendingShowTrigger: Trigger?
     @Published var isAdLoaded = false
     @Published var isLoadingAd = false
     
@@ -26,13 +29,34 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
     // Test Ad Unit ID for development
     private let testAdUnitID = "ca-app-pub-3940256099942544/5575463023"
     
-    // Minimum time interval between ad shows (in seconds)
-    private let minimumAdInterval: TimeInterval = 300 // 5 minutes
-    private var lastAdShowTime: Date?
+    /// Reklamı ne tetikledi — frekans kapağı buna göre değişiyor.
+    enum Trigger {
+        /// Uygulamanın soğuk açılışı (kullanıcı bilinçli olarak uygulamayı açtı).
+        case coldStart
+        /// Arka plandan dönüş; gün içinde sık olduğu için kapak daha uzun.
+        case foregroundReturn
 
+        var minimumInterval: TimeInterval {
+            switch self {
+            case .coldStart: return 0           // her uygulama açılışında gösterilir
+            case .foregroundReturn: return 300  // 5 dk
+            }
+        }
+    }
+
+    private static let lastShowKey = "last_app_open_ad_show"
+
+    /// UserDefaults'ta: uygulamayı kapatıp açarak frekans kapağı aşılmasın.
+    private var lastAdShowTime: Date? {
+        get { UserDefaults.standard.object(forKey: Self.lastShowKey) as? Date }
+        set { UserDefaults.standard.set(newValue, forKey: Self.lastShowKey) }
+    }
+
+    /// Yükleme init'te DEĞİL, AdMob SDK'sı başladıktan sonra tetiklenir
+    /// (AdMobManager.initializeAdMob → preloadAd). SDK hazır olmadan atılan istek
+    /// hataya düşüp açılış anını kaçırıyordu.
     private override init() {
         super.init()
-        loadAd()
     }
     
     // MARK: - Public Properties
@@ -43,24 +67,45 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
                !isAdShowing
     }
     
+    /// Frekans kapağı: son gösterimden bu yana yeterli süre geçti mi.
+    private func isWithinFrequencyCap(_ trigger: Trigger) -> Bool {
+        guard let last = lastAdShowTime else { return true }
+        return Date().timeIntervalSince(last) >= trigger.minimumInterval
+    }
+
     var canShowAd: Bool {
-        guard isAdAvailable else { return false }
+        isAdAvailable && isWithinFrequencyCap(.coldStart) && FullScreenAdGate.shared.canShow
+    }
 
-        // Global gate: never stack right after another full-screen ad (interstitial).
-        guard FullScreenAdGate.shared.canShow else { return false }
+    /// Foreground'daki key window'un root'u. `connectedScenes.first` açılışta
+    /// yanlış sahneyi verip reklamı sessizce düşürüyordu.
+    private static var rootViewController: UIViewController? {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first { $0.activationState == .foregroundActive }?
+            .windows.first(where: \.isKeyWindow)?
+            .rootViewController
+    }
 
-        // Check minimum interval between ads
-        if let lastShowTime = lastAdShowTime {
-            let timeSinceLastAd = Date().timeIntervalSince(lastShowTime)
-            return timeSinceLastAd >= minimumAdInterval
-        }
-
-        return true
+    /// `Did dismiss` bazen hiç gelmiyor (sunum yarıda kesilirse). Ekranda reklam
+    /// yokken bayrak takılı kalırsa banner oturum boyunca gizli kalıyordu.
+    func clearStaleShowingState() {
+        guard isAdShowing, Self.rootViewController?.presentedViewController == nil else { return }
+        Logger.log("📱 App Open Ad: Stale isAdShowing cleared")
+        isAdShowing = false
+        AdMobManager.shared.showBannerAd()
     }
     
     // MARK: - Load Ad
     
     func loadAd() {
+        // SDK başlamadan atılan istek hataya düşüyor; start() callback'i zaten
+        // preloadAd() çağırıyor, o yüzden burada sessizce bekle.
+        guard AdMobManager.shared.initializationComplete else {
+            Logger.log("📱 App Open Ad: SDK not ready — deferring load")
+            return
+        }
+
         guard !isLoadingAd && !isAdAvailable else {
             Logger.log("📱 App Open Ad: Already loaded or loading")
             return
@@ -107,13 +152,23 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
                 self?.appOpenAd?.fullScreenContentDelegate = self
                 self?.loadTime = Date()
                 self?.isAdLoaded = true
-                self?.showAdIfAvailable()
+                if let trigger = self?.pendingShowTrigger {
+                    self?.pendingShowTrigger = nil
+                    self?.showAdIfAvailable(trigger: trigger)
+                }
             }
         }
     }
     
     // MARK: - Show Ad
-    func showAdIfAvailable() {
+
+    /// `retriesLeft`: yalnızca *geçici* engeller için (pencere henüz hazır değil,
+    /// ekranda sheet var, başka bir tam ekran reklam yeni kapandı) saniyede bir
+    /// yeniden denenir. Frekans kapağı gibi bilinçli engellerde tekrar denenmez —
+    /// amaç açılışı kaçırmamak, kullanıcıyı reklama boğmak değil.
+    func showAdIfAvailable(trigger: Trigger = .coldStart, retriesLeft: Int = 4) {
+        clearStaleShowingState()
+
         // No ads for Pro users.
         guard !UserDefaultsManager.shared.isPro else { return }
 
@@ -125,27 +180,33 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
             return
         }
 
-        guard canShowAd else {
-            Logger.log("📱 App Open Ad: Cannot show ad - not available or too soon")
-            if !isAdAvailable && !isLoadingAd {
-                loadAd() // Load new ad for next time
+        guard isWithinFrequencyCap(trigger) else {
+            Logger.log("📱 App Open Ad: Frequency cap — skipping")
+            return
+        }
+
+        guard isAdAvailable else {
+            // Henüz yüklenmediyse yükle ve gösterimi beklet.
+            pendingShowTrigger = trigger
+            if !isLoadingAd { loadAd() }
+            return
+        }
+
+        guard FullScreenAdGate.shared.canShow,
+              let rootViewController = Self.rootViewController,
+              rootViewController.presentedViewController == nil else {
+            guard retriesLeft > 0 else {
+                Logger.log("📱 App Open Ad: Still blocked, giving up for this launch")
+                return
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+                self?.showAdIfAvailable(trigger: trigger, retriesLeft: retriesLeft - 1)
             }
             return
         }
-        
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let rootViewController = windowScene.windows.first?.rootViewController else {
-            Logger.log("📱 App Open Ad: No root view controller found")
-            return
-        }
-        
-        // Check if there's already a presented view controller
-        if rootViewController.presentedViewController != nil {
-            Logger.log("📱 App Open Ad: Another view controller is presented, skipping")
-            return
-        }
-        
+
         Logger.log("📱 App Open Ad: Showing ad")
+        pendingShowTrigger = nil
         isAdShowing = true
         lastAdShowTime = Date()
         FullScreenAdGate.shared.recordShown()
@@ -176,16 +237,6 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
     func forceShowAd() {
          // Reset restrictions for test
          lastAdShowTime = nil
-         
-         if !isAdLoaded {
-             loadAd()
-             
-             // Wait for load and then show
-             DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                 self.showAdIfAvailable()
-             }
-             return
-         }
          
          showAdIfAvailable()
      }

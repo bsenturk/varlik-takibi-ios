@@ -8,7 +8,59 @@
 //
 
 import Foundation
+import UIKit
 import RevenueCat
+
+/// Ana ekranda uygulamaya uzun basınca çıkan menüdeki "%30 indirim" kısayolu.
+///
+/// Kod App Store Connect'te yıllık abonelik altında **Custom Code** olarak
+/// tanımlı. Kısayol statik değil dinamik: Pro kullanıcıya indirim göstermenin
+/// anlamı yok, `refreshShortcut()` onu listeden çıkarıyor.
+enum OfferCode {
+    static let shortcutType = "com.xptapps.assetbook.offer30"
+    /// App Store Connect'teki Custom Code ile birebir aynı olmalı.
+    static let code = "VARLIK30"
+    private static let appleID = "6479618311"
+
+    /// Redeem sayfasını kod ön-doldurulmuş açar. StoreKit'in kendi
+    /// `presentCodeRedemptionSheet`'i kodu dolduramıyor, kullanıcıya elle
+    /// yazdırmak bu akışta kaybetmenin en garanti yolu.
+    static var redeemURL: URL {
+        URL(string: "https://apps.apple.com/redeem?ctx=offercodes&id=\(appleID)&code=\(code)")!
+    }
+
+    @MainActor
+    private static var item: UIApplicationShortcutItem {
+        UIApplicationShortcutItem(
+            type: shortcutType,
+            localizedTitle: "%30 indirim",
+            localizedSubtitle: "Yıllık Pro üyelikte",
+            icon: UIApplicationShortcutIcon(systemImageName: "gift.fill")
+        )
+    }
+
+    /// Pro durumuna göre kısayolu ekler/kaldırır. Entitlement her
+    /// güncellendiğinde çağrılıyor.
+    @MainActor
+    static func refreshShortcut() {
+        UIApplication.shared.shortcutItems = UserDefaultsManager.shared.isPro ? [] : [item]
+    }
+
+    /// Kısayol dokunuşunu karşılar. `true` dönerse olay bize aitti.
+    @MainActor
+    @discardableResult
+    static func handle(_ shortcut: UIApplicationShortcutItem) -> Bool {
+        Logger.log("🎁 OfferCode: handle çağrıldı — type=\(shortcut.type)")
+        guard shortcut.type == shortcutType else { return false }
+        FirebaseAnalyticsHelper.shared.logOfferCodeTapped()
+        // Soğuk açılışta uygulama henüz aktif değil ve `open` sessizce
+        // başarısız olabiliyor; bir tur bekletiyoruz.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            UIApplication.shared.open(redeemURL)
+        }
+        return true
+    }
+}
 
 @MainActor
 final class PurchaseManager: NSObject, ObservableObject {
@@ -28,6 +80,12 @@ final class PurchaseManager: NSObject, ObservableObject {
     @Published private(set) var isLoadingOfferings = false
     /// True while a purchase or restore is in flight (drives the paywall spinner).
     @Published private(set) var purchaseInProgress = false
+    /// Deneme hakkı hâlâ duruyor mu? Ürünün intro offer'ı, denemeyi bir kez
+    /// kullanmış kullanıcıya da görünür; bu bayrak olmadan paywall "Ücretsiz
+    /// Dene" yazıp kullanıcıdan anında ücret alır.
+    /// ponytail: yalnızca `.ineligible` false sayılır — unknown (offline/sandbox)
+    /// eski davranışta kalsın.
+    @Published private(set) var trialEligible = true
 
     private override init() { super.init() }
 
@@ -49,6 +107,7 @@ final class PurchaseManager: NSObject, ObservableObject {
     /// Call after `configure()`.
     func start() {
         Purchases.shared.delegate = self
+        OfferCode.refreshShortcut()
         Task { await refreshCustomerInfo() }
         Task { await loadOfferings() }
     }
@@ -64,6 +123,7 @@ final class PurchaseManager: NSObject, ObservableObject {
             self.currentOffering = offerings.current
             let current = offerings.current
             Logger.log("✅ RevenueCat: offering '\(current?.identifier ?? "nil")' loaded with \(current?.availablePackages.count ?? 0) package(s): \(current?.availablePackages.map { $0.storeProduct.productIdentifier } ?? [])")
+            await refreshTrialEligibility()
         } catch {
             let ns = error as NSError
             Logger.log("❌ RevenueCat: failed to load offerings - \(ns.localizedDescription)")
@@ -71,6 +131,15 @@ final class PurchaseManager: NSObject, ObservableObject {
                 Logger.log("   ↳ underlying: \(underlying.localizedDescription) | \(underlying.userInfo)")
             }
         }
+    }
+
+    /// Deneme uygunluğu abonelik grubu bazında olduğu için tek ürünü sormak yeter.
+    private func refreshTrialEligibility() async {
+        guard let product = (currentOffering?.annual ?? currentOffering?.availablePackages.first)?.storeProduct
+        else { return }
+        let status = await Purchases.shared.checkTrialOrIntroDiscountEligibility(product: product)
+        trialEligible = (status != .ineligible)
+        Logger.log("💎 RevenueCat: intro eligibility → \(status) (trialEligible: \(trialEligible))")
     }
 
     func refreshCustomerInfo() async {
@@ -124,13 +193,35 @@ final class PurchaseManager: NSObject, ObservableObject {
         return !info.entitlements.active.isEmpty
     }
 
+    #if DEBUG
+    /// Screenshot/QA için Pro'yu zorla açık tutar. RevenueCat senkronu artık her
+    /// foreground'da çalıştığı için düz bir `isPro = true` bir sonraki dönüşte
+    /// eziliyor; bayrak `updateEntitlement` tarafından dikkate alınıyor.
+    private static let forceProKey = "debug_force_pro"
+
+    static var debugForcePro: Bool {
+        get { UserDefaults.standard.bool(forKey: forceProKey) }
+        set {
+            UserDefaults.standard.set(newValue, forKey: forceProKey)
+            UserDefaultsManager.shared.isPro = newValue
+            if newValue { AdMobManager.shared.hideBanner() } else { AdMobManager.shared.showBannerAd() }
+            OfferCode.refreshShortcut()
+            Logger.log("🐛 DEBUG: force Pro → \(newValue)")
+        }
+    }
+    #endif
+
     private func updateEntitlement(from info: CustomerInfo) {
-        let pro = isSubscribed(info)
+        var pro = isSubscribed(info)
+        #if DEBUG
+        if Self.debugForcePro { pro = true }
+        #endif
         if UserDefaultsManager.shared.isPro != pro {
             UserDefaultsManager.shared.isPro = pro
             Logger.log("💎 RevenueCat: Pro entitlement → \(pro)")
         }
         if pro { AdMobManager.shared.hideBanner() }
+        OfferCode.refreshShortcut()
     }
 }
 

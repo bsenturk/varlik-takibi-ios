@@ -17,11 +17,8 @@ struct AdMobBannerView: UIViewRepresentable {
         return "ca-app-pub-2545255000258244/1184209212"
         #endif
     }
+    /// Anchored adaptive boyut; SmartAdBannerView ölçtüğü genişliğe göre verir.
     let adSize: GADAdSize
-    
-    init(adSize: GADAdSize = GADAdSizeBanner) {
-        self.adSize = adSize
-    }
     
     func makeUIView(context: Context) -> GADBannerView {
         let bannerView = GADBannerView(adSize: adSize)

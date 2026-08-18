@@ -65,3 +65,11 @@ extension Double {
         return formatter.string(from: NSNumber(value: self)) ?? "\(currency.symbol)0,00"
     }
 }
+
+extension String {
+    /// Portföyün gözü kapalıyken tutarın yerine geçen metin. Bayrağı
+    /// `UserDefaultsManager.isPortfolioMasked(...)` ile hesaplayan ekranlar çağırır.
+    func maskedIfNeeded(_ isMasked: Bool) -> String {
+        isMasked ? "••••••" : self
+    }
+}

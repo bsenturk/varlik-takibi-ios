@@ -15,6 +15,23 @@ class UserDefaultsManager: ObservableObject {
         case pendingOnboardingPaywall = "pending_onboarding_paywall"
     }
 
+    /// "Varlıkları gizle" (göz ikonu) — portföy bazlı. Gizlenen portföylerin id'leri
+    /// virgülle ayrılmış tek bir string'de tutulur; ekranlar `@AppStorage` ile okur,
+    /// böylece bir portföyün gözü kapatıldığında yalnızca o portföyün tutarları maskelenir.
+    static let maskedPortfoliosKey = "masked_portfolio_ids"
+
+    static func isPortfolioMasked(_ stored: String, _ portfolioID: UUID?) -> Bool {
+        guard let portfolioID else { return false }
+        return stored.split(separator: ",").contains(Substring(portfolioID.uuidString))
+    }
+
+    static func togglingPortfolioMask(_ stored: String, _ portfolioID: UUID) -> String {
+        var ids = stored.split(separator: ",").map(String.init)
+        let key = portfolioID.uuidString
+        if let index = ids.firstIndex(of: key) { ids.remove(at: index) } else { ids.append(key) }
+        return ids.joined(separator: ",")
+    }
+
     /// Local "Varlık Pro" entitlement flag. Real StoreKit purchases will set this later.
     @Published var isPro: Bool {
         didSet {

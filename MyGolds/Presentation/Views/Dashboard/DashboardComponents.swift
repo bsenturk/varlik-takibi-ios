@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 // MARK: - Row item view models
 
@@ -25,6 +26,23 @@ struct DashboardRowItem: Identifiable {
 
 // MARK: - Icon tile
 
+/// SF Symbol adı ya da emoji basar — dövizler ikon yerine bayrak emojisi kullanıyor.
+struct AssetGlyph: View {
+    let icon: String
+    let color: Color
+    let size: CGFloat
+
+    var body: some View {
+        if UIImage(systemName: icon) != nil {
+            Image(systemName: icon)
+                .font(.system(size: size, weight: .semibold))
+                .foregroundColor(color)
+        } else {
+            Text(icon).font(.system(size: size * 1.2))
+        }
+    }
+}
+
 struct AssetIconTile: View {
     let icon: String
     let tintHex: String
@@ -34,11 +52,7 @@ struct AssetIconTile: View {
         RoundedRectangle(cornerRadius: 12, style: .continuous)
             .fill(Color(hex: tintHex).opacity(0.16))
             .frame(width: size, height: size)
-            .overlay(
-                Image(systemName: icon)
-                    .font(.system(size: size * 0.42, weight: .semibold))
-                    .foregroundColor(Color(hex: tintHex))
-            )
+            .overlay(AssetGlyph(icon: icon, color: Color(hex: tintHex), size: size * 0.42))
     }
 }
 
@@ -46,6 +60,8 @@ struct AssetIconTile: View {
 
 struct DashboardRowView: View {
     let item: DashboardRowItem
+    /// Bulunduğu portföyün gözü kapalıysa tutarlar maskelenir.
+    var valuesMasked: Bool = false
     @AppStorage("selectedCurrency") private var selectedCurrency: Currency = .TRY
 
     private var isPositive: Bool { item.changePercent >= 0 }
@@ -76,7 +92,8 @@ struct DashboardRowView: View {
             VStack(alignment: .trailing, spacing: 3) {
                 Text(PortfolioManager.shared
                     .convertToTargetCurrency(item.value, targetCurrency: selectedCurrency)
-                    .formatAsCurrency(currency: selectedCurrency))
+                    .formatAsCurrency(currency: selectedCurrency)
+                    .maskedIfNeeded(valuesMasked))
                     .font(.system(size: 15, weight: .bold))
                     .foregroundColor(.primary)
                     .lineLimit(1)
@@ -109,8 +126,15 @@ struct DashboardRowView: View {
 struct BalanceCardView: View {
     let portfolioColor: PortfolioColor
     let metrics: PortfolioMetrics
+    /// Göz ikonunun hangi portföyü gizleyeceği. nil ise ikon gösterilmez (onboarding mock'ları).
+    var portfolioID: UUID? = nil
     @Binding var selectedCurrency: Currency
     @StateObject private var portfolioManager = PortfolioManager.shared
+    @AppStorage(UserDefaultsManager.maskedPortfoliosKey) private var maskedPortfolios = ""
+
+    private var valuesMasked: Bool {
+        UserDefaultsManager.isPortfolioMasked(maskedPortfolios, portfolioID)
+    }
 
     private var convertedTotal: Double {
         portfolioManager.convertToTargetCurrency(metrics.totalValue, targetCurrency: selectedCurrency)
@@ -127,10 +151,11 @@ struct BalanceCardView: View {
                     .font(.system(size: 15, weight: .medium))
                     .foregroundColor(.white.opacity(0.85))
                 Spacer()
+                if let portfolioID { maskToggle(portfolioID) }
                 currencyMenu
             }
 
-            Text(convertedTotal.formatAsCurrency(currency: selectedCurrency))
+            Text(convertedTotal.formatAsCurrency(currency: selectedCurrency).maskedIfNeeded(valuesMasked))
                 .font(.system(size: 34, weight: .heavy))
                 .foregroundColor(.white)
                 .minimumScaleFactor(0.6)
@@ -145,7 +170,7 @@ struct BalanceCardView: View {
                             .font(.system(size: 13, weight: .bold))
                         Text("·")
                             .font(.system(size: 13, weight: .bold))
-                        Text("\(metrics.isPositive ? "+" : "-")\(convertedChange.magnitude.formatAsCurrency(currency: selectedCurrency))")
+                        Text("\(metrics.isPositive ? "+" : "-")\(convertedChange.magnitude.formatAsCurrency(currency: selectedCurrency).maskedIfNeeded(valuesMasked))")
                             .font(.system(size: 13, weight: .bold))
                     }
                     .foregroundColor(.white)
@@ -177,6 +202,24 @@ struct BalanceCardView: View {
         )
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .shadow(color: portfolioColor.color.opacity(0.35), radius: 18, x: 0, y: 10)
+    }
+
+    /// Göz ikonu: yalnızca bu portföyün tutarlarını gizler/gösterir (tercih kalıcı).
+    private func maskToggle(_ portfolioID: UUID) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                maskedPortfolios = UserDefaultsManager.togglingPortfolioMask(maskedPortfolios, portfolioID)
+            }
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        } label: {
+            Image(systemName: valuesMasked ? "eye.slash.fill" : "eye.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(.white)
+                .frame(width: 32, height: 32)
+                .background(Color.white.opacity(0.18))
+                .clipShape(Circle())
+        }
+        .accessibilityLabel(valuesMasked ? "Tutarları göster" : "Tutarları gizle")
     }
 
     private var currencyMenu: some View {
