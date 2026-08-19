@@ -4,6 +4,20 @@
 # can find supabase/functions/<name>/index.ts.
 project_id = "varlik-takibi"
 
+# pg_cron bu fonksiyonları Authorization header'ı olmadan çağırıyor; JWT
+# doğrulaması açık kalırsa her tick 401 döner (fetch-gold-fx 13.08'de böyle bozuldu).
+[functions.fetch-gold-fx]
+verify_jwt = false
+
+[functions.fetch-crypto]
+verify_jwt = false
+
+[functions.fetch-yahoo]
+verify_jwt = false
+
+[functions.scrape-tefas]
+verify_jwt = false
+
 [functions.tefas-sync]
 verify_jwt = false
 
