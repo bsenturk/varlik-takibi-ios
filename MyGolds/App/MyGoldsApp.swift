@@ -8,6 +8,7 @@
 import SwiftUI
 import FirebaseCore
 import FirebaseMessaging
+import UserNotifications
 import GoogleMobileAds
 import FirebaseCrashlytics
 import AppTrackingTransparency
@@ -95,14 +96,23 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
         guard let fcmToken else { return }
         Logger.log("📱 FCM token received")
-        PushTokenService.syncToken(fcmToken, enabled: NotificationManager.shared.isAuthorized)
+        // `NotificationManager.isAuthorized` @Published ve asenkron doluyor;
+        // bu callback açılışta erken geldiği için izin vermiş kullanıcıda bile
+        // `false` okunup cihaz sunucuda kapatılıyordu. İzin durumu doğrudan
+        // sistemden sorulur.
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            PushTokenService.syncToken(fcmToken, enabled: settings.authorizationStatus == .authorized)
+        }
     }
 
-    // Diagnostic only: Firebase swizzles these too, but doesn't log them, so
-    // add our own to see directly whether Apple actually issued a token.
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         let hex = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
         Logger.log("📱 APNs device token received: \(hex)")
+        // FCM token'ı APNs token'ı olmadan üretilemiyor ("No APNS token
+        // specified before fetching FCM Token"). `registerForRemoteNotifications`
+        // asenkron olduğu için izin verildiği anda çalışan senkron denemeler
+        // ilk kurulumda kaçırıyordu — kaydın güvenilir tetikleyicisi burası.
+        PushTokenService.refresh()
     }
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {

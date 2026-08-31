@@ -38,11 +38,15 @@ final class NotificationManager: ObservableObject {
                 self.isAuthorized = settings.authorizationStatus == .authorized
                 Logger.log("📱 Notification status: \(settings.authorizationStatus.rawValue)")
 
+                // Eskiden yalnızca `false` yazılabiliyordu: izin verildiğinde
+                // APNs'e kaydolunuyor ama sunucudaki `notifications_enabled`
+                // bayrağını true'ya çeviren hiçbir yol yoktu, cihaz kapalı
+                // kalıyordu. `refresh` izni sistemden okuyup token'la birlikte
+                // doğru durumu yazar (tekrarlarda RPC atmaz).
                 if self.isAuthorized {
                     UIApplication.shared.registerForRemoteNotifications()
-                } else {
-                    PushTokenService.setEnabled(false)
                 }
+                PushTokenService.refresh()
             }
         }
     }
