@@ -224,6 +224,8 @@ struct PaywallView: View {
     @State private var selectedPlan: ProPlan = .yearly
     @State private var alertMessage: String?
     @State private var showingPrivacy = false
+    /// Paywall'ın açıldığı an — kapatmada "kaç saniye bakıldı" için.
+    @State private var shownAt = Date()
 
     /// Apple's standard EULA — used unless a custom Terms of Use URL is provided.
     private let termsURL = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
@@ -269,7 +271,10 @@ struct PaywallView: View {
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
             }
         }
-        .onAppear { FirebaseAnalyticsHelper.shared.logPaywallShown(context: context.analyticsName) }
+        .onAppear {
+            shownAt = Date()
+            FirebaseAnalyticsHelper.shared.logPaywallShown(context: context.analyticsName)
+        }
         .sheet(isPresented: $showingPrivacy) { PrivacyPolicyView() }
         .alert("Bilgi", isPresented: Binding(
             get: { alertMessage != nil },
@@ -287,7 +292,10 @@ struct PaywallView: View {
         HStack {
             Spacer()
             Button(action: {
-                FirebaseAnalyticsHelper.shared.logPaywallDismissed(context: context.analyticsName)
+                FirebaseAnalyticsHelper.shared.logPaywallDismissed(
+                    context: context.analyticsName,
+                    secondsShown: Int(Date().timeIntervalSince(shownAt))
+                )
                 onClose()
             }) {
                 Image(systemName: "xmark")
@@ -522,15 +530,25 @@ struct PaywallView: View {
         let hadTrial = selectedPlan.freeTrial != nil
         FirebaseAnalyticsHelper.shared.logPaywallCtaTapped(plan: plan, hasTrial: hadTrial)
         Task {
-            let success = await purchases.purchase(package)
-            if success {
+            switch await purchases.purchase(package) {
+            case .subscribed:
                 // `PurchaseManager` already set `isPro` and hid the banner.
                 FirebaseAnalyticsHelper.shared.logSubscriptionPurchased(plan: plan, hadTrial: hadTrial)
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
                 onClose()
-            } else {
-                // Covers both store errors and user cancellation (drop-off signal).
-                FirebaseAnalyticsHelper.shared.logSubscriptionPurchaseFailed(plan: plan)
+            case .cancelled:
+                // Normal bir vazgeçiş; kullanıcıya uyarı gösterilmez.
+                FirebaseAnalyticsHelper.shared.logSubscriptionPurchaseFailed(
+                    plan: plan, reason: "cancelled", errorCode: nil
+                )
+            case .failed(let code, let message):
+                FirebaseAnalyticsHelper.shared.logSubscriptionPurchaseFailed(
+                    plan: plan, reason: "error", errorCode: code
+                )
+                // Gerçek hatada sessiz kalmak kullanıcıyı butona tekrar tekrar
+                // bastırıyordu; ne olduğu söylenmeli.
+                alertMessage = "Satın alma tamamlanamadı: \(message)"
+                UINotificationFeedbackGenerator().notificationOccurred(.error)
             }
         }
     }

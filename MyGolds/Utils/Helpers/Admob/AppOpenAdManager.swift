@@ -16,6 +16,10 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
     
     private var appOpenAd: GADAppOpenAd?
     private var loadTime = Date()
+    /// Ardışık yükleme hatası sayacı. Sabit 30 sn'lik yeniden deneme, dolum
+    /// olmayan bir oturumda saatlerce dönüp `app_open_ad_load_failed`'ı tek
+    /// kullanıcıda onlarca kez tetikliyordu.
+    private var consecutiveLoadFailures = 0
     @Published var isAdShowing = false
     /// Gösterim istendi ama reklam henüz yüklü değildi — yükleme bitince gösterilir.
     /// Bu olmadan her `loadAd` başarısı yeni bir gösterime yol açıyordu (döngü).
@@ -133,11 +137,7 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
                     Logger.log("📱 App Open Ad: Failed to load - \(error.localizedDescription)")
                     FirebaseAnalyticsHelper.shared.logAppOpenAdLoadFailed(error: error.localizedDescription)
                     self?.isAdLoaded = false
-                    
-                    // Retry loading after delay
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 30) {
-                        self?.loadAd()
-                    }
+                    self?.scheduleRetryAfterFailure()
                     return
                 }
                 
@@ -148,8 +148,18 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
                 }
                 
                 Logger.log("📱 App Open Ad: Loaded successfully")
+                self?.consecutiveLoadFailures = 0
+                FirebaseAnalyticsHelper.shared.logAppOpenAdLoaded()
                 self?.appOpenAd = ad
                 self?.appOpenAd?.fullScreenContentDelegate = self
+                ad.paidEventHandler = { [weak ad] value in
+                    FirebaseAnalyticsHelper.shared.logAdRevenue(
+                        value,
+                        format: "AppOpen",
+                        adUnitID: adID,
+                        source: ad?.responseInfo.loadedAdNetworkResponseInfo?.adSourceName
+                    )
+                }
                 self?.loadTime = Date()
                 self?.isAdLoaded = true
                 if let trigger = self?.pendingShowTrigger {
@@ -160,6 +170,25 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
         }
     }
     
+    /// Üstel geri çekilme, 5 denemede duruyor: 30s → 60s → 120s → 240s → 480s.
+    /// Bir sonraki foreground/cold start `preloadAd()` ile sayacı sıfırdan başlatır,
+    /// yani "pes etmek" kalıcı değil.
+    private func scheduleRetryAfterFailure() {
+        consecutiveLoadFailures += 1
+        guard consecutiveLoadFailures <= Self.maxLoadRetries else {
+            Logger.log("📱 App Open Ad: \(Self.maxLoadRetries) deneme başarısız — bu oturumda bırakılıyor")
+            return
+        }
+        let delay = Self.baseRetryDelay * pow(2, Double(consecutiveLoadFailures - 1))
+        Logger.log("📱 App Open Ad: Retry #\(consecutiveLoadFailures) in \(Int(delay))s")
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            self?.loadAd()
+        }
+    }
+
+    private static let maxLoadRetries = 5
+    private static let baseRetryDelay: TimeInterval = 30
+
     // MARK: - Show Ad
 
     /// `retriesLeft`: yalnızca *geçici* engeller için (pencere henüz hazır değil,
@@ -230,6 +259,9 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
     
     func preloadAd() {
         if !isAdAvailable && !isLoadingAd {
+            // Yeni bir açılış/foreground turu: geri çekilme sayacı sıfırdan başlar,
+            // yani "bu oturumda bırakıldı" kalıcı bir pes etme değil.
+            consecutiveLoadFailures = 0
             loadAd()
         }
     }
@@ -256,9 +288,15 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
         }
     }
     
+    func adDidRecordImpression(_ ad: GADFullScreenPresentingAd) {
+        FirebaseAnalyticsHelper.shared.logAppOpenAdDidPresent()
+    }
+
     func adDidDismissFullScreenContent(_ ad: GADFullScreenPresentingAd) {
         Logger.log("📱 App Open Ad: Did dismiss")
-        FirebaseAnalyticsHelper.shared.logBannerAdDidDismissScreen()
+        // Buradaki olay eskiden `banner_ad_did_dismiss_screen` idi; app-open
+        // kapanışları banner metriklerine karışıyordu.
+        FirebaseAnalyticsHelper.shared.logAppOpenAdDismissed()
         DispatchQueue.main.async {
             self.isAdShowing = false
         }

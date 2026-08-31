@@ -145,9 +145,12 @@ struct MainTabView: View {
 
         // Onboarding hand-off: paywall instead of an interstitial.
         if UserDefaultsManager.shared.getValue(for: .pendingOnboardingPaywall) {
+            // Hiç varlık eklemeden gelen kullanıcı henüz uygulamanın ne yaptığını
+            // görmedi; orada açılan paywall neredeyse tamamen kapatılıyordu.
+            // Bayrak tüketilmiyor: paywall iptal değil, ilk gerçek eklemeye erteleniyor.
+            guard didAddAsset else { return }
             UserDefaultsManager.shared.setValue(value: false, key: .pendingOnboardingPaywall)
             // Never paywall an already-subscribed user (e.g. reinstall + restore).
-            // Varlık eklenmese de (X ile kapatma) paywall gösterilir.
             guard !UserDefaultsManager.shared.isPro else { return }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                 guard !UserDefaultsManager.shared.isPro else { return }

@@ -226,8 +226,14 @@ struct BalanceCardView: View {
         Menu {
             ForEach(Currency.allCases, id: \.self) { currency in
                 Button {
+                    // Zaten seçili olana tekrar basmak "değişim" değil; eskiden
+                    // o da loglanıp currency_changed sayısını şişiriyordu.
+                    guard currency != selectedCurrency else { return }
+                    let previous = selectedCurrency
                     withAnimation { selectedCurrency = currency }
-                    FirebaseAnalyticsHelper.shared.logCurrencyChanged(to: currency.rawValue)
+                    FirebaseAnalyticsHelper.shared.logCurrencyChanged(
+                        from: previous.rawValue, to: currency.rawValue
+                    )
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 } label: {
                     Label(currency.displayName, systemImage: selectedCurrency == currency ? "checkmark" : "")

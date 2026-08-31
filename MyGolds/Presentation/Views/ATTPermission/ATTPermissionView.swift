@@ -83,9 +83,23 @@ struct ATTPermissionView: View {
     private func requestATTPermission() {
         ATTrackingManager.requestTrackingAuthorization { status in
             DispatchQueue.main.async {
+                FirebaseAnalyticsHelper.shared.logATTResult(status: status.analyticsName)
                 let granted = status == .authorized
                 onPermissionGranted(granted)
             }
+        }
+    }
+}
+
+private extension ATTrackingManager.AuthorizationStatus {
+    /// Yerelleştirmeden bağımsız, GA4'te gruplanabilir sabit isim.
+    var analyticsName: String {
+        switch self {
+        case .authorized:    return "authorized"
+        case .denied:        return "denied"
+        case .restricted:    return "restricted"
+        case .notDetermined: return "not_determined"
+        @unknown default:    return "unknown"
         }
     }
 }
