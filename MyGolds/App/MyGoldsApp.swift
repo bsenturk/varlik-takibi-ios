@@ -33,6 +33,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
         // Start AdMob (handled by AdMobManager)
         Logger.log("🔧 AdMob initialization will be handled by AdMobManager")
 
+        // İlk kare çizilmeden kapat: aksi hâlde içerik bir an görünüp üstüne
+        // açılış ekranı biner. Pro ve onboarding'de hiç kapanmaz.
+        AppOpenAdManager.shared.beginColdStartGate()
+
         #if DEBUG
         AdPaywallGate.selfCheck()
         ProLock.selfCheck()
@@ -120,6 +124,32 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
     }
 }
 
+/// Soğuk açılış kapısının görünen yüzü. Launch screen'in devamı gibi durması
+/// için sade tutuldu; ilerleme göstergesi kullanıcıya "yükleniyor" der,
+/// "takıldı" demez.
+private struct ColdStartSplash: View {
+    var body: some View {
+        ZStack {
+            Color(.systemBackground).ignoresSafeArea()
+            VStack(spacing: 20) {
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .font(.system(size: 44, weight: .bold))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Color(hex: "#0A84FF"), Color(hex: "#AF52DE")],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        )
+                    )
+                Text("Varlık Takibi")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(.primary)
+                ProgressView()
+                    .padding(.top, 4)
+            }
+        }
+    }
+}
+
 @main
 struct VarlikDefterimApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
@@ -193,6 +223,17 @@ struct VarlikDefterimApp: App {
                 .onAppear {
                     setupInitialState()
                 }
+                // Soğuk açılışta app-open reklamı gösterilene (ya da zaman aşımına)
+                // kadar içeriği örter. Kullanıcının reklamı hiç görmeden portföyü
+                // görüp çıkmasını engeller; reklamın içerik kullanılırken
+                // patlamasını da engeller (AdMob app-open politikası).
+                .overlay {
+                    if appOpenAdManager.isColdStartGateClosed {
+                        ColdStartSplash()
+                            .transition(.opacity)
+                    }
+                }
+                .animation(.easeOut(duration: 0.25), value: appOpenAdManager.isColdStartGateClosed)
         }
     }
     
