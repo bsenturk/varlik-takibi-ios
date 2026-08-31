@@ -75,15 +75,23 @@ final class FirebaseAnalyticsHelper {
     func logAdRevenue(_ value: GADAdValue, format: String, adUnitID: String, source: String?) {
         // GADAdValue mikro cinsindendir (1.000.000 mikro = 1 birim).
         let amount = value.value.dividing(by: 1_000_000).doubleValue
-        Analytics.logEvent(AnalyticsEventAdImpression, parameters: [
+        var params: [String: Any] = [
             AnalyticsParameterAdPlatform: "AdMob",
             AnalyticsParameterAdFormat: format,
             AnalyticsParameterAdUnitName: adUnitID,
             AnalyticsParameterAdSource: source ?? "unknown",
-            AnalyticsParameterCurrency: value.currencyCode,
-            AnalyticsParameterValue: amount,
             "precision": value.precision.rawValue
-        ])
+        ]
+        // GA4, currency geçersiz/boşsa `value`'yu sessizce yok sayar — gelir
+        // kaybolur ve nedeni raporda görünmez. Geçerli ISO-4217 yoksa event
+        // yine gönderilir (impression sayımı için) ama tutarsız gelir yazılmaz.
+        if value.currencyCode.count == 3 {
+            params[AnalyticsParameterCurrency] = value.currencyCode
+            params[AnalyticsParameterValue] = amount
+        } else {
+            params["invalid_currency"] = value.currencyCode.isEmpty ? "empty" : value.currencyCode
+        }
+        Analytics.logEvent(AnalyticsEventAdImpression, parameters: params)
     }
 
     // MARK: - Interstitial Ad Events
