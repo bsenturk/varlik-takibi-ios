@@ -124,27 +124,72 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
     }
 }
 
-/// Soğuk açılış kapısının görünen yüzü. Launch screen'in devamı gibi durması
-/// için sade tutuldu; ilerleme göstergesi kullanıcıya "yükleniyor" der,
-/// "takıldı" demez.
+/// Soğuk açılış kapısının görünen yüzü.
+///
+/// `INFOPLIST_KEY_UILaunchScreen_Generation = YES` olduğu için sistemin ürettiği
+/// launch screen düz `systemBackground`. Aynı zemin üzerinde marka işaretini
+/// yumuşakça belirterek geçişi sıçratmadan bağlıyor — iki ayrı ekran gibi
+/// görünmüyor, tek bir açılış gibi.
 private struct ColdStartSplash: View {
+    @State private var appeared = false
+    @State private var pulse = false
+
+    /// Uygulamanın her yerinde (FAB, portföy kartı) kullanılan marka gradyanı.
+    private let brand = [Color(hex: "#0A84FF"), Color(hex: "#AF52DE")]
+
     var body: some View {
         ZStack {
             Color(.systemBackground).ignoresSafeArea()
-            VStack(spacing: 20) {
-                Image(systemName: "chart.line.uptrend.xyaxis")
-                    .font(.system(size: 44, weight: .bold))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [Color(hex: "#0A84FF"), Color(hex: "#AF52DE")],
-                            startPoint: .topLeading, endPoint: .bottomTrailing
-                        )
-                    )
+
+            // 8'lik ızgara: işaret → 24 → isim → 32 → yükleniyor göstergesi.
+            VStack(spacing: 24) {
+                mark
                 Text("Varlık Takibi")
-                    .font(.system(size: 20, weight: .bold))
+                    .font(.system(size: 20, weight: .semibold))
                     .foregroundColor(.primary)
-                ProgressView()
-                    .padding(.top, 4)
+                dots
+                    .padding(.top, 8)
+            }
+            .opacity(appeared ? 1 : 0)
+        }
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.35)) { appeared = true }
+            pulse = true
+        }
+    }
+
+    /// Uygulama ikonunu andıran squircle. Asset katalogundaki AppIcon iOS'ta
+    /// doğrudan çizilemediği için mevcut tasarım diliyle kuruldu.
+    private var mark: some View {
+        RoundedRectangle(cornerRadius: 20, style: .continuous)
+            .fill(LinearGradient(colors: brand, startPoint: .topLeading, endPoint: .bottomTrailing))
+            .frame(width: 88, height: 88)
+            .overlay(
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .font(.system(size: 36, weight: .bold))
+                    .foregroundColor(.white)
+            )
+            // Gölge nötr gri değil, işaretin morundan tonlandı. Yarıçap dar
+            // tutuldu: geniş bırakınca parıltı alttaki isme taşıp puslandırıyor.
+            .shadow(color: Color(hex: "#AF52DE").opacity(0.28), radius: 16, x: 0, y: 10)
+    }
+
+    /// Dönen spinner yerine sakin bir nabız: "yükleniyor" der, "takıldı" demez.
+    /// Finansal bir uygulamada hareket bir güven sinyali.
+    private var dots: some View {
+        HStack(spacing: 8) {
+            ForEach(0..<3, id: \.self) { index in
+                Circle()
+                    .fill(Color.primary.opacity(0.3))
+                    .frame(width: 6, height: 6)
+                    .scaleEffect(pulse ? 1 : 0.5)
+                    .opacity(pulse ? 1 : 0.3)
+                    .animation(
+                        .easeInOut(duration: 0.6)
+                        .repeatForever(autoreverses: true)
+                        .delay(Double(index) * 0.15),
+                        value: pulse
+                    )
             }
         }
     }

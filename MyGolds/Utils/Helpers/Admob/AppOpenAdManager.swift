@@ -361,6 +361,14 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
         FirebaseAnalyticsHelper.shared.logAppOpenAdDidPresent()
     }
 
+    /// `adDidDismiss` reklam tamamen yıkıldıktan SONRA geliyor; kapıyı orada
+    /// açınca kullanıcı reklamı kapattıktan sonra açılış ekranını bir süre daha
+    /// görüyordu. Burada açınca içerik, reklamın kendi kapanma animasyonunun
+    /// altında ortaya çıkıyor — geçiş görünmüyor.
+    func adWillDismissFullScreenContent(_ ad: GADFullScreenPresentingAd) {
+        DispatchQueue.main.async { self.openColdStartGate() }
+    }
+
     func adDidDismissFullScreenContent(_ ad: GADFullScreenPresentingAd) {
         Logger.log("📱 App Open Ad: Did dismiss")
         // Buradaki olay eskiden `banner_ad_did_dismiss_screen` idi; app-open
