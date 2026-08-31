@@ -64,11 +64,12 @@ struct MainTabView: View {
 
     /// The portfolio a newly added asset should land in (never the "Genel" aggregate).
     private var addTargetPortfolio: Portfolio? {
+        let lockedIDs = ProLock.lockedPortfolioIDs(portfolios)
         if let selected = portfolios.first(where: { $0.id.uuidString == selectedPortfolioIDString }),
-           !selected.isGeneral {
+           !selected.isGeneral, !lockedIDs.contains(selected.id) {
             return selected
         }
-        return portfolios.first(where: { !$0.isGeneral })
+        return portfolios.first { !$0.isGeneral && !lockedIDs.contains($0.id) }
     }
 
     var body: some View {

@@ -68,7 +68,12 @@ struct AddAssetSheet: View {
     @State private var fundSearchTask: Task<Void, Never>?
     @State private var isSearchingFunds = false
 
-    private var realPortfolios: [Portfolio] { portfolios.filter { !$0.isGeneral } }
+    /// Hedef olarak seçilebilecek portföyler. Kilitli olanlar listelenmez; aksi
+    /// hâlde kullanıcı kilidin arkasına yeni varlık yazabilirdi.
+    private var realPortfolios: [Portfolio] {
+        let lockedIDs = ProLock.lockedPortfolioIDs(portfolios)
+        return portfolios.filter { !$0.isGeneral && !lockedIDs.contains($0.id) }
+    }
 
     var body: some View {
         VStack(spacing: 0) {

@@ -20,6 +20,7 @@ struct AnalysisView: View {
     @AppStorage(UserDefaultsManager.maskedPortfoliosKey) private var maskedPortfolios = ""
     @AppStorage("selectedPortfolioID") private var selectedPortfolioIDString: String = ""
     @State private var range: TimeRange = .month
+    @State private var showingPaywall = false
 
     enum TimeRange: String, CaseIterable, Identifiable {
         case week = "1H", month = "1A", quarter = "3A", year = "1Y", all = "Tümü"
@@ -37,9 +38,13 @@ struct AnalysisView: View {
 
     // MARK: - Selection
 
+    /// Pro bitince kilitlenen portföyler (bkz. ProLock).
+    private var lockedPortfolioIDs: Set<UUID> { ProLock.lockedPortfolioIDs(portfolios) }
+
     private var selectedPortfolio: Portfolio? {
         if let id = UUID(uuidString: selectedPortfolioIDString),
-           let match = portfolios.first(where: { $0.id == id }) { return match }
+           let match = portfolios.first(where: { $0.id == id }),
+           !lockedPortfolioIDs.contains(match.id) { return match }
         return portfolios.first(where: { $0.isGeneral }) ?? portfolios.first
     }
 
@@ -52,7 +57,9 @@ struct AnalysisView: View {
 
     private var scopedAssets: [Asset] {
         guard let selected = selectedPortfolio else { return [] }
-        return selected.isGeneral ? assets : assets.filter { $0.portfolio?.id == selected.id }
+        // Analiz baştan sona tutar ve oran gösterir; kilitli varlık hiçbirine girmez.
+        let visible = ProLock.unlocked(assets, portfolios: portfolios)
+        return selected.isGeneral ? visible : visible.filter { $0.portfolio?.id == selected.id }
     }
 
     private var metrics: PortfolioMetrics {
@@ -92,7 +99,12 @@ struct AnalysisView: View {
             }
             .padding(.top, 8)
         }
-        .onAppear { portfolioManager.updatePortfolio(with: assets) }
+        .onAppear {
+            portfolioManager.updatePortfolio(with: ProLock.unlocked(assets, portfolios: portfolios))
+        }
+        .fullScreenCover(isPresented: $showingPaywall) {
+            PaywallView(onClose: { showingPaywall = false }, context: .portfolioLimit)
+        }
     }
 
     // MARK: - Header
@@ -112,7 +124,13 @@ struct AnalysisView: View {
                         isSelected: portfolio.id == selectedPortfolio?.id,
                         showsEditAffordance: false,
                         showsEditPencil: false,
+                        isLocked: lockedPortfolioIDs.contains(portfolio.id),
                         onTap: {
+                            guard !lockedPortfolioIDs.contains(portfolio.id) else {
+                                showingPaywall = true
+                                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                                return
+                            }
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 selectedPortfolioIDString = portfolio.id.uuidString
                             }
@@ -323,7 +341,9 @@ struct AnalysisView: View {
 
         let snapshots: [PortfolioSnapshot]
         if isGeneral {
-            snapshots = portfolios.filter { !$0.isGeneral }.flatMap { $0.snapshots ?? [] }
+            snapshots = portfolios
+                .filter { !$0.isGeneral && !lockedPortfolioIDs.contains($0.id) }
+                .flatMap { $0.snapshots ?? [] }
         } else {
             snapshots = selectedPortfolio?.snapshots ?? []
         }

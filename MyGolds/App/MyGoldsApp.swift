@@ -34,6 +34,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
 
         #if DEBUG
         AdPaywallGate.selfCheck()
+        ProLock.selfCheck()
         #endif
 
         UNUserNotificationCenter.current().setBadgeCount(0) { _ in }

@@ -18,6 +18,7 @@
 		41BB945641F3EC209AEAAF52 /* Portfolio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 247368DDD248FD2197BCB0D6 /* Portfolio.swift */; };
 		498450D4CD87F6A6B8A131FB /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = C1961964D2580EE33B8B1AE3 /* Supabase */; };
 		49C05C98D9EDA2703B539338 /* AssetEditSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD57CBF5F13AB266CF39E404 /* AssetEditSheet.swift */; };
+		50D46FD578C08637DC264227 /* ProLock.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3AE9AC81CAA069A44D2AFBD /* ProLock.swift */; };
 		515B55E34135116A7F9ECB0B /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7D00CE426CA4105B5D702D76 /* PrivacyInfo.xcprivacy */; };
 		51B8DA64BB6557E6D81A8390 /* PurchaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3FA32630A917E0B54622A5C /* PurchaseManager.swift */; };
 		57346157300FA9A706701060 /* AppError.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E50DD4E3D3B4F3BAC569F8 /* AppError.swift */; };
@@ -148,6 +149,7 @@
 		B7E50DD4E3D3B4F3BAC569F8 /* AppError.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
 		BD256FBA733EBE4803F3F420 /* SupabaseModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SupabaseModels.swift; sourceTree = "<group>"; };
 		BD57CBF5F13AB266CF39E404 /* AssetEditSheet.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AssetEditSheet.swift; sourceTree = "<group>"; };
+		C3AE9AC81CAA069A44D2AFBD /* ProLock.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ProLock.swift; sourceTree = "<group>"; };
 		C5EECA123D70F085F351AB88 /* RatesViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RatesViewModel.swift; sourceTree = "<group>"; };
 		D8581F1E2E0ED64D00E48444 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		D8581F212E0ED67700E48444 /* ATTPermissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTPermissionView.swift; sourceTree = "<group>"; };
@@ -521,6 +523,7 @@
 				6756A37D257C1F93381E6719 /* PortfolioStore.swift */,
 				F3FA32630A917E0B54622A5C /* PurchaseManager.swift */,
 				4BBDD6ED0FF9AD49042FAE92 /* RatingManager.swift */,
+				C3AE9AC81CAA069A44D2AFBD /* ProLock.swift */,
 			);
 			path = Helpers;
 			sourceTree = "<group>";
@@ -782,6 +785,7 @@
 				51B8DA64BB6557E6D81A8390 /* PurchaseManager.swift in Sources */,
 				0528278AD78F91F4408501DF /* RatingManager.swift in Sources */,
 				A484FB09E87A14FFABAF3791 /* PushTokenService.swift in Sources */,
+				50D46FD578C08637DC264227 /* ProLock.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
