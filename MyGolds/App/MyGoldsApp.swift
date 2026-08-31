@@ -134,9 +134,6 @@ private struct ColdStartSplash: View {
     @State private var appeared = false
     @State private var pulse = false
 
-    /// Uygulamanın her yerinde (FAB, portföy kartı) kullanılan marka gradyanı.
-    private let brand = [Color(hex: "#0A84FF"), Color(hex: "#AF52DE")]
-
     var body: some View {
         ZStack {
             Color(.systemBackground).ignoresSafeArea()
@@ -158,18 +155,16 @@ private struct ColdStartSplash: View {
         }
     }
 
-    /// Uygulama ikonunu andıran squircle. Asset katalogundaki AppIcon iOS'ta
-    /// doğrudan çizilemediği için mevcut tasarım diliyle kuruldu.
+    /// Uygulamanın gerçek ikonu (`AppLogo` imageset, AppIcon ile aynı görsel).
+    /// Kaynak PNG tam kare; ana ekrandaki ikonla aynı okunsun diye squircle'a
+    /// kırpılıyor — yarıçap Apple'ın ikon oranına yakın (88 × ~0.225).
     private var mark: some View {
-        RoundedRectangle(cornerRadius: 20, style: .continuous)
-            .fill(LinearGradient(colors: brand, startPoint: .topLeading, endPoint: .bottomTrailing))
+        Image("AppLogo")
+            .resizable()
+            .interpolation(.high)
             .frame(width: 88, height: 88)
-            .overlay(
-                Image(systemName: "chart.line.uptrend.xyaxis")
-                    .font(.system(size: 36, weight: .bold))
-                    .foregroundColor(.white)
-            )
-            // Gölge nötr gri değil, işaretin morundan tonlandı. Yarıçap dar
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            // Gölge nötr gri değil, ikonun morundan tonlandı. Yarıçap dar
             // tutuldu: geniş bırakınca parıltı alttaki isme taşıp puslandırıyor.
             .shadow(color: Color(hex: "#AF52DE").opacity(0.28), radius: 16, x: 0, y: 10)
     }
