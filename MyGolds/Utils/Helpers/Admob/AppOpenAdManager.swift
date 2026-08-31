@@ -195,6 +195,15 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
                     Logger.log("📱 App Open Ad: Failed to load - \(error.localizedDescription)")
                     FirebaseAnalyticsHelper.shared.logAppOpenAdLoadFailed(error: error.localizedDescription)
                     self?.isAdLoaded = false
+                    // Soğuk açılış bu yüklemeyi bekliyorduysa sonuç artık kesin:
+                    // bir sonraki deneme en erken 30 sn sonra, yani 4 sn'lik
+                    // gösterim penceresinin çok dışında. Zaman aşımını beklemek
+                    // kullanıcıyı bedelsiz yere açılış ekranında tutar.
+                    if self?.pendingShowTrigger == .coldStart {
+                        Logger.log("📱 App Open Ad: Yükleme başarısız — kapı beklemeden açılıyor")
+                        self?.pendingShowTrigger = nil
+                        self?.openColdStartGate()
+                    }
                     self?.scheduleRetryAfterFailure()
                     return
                 }
