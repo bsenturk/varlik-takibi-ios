@@ -16,8 +16,14 @@ final class AddAssetPresenter: ObservableObject {
     /// the natural transition *after* the sheet closes (best practice) instead of
     /// interrupting the user the moment it opens.
     private var pendingInterstitial = false
+    /// Akışı ne açtı — "onboarding" (ilk varlık devri) ya da "manual" (+ butonu).
+    /// Huni olaylarının hepsi bunu taşır ki iki kitle ayrı okunabilsin.
+    private(set) var source = "manual"
     private init() {}
-    func present() { isPresented = true }
+    func present(source: String = "manual") {
+        self.source = source
+        isPresented = true
+    }
     func scheduleInterstitialAfterClose() { pendingInterstitial = true }
     /// Returns whether an interstitial is pending and clears the flag.
     func consumePendingInterstitial() -> Bool {
@@ -133,7 +139,7 @@ struct MainTabView: View {
         guard UserDefaultsManager.shared.getValue(for: .pendingFirstAssetAdd) else { return }
         UserDefaultsManager.shared.setValue(value: false, key: .pendingFirstAssetAdd)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
-            addPresenter.present()
+            addPresenter.present(source: "onboarding")
         }
     }
 

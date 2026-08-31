@@ -201,14 +201,54 @@ final class FirebaseAnalyticsHelper {
 
     // MARK: Assets
 
+    // MARK: Varlık ekleme hunisi
+    //
+    // `asset_added` yalnızca BAŞARIYI logluyordu: aktif kullanıcıların %60'ının
+    // hiç varlık eklememesinin nedeni ölçülemiyordu — akışı hiç açmadılar mı,
+    // kategori ızgarasında mı bıraktılar, tutar ekranında mı vazgeçtiler?
+    // Aşağıdaki dört olay adımları ayırır. `source` her adımda taşınır ki
+    // onboarding'den gelen kullanıcı ile sonradan + butonuna basan ayrılabilsin.
+
+    /// Varlık ekleme akışı açıldı. `source`: "onboarding" | "manual".
+    func logAddAssetOpened(source: String) {
+        Analytics.logEvent("add_asset_opened", parameters: ["source": source])
+    }
+
+    /// Kategori ızgarasından bir kategori seçildi (1. adım geçildi).
+    func logAddAssetCategorySelected(category: String, source: String) {
+        Analytics.logEvent("add_asset_category_selected", parameters: [
+            "asset_category": category,
+            "source": source
+        ])
+    }
+
+    /// Listeden somut bir enstrüman seçildi (2. adım geçildi, tutar ekranı açıldı).
+    func logAddAssetInstrumentSelected(category: String, symbol: String, source: String) {
+        Analytics.logEvent("add_asset_instrument_selected", parameters: [
+            "asset_category": category,
+            "asset_symbol": symbol,
+            "source": source
+        ])
+    }
+
+    /// Akış varlık eklenmeden kapatıldı. `step` ulaşılan **en derin** adımdır
+    /// (geri dönülse bile), huninin nerede koptuğunu gösteren asıl olay budur.
+    /// - Parameter step: "category" | "type_list" | "amount"
+    func logAddAssetAbandoned(step: String, category: String?, source: String) {
+        var params: [String: Any] = ["step": step, "source": source]
+        if let category { params["asset_category"] = category }
+        Analytics.logEvent("add_asset_abandoned", parameters: params)
+    }
+
     /// Bir varlık eklendiğinde — yalnızca varlık sınıfı/sembolü ve davranışsal
     /// bayraklar; ASLA miktar, değer veya fiyat içermez.
-    func logAssetAdded(category: String, symbol: String, isMerge: Bool, hasPurchasePrice: Bool) {
+    func logAssetAdded(category: String, symbol: String, isMerge: Bool, hasPurchasePrice: Bool, source: String) {
         Analytics.logEvent("asset_added", parameters: [
             "asset_category": category,
             "asset_symbol": symbol,
             "is_merge": isMerge,
-            "has_purchase_price": hasPurchasePrice
+            "has_purchase_price": hasPurchasePrice,
+            "source": source
         ])
     }
 

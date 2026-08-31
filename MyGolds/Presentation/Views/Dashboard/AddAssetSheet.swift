@@ -64,6 +64,25 @@ struct AddAssetSheet: View {
     @State private var alertMessage = ""
     @State private var showingPaywall = false
 
+    // MARK: Huni ölçümü
+    /// Kaydedildi mi — `dismiss()` hem kayıtta hem vazgeçişte çağrıldığı için
+    /// `add_asset_abandoned`'ı ayırmanın tek yolu bu.
+    @State private var didSave = false
+    /// Ulaşılan **en derin** adım. Kullanıcı geri dönebildiği için anlık `step`
+    /// değil bu loglanır; yoksa tutar ekranından geri dönüp kapatan biri
+    /// "kategoride bıraktı" görünürdü.
+    @State private var furthestStep = "category"
+    /// Vazgeçiş olayına bağlam: en son hangi kategoriye girildi.
+    @State private var lastCategory: String?
+
+    private var flowSource: String { AddAssetPresenter.shared.source }
+
+    /// Adımlar sıralı; yalnızca ileri gidildiğinde işaretlenir.
+    private func markStep(_ name: String) {
+        let rank = ["category": 0, "type_list": 1, "amount": 2]
+        if (rank[name] ?? 0) > (rank[furthestStep] ?? 0) { furthestStep = name }
+    }
+
     // Debounced TEFAS fund search (funds the user types that aren't cached locally).
     @State private var fundSearchTask: Task<Void, Never>?
     @State private var isSearchingFunds = false
@@ -92,8 +111,15 @@ struct AddAssetSheet: View {
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .onAppear {
             selectedPortfolio = targetPortfolio ?? realPortfolios.first
+            FirebaseAnalyticsHelper.shared.logAddAssetOpened(source: flowSource)
             // No ad on open — the interstitial is shown after a successful add, when
             // the sheet closes (see AddAssetPresenter.scheduleInterstitialAfterClose).
+        }
+        .onDisappear {
+            guard !didSave else { return }
+            FirebaseAnalyticsHelper.shared.logAddAssetAbandoned(
+                step: furthestStep, category: lastCategory, source: flowSource
+            )
         }
         .alert("Hata", isPresented: $showAlert) {
             Button("Tamam", role: .cancel) {}
@@ -110,6 +136,10 @@ struct AddAssetSheet: View {
             showingPaywall = true
             UINotificationFeedbackGenerator().notificationOccurred(.warning)
         } else {
+            let name = String(describing: category)
+            lastCategory = name
+            markStep("type_list")
+            FirebaseAnalyticsHelper.shared.logAddAssetCategorySelected(category: name, source: flowSource)
             withAnimation(.easeInOut(duration: 0.2)) { step = .typeList(category) }
         }
     }
@@ -267,6 +297,12 @@ struct AddAssetSheet: View {
                             amount = ""
                             purchasePrice = ""
                             activeField = .amount
+                            markStep("amount")
+                            FirebaseAnalyticsHelper.shared.logAddAssetInstrumentSelected(
+                                category: String(describing: instrument.category),
+                                symbol: instrument.symbol,
+                                source: flowSource
+                            )
                             withAnimation(.easeInOut(duration: 0.2)) { step = .amount(instrument) }
                         } label: {
                             HStack(spacing: 12) {
@@ -710,11 +746,13 @@ struct AddAssetSheet: View {
         }
         // Privacy-safe: only the instrument class/symbol + behavioural flags — never
         // the amount, value, or entered purchase price.
+        didSave = true
         FirebaseAnalyticsHelper.shared.logAssetAdded(
             category: String(describing: instrument.category),
             symbol: instrument.symbol,
             isMerge: existing != nil,
-            hasPurchasePrice: enteredPurchase != nil && enteredPurchase! > 0
+            hasPurchasePrice: enteredPurchase != nil && enteredPurchase! > 0,
+            source: flowSource
         )
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         // Show the interstitial at the natural transition after this sheet closes,
