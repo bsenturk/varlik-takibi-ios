@@ -33,7 +33,7 @@ enum OfferCode {
     private static var item: UIApplicationShortcutItem {
         UIApplicationShortcutItem(
             type: shortcutType,
-            localizedTitle: "%30 indirim",
+            localizedTitle: "🎁 %30 indirim",
             localizedSubtitle: "Yıllık Pro üyelikte",
             icon: UIApplicationShortcutIcon(systemImageName: "gift.fill")
         )

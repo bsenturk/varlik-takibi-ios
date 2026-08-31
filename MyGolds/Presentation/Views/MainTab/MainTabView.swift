@@ -29,7 +29,6 @@ final class AddAssetPresenter: ObservableObject {
 struct MainTabView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Portfolio.sortOrder) private var portfolios: [Portfolio]
-    @Query private var assets: [Asset]
     @AppStorage("selectedPortfolioID") private var selectedPortfolioIDString: String = ""
 
     @State private var selectedTab: Tab = .portfolio
@@ -138,17 +137,18 @@ struct MainTabView: View {
     }
 
     /// Handles the Add-Asset sheet closing. During onboarding it surfaces the paywall
-    /// once; otherwise it shows the interstitial at this natural transition (back to
-    /// the portfolio) — but only when an asset was actually added.
+    /// once — whether or not an asset was added; otherwise it shows the interstitial at
+    /// this natural transition (back to the portfolio), only when an asset was added.
     private func handleAddAssetSheetClosed() {
         // Always consume the pending flag so it can't leak into a later close.
         let didAddAsset = addPresenter.consumePendingInterstitial()
 
-        // Onboarding hand-off: paywall instead of an interstitial (after first add).
+        // Onboarding hand-off: paywall instead of an interstitial.
         if UserDefaultsManager.shared.getValue(for: .pendingOnboardingPaywall) {
             UserDefaultsManager.shared.setValue(value: false, key: .pendingOnboardingPaywall)
             // Never paywall an already-subscribed user (e.g. reinstall + restore).
-            guard !UserDefaultsManager.shared.isPro, !assets.isEmpty else { return }
+            // Varlık eklenmese de (X ile kapatma) paywall gösterilir.
+            guard !UserDefaultsManager.shared.isPro else { return }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                 guard !UserDefaultsManager.shared.isPro else { return }
                 paywallContext = .onboarding
