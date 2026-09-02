@@ -31,6 +31,19 @@ struct RatesView: View {
         return allRates.filter { $0.title.localizedCaseInsensitiveContains(searchText) }
     }
 
+    /// Finans kategorisinde canlı piyasa verisi gösteren bir uygulamada
+    /// App Store denetimi veri kaynağı ve tavsiye olmadığı notunu bekliyor.
+    /// Aynı metin barındırılan Kullanım Koşulları'nda da var; kullanıcı
+    /// fiyatlara baktığı yerde de görmeli.
+    private var disclaimer: some View {
+        Text("Fiyatlar üçüncü taraf sağlayıcılardan alınır ve gecikmeli olabilir. Bilgilendirme amaçlıdır, yatırım tavsiyesi değildir.")
+            .font(.system(size: 12))
+            .foregroundColor(.secondary)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+            .padding(.top, 8)
+    }
+
     var body: some View {
         ZStack {
             Color(.systemGroupedBackground).ignoresSafeArea()
@@ -56,6 +69,8 @@ struct RatesView: View {
                             )
                         }
                     }
+
+                    if !filteredRates.isEmpty { disclaimer }
                 }
                 .padding(.horizontal, 18)
                 .padding(.top, 8)
