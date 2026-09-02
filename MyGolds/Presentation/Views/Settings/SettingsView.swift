@@ -17,7 +17,6 @@ struct SettingsView: View {
     #endif
     @State private var showingRateApp = false
     @State private var showingFeedback = false
-    @State private var showingPrivacyPolicy = false
     @State private var showingDarkModeSettings = false
     @State private var showingPaywall = false
     @State private var showingMembership = false
@@ -72,7 +71,6 @@ struct SettingsView: View {
                 .presentationCornerRadius(28)
         }
         .sheet(isPresented: $showingFeedback) { FeedbackView() }
-        .sheet(isPresented: $showingPrivacyPolicy) { PrivacyPolicyView() }
         .sheet(isPresented: $showingDarkModeSettings) { DarkModeSettingsView() }
         .fullScreenCover(isPresented: $showingPaywall) { PaywallView(onClose: { showingPaywall = false }) }
         .sheet(isPresented: $showingMembership) {
@@ -287,9 +285,17 @@ struct SettingsView: View {
 
             divider
 
-            Button(action: { showingPrivacyPolicy = true }) {
+            Button(action: { openURL(LegalLinks.privacy) }) {
                 settingsRow(icon: "lock.shield.fill", color: Color(hex: "#8E8E93"),
                             title: "Gizlilik Politikası", trailing: .chevron)
+            }
+            .buttonStyle(.plain)
+
+            divider
+
+            Button(action: { openURL(LegalLinks.terms) }) {
+                settingsRow(icon: "doc.text.fill", color: Color(hex: "#8E8E93"),
+                            title: "Kullanım Koşulları", trailing: .chevron)
             }
             .buttonStyle(.plain)
         }
