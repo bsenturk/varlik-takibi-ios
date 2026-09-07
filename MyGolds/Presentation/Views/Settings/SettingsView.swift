@@ -18,6 +18,7 @@ struct SettingsView: View {
     @State private var showingRateApp = false
     @State private var showingFeedback = false
     @State private var showingDarkModeSettings = false
+    @State private var showingCurrencyPicker = false
     /// Non-nil while a paywall is up; hangi yüzeyden açıldığını da taşır —
     /// banner ile üyelik sayfası eskiden tek `general` bağlamında toplanıyordu.
     @State private var paywallContext: PaywallContext?
@@ -74,6 +75,7 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $showingFeedback) { FeedbackView() }
         .sheet(isPresented: $showingDarkModeSettings) { DarkModeSettingsView() }
+        .sheet(isPresented: $showingCurrencyPicker) { CurrencySelectionView() }
         .fullScreenCover(item: $paywallContext) { context in
             PaywallView(onClose: { paywallContext = nil }, context: context)
         }
@@ -212,23 +214,15 @@ struct SettingsView: View {
 
     private var preferencesSection: some View {
         section("Tercihler") {
-            // Currency
-            Menu {
-                ForEach(Currency.allCases, id: \.self) { currency in
-                    Button {
-                        selectedCurrency = currency
-                    } label: {
-                        Label("\(currency.rawValue) (\(currency.symbol))",
-                              systemImage: selectedCurrency == currency ? "checkmark" : "")
-                    }
-                }
-            } label: {
+            // Currency — seçim ayrı bir ekranda (bkz. CurrencySelectionView).
+            Button(action: { showingCurrencyPicker = true }) {
                 settingsRow(
                     icon: "turkishlirasign.square.fill", color: Color(hex: "#0A84FF"),
                     title: "Para Birimi",
-                    trailing: .value("\(selectedCurrency.rawValue) (\(selectedCurrency.symbol))")
+                    trailing: .value("\(selectedCurrency.flag) \(selectedCurrency.rawValue)")
                 )
             }
+            .buttonStyle(.plain)
 
             divider
 

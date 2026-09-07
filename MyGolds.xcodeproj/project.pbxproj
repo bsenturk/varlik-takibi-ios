@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		00B47445ADA72F1C1E93BD4E /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 608A34EBB50D18A6BE239FE3 /* Foundation.framework */; };
 		0528278AD78F91F4408501DF /* RatingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BBDD6ED0FF9AD49042FAE92 /* RatingManager.swift */; };
+		0E3699DB6CF8105101818F76 /* CurrencySelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2336E9BF9A91CB6708CC173 /* CurrencySelectionView.swift */; };
 		1706FDF74079BEDE98359FA6 /* PortfolioWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F5ADEFB7D6E732B17FA664B /* PortfolioWidget.swift */; };
 		1DA16E2772CDFB2EFF79DD0F /* SupabaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 771C5D8022DF794D87CE2C2A /* SupabaseManager.swift */; };
 		1EC57CE76295482DD6403A65 /* PortfolioStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6756A37D257C1F93381E6719 /* PortfolioStore.swift */; };
@@ -188,6 +189,7 @@
 		9BC2B6C22EA56B21009C4B5F /* Currency.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Currency.swift; sourceTree = "<group>"; };
 		A386B28F85AE7E1CFC49959A /* AddAssetSheet.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AddAssetSheet.swift; sourceTree = "<group>"; };
 		AEEE7E05AED8594E7C7A8CFB /* MyGoldsWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MyGoldsWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		B2336E9BF9A91CB6708CC173 /* CurrencySelectionView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CurrencySelectionView.swift; sourceTree = "<group>"; };
 		B7E50DD4E3D3B4F3BAC569F8 /* AppError.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
 		BD256FBA733EBE4803F3F420 /* SupabaseModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SupabaseModels.swift; sourceTree = "<group>"; };
 		BD57CBF5F13AB266CF39E404 /* AssetEditSheet.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AssetEditSheet.swift; sourceTree = "<group>"; };
@@ -528,6 +530,7 @@
 				D8581F312E0EDB0F00E48444 /* SettingsItemView.swift */,
 				D8581F2F2E0EDAFC00E48444 /* SettingsView.swift */,
 				9729B2A951EE89080AD8D9CA /* LegalLinks.swift */,
+				B2336E9BF9A91CB6708CC173 /* CurrencySelectionView.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -899,6 +902,7 @@
 				AC85B45A8C0F3553835E4802 /* LegalLinks.swift in Sources */,
 				36FF5CA59FBC62AB28DDD1F3 /* WidgetSharedStore.swift in Sources */,
 				5B46712CEAADE1326D49A300 /* WidgetSync.swift in Sources */,
+				0E3699DB6CF8105101818F76 /* CurrencySelectionView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

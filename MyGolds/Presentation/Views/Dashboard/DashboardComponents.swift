@@ -149,6 +149,7 @@ struct BalanceCardView: View {
     @Binding var selectedCurrency: Currency
     @StateObject private var portfolioManager = PortfolioManager.shared
     @AppStorage(UserDefaultsManager.maskedPortfoliosKey) private var maskedPortfolios = ""
+    @State private var showingCurrencyPicker = false
 
     private var valuesMasked: Bool {
         UserDefaultsManager.isPortfolioMasked(maskedPortfolios, portfolioID)
@@ -220,6 +221,7 @@ struct BalanceCardView: View {
         )
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .shadow(color: portfolioColor.color.opacity(0.35), radius: 18, x: 0, y: 10)
+        .sheet(isPresented: $showingCurrencyPicker) { CurrencySelectionView() }
     }
 
     /// Göz ikonu: yalnızca bu portföyün tutarlarını gizler/gösterir (tercih kalıcı).
@@ -240,23 +242,12 @@ struct BalanceCardView: View {
         .accessibilityLabel(valuesMasked ? "Tutarları göster" : "Tutarları gizle")
     }
 
+    /// Para birimi seçimi artık ayrı bir ekranda: on beş döviz açılır menüye
+    /// sığmıyordu ve menüde kur bilgisi gösterilemiyordu.
     private var currencyMenu: some View {
-        Menu {
-            ForEach(Currency.allCases, id: \.self) { currency in
-                Button {
-                    // Zaten seçili olana tekrar basmak "değişim" değil; eskiden
-                    // o da loglanıp currency_changed sayısını şişiriyordu.
-                    guard currency != selectedCurrency else { return }
-                    let previous = selectedCurrency
-                    withAnimation { selectedCurrency = currency }
-                    FirebaseAnalyticsHelper.shared.logCurrencyChanged(
-                        from: previous.rawValue, to: currency.rawValue
-                    )
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                } label: {
-                    Label(currency.displayName, systemImage: selectedCurrency == currency ? "checkmark" : "")
-                }
-            }
+        Button {
+            showingCurrencyPicker = true
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
         } label: {
             HStack(spacing: 4) {
                 Text(selectedCurrency.rawValue)
