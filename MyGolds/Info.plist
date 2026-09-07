@@ -4,6 +4,19 @@
 <dict>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
+    <!-- Widget'tan paywall'a derin bağlantı (mygolds://paywall). Tek tüketici
+         widget olduğu için şema kayıt dışı tutulmadı. -->
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>com.xptapps.assetbook</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>mygolds</string>
+            </array>
+        </dict>
+    </array>
     <key>UISupportedInterfaceOrientations~ipad</key>
     <array>
         <string>UIInterfaceOrientationPortrait</string>

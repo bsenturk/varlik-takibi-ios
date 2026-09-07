@@ -246,6 +246,9 @@ final class PurchaseManager: NSObject, ObservableObject {
             UserDefaultsManager.shared.isPro = pro
             Logger.log("💎 RevenueCat: Pro entitlement → \(pro)")
         }
+        // Widget'ın kilidi burada duruyor: kullanıcı Portföy sekmesini hiç
+        // açmasa bile abonelik bitince ana ekrandaki kart kilide düşsün.
+        WidgetSharedStore.isPro = pro
         if pro { AdMobManager.shared.hideBanner() }
         OfferCode.refreshShortcut()
     }

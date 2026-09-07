@@ -127,8 +127,10 @@ struct AnalysisView: View {
                         isLocked: lockedPortfolioIDs.contains(portfolio.id),
                         onTap: {
                             guard !lockedPortfolioIDs.contains(portfolio.id) else {
-                                showingPaywall = true
+                                // Haptic her dokunuşta; paywall frekans tavanına
+                                // tabi (dashboard'daki kilitli çiple aynı kural).
                                 UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                                if FeatureGatePaywall.shouldShow() { showingPaywall = true }
                                 return
                             }
                             withAnimation(.easeInOut(duration: 0.2)) {

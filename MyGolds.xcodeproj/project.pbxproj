@@ -7,11 +7,14 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		00B47445ADA72F1C1E93BD4E /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 608A34EBB50D18A6BE239FE3 /* Foundation.framework */; };
 		0528278AD78F91F4408501DF /* RatingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BBDD6ED0FF9AD49042FAE92 /* RatingManager.swift */; };
+		1706FDF74079BEDE98359FA6 /* PortfolioWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F5ADEFB7D6E732B17FA664B /* PortfolioWidget.swift */; };
 		1DA16E2772CDFB2EFF79DD0F /* SupabaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 771C5D8022DF794D87CE2C2A /* SupabaseManager.swift */; };
 		1EC57CE76295482DD6403A65 /* PortfolioStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6756A37D257C1F93381E6719 /* PortfolioStore.swift */; };
 		1EFF8EC1021D8F8FF79E4B01 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E45113718A2BE02F9C91637 /* DashboardView.swift */; };
 		271B53FCF47103949DE543E8 /* PortfolioSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26A5AF6D29D0C76F7C2C0305 /* PortfolioSnapshot.swift */; };
+		36FF5CA59FBC62AB28DDD1F3 /* WidgetSharedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36EF386890B8BC530367EF5C /* WidgetSharedStore.swift */; };
 		375CA5B6156431E084C93A86 /* PortfolioRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8EA8A77E2A393340062D5A0 /* PortfolioRepository.swift */; };
 		3963729C2B4D8369F69B4A37 /* PortfolioCalculatorService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01A9F05B1B928006A59FB128 /* PortfolioCalculatorService.swift */; };
 		41B01F051485178F0D8DB112 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12CAAD3CBA5A4B847F064538 /* PaywallView.swift */; };
@@ -22,9 +25,12 @@
 		515B55E34135116A7F9ECB0B /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7D00CE426CA4105B5D702D76 /* PrivacyInfo.xcprivacy */; };
 		51B8DA64BB6557E6D81A8390 /* PurchaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3FA32630A917E0B54622A5C /* PurchaseManager.swift */; };
 		57346157300FA9A706701060 /* AppError.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E50DD4E3D3B4F3BAC569F8 /* AppError.swift */; };
+		57E48E96C51DB008F85AA174 /* WidgetPriceFetcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 300551FFCA5862F2CFFC66CA /* WidgetPriceFetcher.swift */; };
 		58D058789EDAE33025BA16EC /* SupabaseModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD256FBA733EBE4803F3F420 /* SupabaseModels.swift */; };
+		5B46712CEAADE1326D49A300 /* WidgetSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9556495C791362A162B59E7F /* WidgetSync.swift */; };
 		5D9AFB0E241CCBABB02784B1 /* MarketDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8B3C04E3733E47B22E90D9A /* MarketDataService.swift */; };
 		6503826C3FC711C61C79BE38 /* AddAssetSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A386B28F85AE7E1CFC49959A /* AddAssetSheet.swift */; };
+		6F4E75E51BBB8982F4D41EEC /* PortfolioWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E02E731FE2D5F47FCC09401 /* PortfolioWidgetView.swift */; };
 		784E882F7EB72F8A2FBC170A /* RatesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5EECA123D70F085F351AB88 /* RatesViewModel.swift */; };
 		7BCA4ACFCDF2CEE4FB7FC320 /* RateDisplayModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C3F48DF406AEFA3D9127B4 /* RateDisplayModel.swift */; };
 		9B0F50432B7FFCB300A03018 /* MyGoldsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B0F50422B7FFCB300A03018 /* MyGoldsApp.swift */; };
@@ -65,8 +71,10 @@
 		9BC2B6BC2EA519F5009C4B5F /* AssetHistoryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BC2B6BB2EA519EF009C4B5F /* AssetHistoryManager.swift */; };
 		9BC2B6C12EA568A8009C4B5F /* DateExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BC2B6C02EA568A5009C4B5F /* DateExtension.swift */; };
 		9BC2B6C32EA56B23009C4B5F /* Currency.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BC2B6C22EA56B21009C4B5F /* Currency.swift */; };
+		A2F9FC5C03699C78791E1932 /* WidgetSharedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36EF386890B8BC530367EF5C /* WidgetSharedStore.swift */; };
 		A360D8ED2533987A4E5CD1A1 /* DashboardComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6097DEE3897B75EFE50A3407 /* DashboardComponents.swift */; };
 		A484FB09E87A14FFABAF3791 /* PushTokenService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FEAE132EC61C7E384CF314C /* PushTokenService.swift */; };
+		A892C5144B795BD3C75502BE /* MyGoldsWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AEEE7E05AED8594E7C7A8CFB /* MyGoldsWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		A8C3E38C16158BA7797038CB /* PortfolioEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BF667F5C586B464A6A9DF44 /* PortfolioEditorView.swift */; };
 		AAD70E9A546417685D9CC705 /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = F9CEB7A7386B60B483DDD43D /* RevenueCat */; };
 		AC85B45A8C0F3553835E4802 /* LegalLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9729B2A951EE89080AD8D9CA /* LegalLinks.swift */; };
@@ -114,26 +122,58 @@
 		FC626EEF3F22A36992EEB69C /* RatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17AEA84E07605177D2C0484B /* RatesView.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		B750409A328129516E5D7196 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9B0F50372B7FFCB300A03018 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D5138B49E6F5BA9658D55274;
+			remoteInfo = MyGoldsWidget;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		C40431326D0D162159A47033 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A892C5144B795BD3C75502BE /* MyGoldsWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		01A9F05B1B928006A59FB128 /* PortfolioCalculatorService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PortfolioCalculatorService.swift; sourceTree = "<group>"; };
 		01E6167D35D63ABBDDC6BE43 /* AnalysisView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AnalysisView.swift; sourceTree = "<group>"; };
+		0D622DCF483F536017FC218F /* MyGoldsWidget.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = MyGoldsWidget.entitlements; sourceTree = "<group>"; };
 		12CAAD3CBA5A4B847F064538 /* PaywallView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
 		17AEA84E07605177D2C0484B /* RatesView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RatesView.swift; sourceTree = "<group>"; };
+		2067482A4B559D884A7F51B8 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		247368DDD248FD2197BCB0D6 /* Portfolio.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Portfolio.swift; sourceTree = "<group>"; };
 		26A5AF6D29D0C76F7C2C0305 /* PortfolioSnapshot.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PortfolioSnapshot.swift; sourceTree = "<group>"; };
+		300551FFCA5862F2CFFC66CA /* WidgetPriceFetcher.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WidgetPriceFetcher.swift; sourceTree = "<group>"; };
 		33C953551A0F1D02939D23B6 /* MyGolds.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = MyGolds.entitlements; sourceTree = "<group>"; };
 		36C3F48DF406AEFA3D9127B4 /* RateDisplayModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RateDisplayModel.swift; sourceTree = "<group>"; };
+		36EF386890B8BC530367EF5C /* WidgetSharedStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WidgetSharedStore.swift; sourceTree = "<group>"; };
+		3E02E731FE2D5F47FCC09401 /* PortfolioWidgetView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PortfolioWidgetView.swift; sourceTree = "<group>"; };
 		3E45113718A2BE02F9C91637 /* DashboardView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		4BBDD6ED0FF9AD49042FAE92 /* RatingManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RatingManager.swift; sourceTree = "<group>"; };
 		4FEAE132EC61C7E384CF314C /* PushTokenService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PushTokenService.swift; sourceTree = "<group>"; };
 		5134E28796004C70C938911A /* PortfolioColor.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PortfolioColor.swift; sourceTree = "<group>"; };
 		548A197807D437CE0774A5DF /* RateCardView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RateCardView.swift; sourceTree = "<group>"; };
+		608A34EBB50D18A6BE239FE3 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		6097DEE3897B75EFE50A3407 /* DashboardComponents.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DashboardComponents.swift; sourceTree = "<group>"; };
 		6756A37D257C1F93381E6719 /* PortfolioStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PortfolioStore.swift; sourceTree = "<group>"; };
 		771C5D8022DF794D87CE2C2A /* SupabaseManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SupabaseManager.swift; sourceTree = "<group>"; };
 		7968DC0D91AA68BE56367185 /* SparklineView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SparklineView.swift; sourceTree = "<group>"; };
 		7BF667F5C586B464A6A9DF44 /* PortfolioEditorView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PortfolioEditorView.swift; sourceTree = "<group>"; };
 		7D00CE426CA4105B5D702D76 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		7F5ADEFB7D6E732B17FA664B /* PortfolioWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PortfolioWidget.swift; sourceTree = "<group>"; };
+		9556495C791362A162B59E7F /* WidgetSync.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WidgetSync.swift; sourceTree = "<group>"; };
 		9729B2A951EE89080AD8D9CA /* LegalLinks.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LegalLinks.swift; sourceTree = "<group>"; };
 		9B0F503F2B7FFCB300A03018 /* MyGolds.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MyGolds.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9B0F50422B7FFCB300A03018 /* MyGoldsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyGoldsApp.swift; sourceTree = "<group>"; };
@@ -147,6 +187,7 @@
 		9BC2B6C02EA568A5009C4B5F /* DateExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateExtension.swift; sourceTree = "<group>"; };
 		9BC2B6C22EA56B21009C4B5F /* Currency.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Currency.swift; sourceTree = "<group>"; };
 		A386B28F85AE7E1CFC49959A /* AddAssetSheet.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AddAssetSheet.swift; sourceTree = "<group>"; };
+		AEEE7E05AED8594E7C7A8CFB /* MyGoldsWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MyGoldsWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		B7E50DD4E3D3B4F3BAC569F8 /* AppError.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
 		BD256FBA733EBE4803F3F420 /* SupabaseModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SupabaseModels.swift; sourceTree = "<group>"; };
 		BD57CBF5F13AB266CF39E404 /* AssetEditSheet.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AssetEditSheet.swift; sourceTree = "<group>"; };
@@ -195,6 +236,14 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		7C51B7D6EA74A41C8928574D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				00B47445ADA72F1C1E93BD4E /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		9B0F503C2B7FFCB300A03018 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -236,6 +285,20 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		10EB40658B5DAF8294683778 /* MyGoldsWidget */ = {
+			isa = PBXGroup;
+			children = (
+				DD71AF4054A6808E35DB818B /* Shared */,
+				7F5ADEFB7D6E732B17FA664B /* PortfolioWidget.swift */,
+				3E02E731FE2D5F47FCC09401 /* PortfolioWidgetView.swift */,
+				300551FFCA5862F2CFFC66CA /* WidgetPriceFetcher.swift */,
+				2067482A4B559D884A7F51B8 /* Info.plist */,
+				0D622DCF483F536017FC218F /* MyGoldsWidget.entitlements */,
+			);
+			name = MyGoldsWidget;
+			path = MyGoldsWidget;
+			sourceTree = "<group>";
+		};
 		2549934E8B76A03A03D299EA /* Services */ = {
 			isa = PBXGroup;
 			children = (
@@ -265,12 +328,21 @@
 			path = Dashboard;
 			sourceTree = "<group>";
 		};
+		9A49E52E759584DA6F7939D6 /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				608A34EBB50D18A6BE239FE3 /* Foundation.framework */,
+			);
+			name = iOS;
+			sourceTree = "<group>";
+		};
 		9B0F50362B7FFCB300A03018 = {
 			isa = PBXGroup;
 			children = (
 				9B0F50412B7FFCB300A03018 /* MyGolds */,
 				D8B22AAD2E0DF74F0058B883 /* Frameworks */,
 				9B0F50402B7FFCB300A03018 /* Products */,
+				10EB40658B5DAF8294683778 /* MyGoldsWidget */,
 			);
 			sourceTree = "<group>";
 		};
@@ -278,6 +350,7 @@
 			isa = PBXGroup;
 			children = (
 				9B0F503F2B7FFCB300A03018 /* MyGolds.app */,
+				AEEE7E05AED8594E7C7A8CFB /* MyGoldsWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -524,6 +597,7 @@
 				F3FA32630A917E0B54622A5C /* PurchaseManager.swift */,
 				4BBDD6ED0FF9AD49042FAE92 /* RatingManager.swift */,
 				C3AE9AC81CAA069A44D2AFBD /* ProLock.swift */,
+				9556495C791362A162B59E7F /* WidgetSync.swift */,
 			);
 			path = Helpers;
 			sourceTree = "<group>";
@@ -558,8 +632,18 @@
 		D8B22AAD2E0DF74F0058B883 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				9A49E52E759584DA6F7939D6 /* iOS */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		DD71AF4054A6808E35DB818B /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				36EF386890B8BC530367EF5C /* WidgetSharedStore.swift */,
+			);
+			name = Shared;
+			path = Shared;
 			sourceTree = "<group>";
 		};
 		E9F0ADD5B08B7DF49495A719 /* Supabase */ = {
@@ -585,11 +669,13 @@
 				9B0F503B2B7FFCB300A03018 /* Sources */,
 				9B0F503C2B7FFCB300A03018 /* Frameworks */,
 				9B0F503D2B7FFCB300A03018 /* Resources */,
+				C40431326D0D162159A47033 /* Embed Foundation Extensions */,
 				9B81D6CC2BA5B6B400C8E9D2 /* Crashlytics */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				656BA55DD3AC8C6BC4DB5704 /* PBXTargetDependency */,
 			);
 			name = MyGolds;
 			packageProductDependencies = (
@@ -629,6 +715,23 @@
 			productReference = 9B0F503F2B7FFCB300A03018 /* MyGolds.app */;
 			productType = "com.apple.product-type.application";
 		};
+		D5138B49E6F5BA9658D55274 /* MyGoldsWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A9A82B9AB3F941C5CB8E475B /* Build configuration list for PBXNativeTarget "MyGoldsWidget" */;
+			buildPhases = (
+				FD1A41E4D942568AEAD1E699 /* Sources */,
+				7C51B7D6EA74A41C8928574D /* Frameworks */,
+				7AF1A0BDCDBD667D2B0B3DBF /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MyGoldsWidget;
+			productName = MyGoldsWidget;
+			productReference = AEEE7E05AED8594E7C7A8CFB /* MyGoldsWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -665,11 +768,19 @@
 			projectRoot = "";
 			targets = (
 				9B0F503E2B7FFCB300A03018 /* MyGolds */,
+				D5138B49E6F5BA9658D55274 /* MyGoldsWidget */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		7AF1A0BDCDBD667D2B0B3DBF /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		9B0F503D2B7FFCB300A03018 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -786,10 +897,32 @@
 				A484FB09E87A14FFABAF3791 /* PushTokenService.swift in Sources */,
 				50D46FD578C08637DC264227 /* ProLock.swift in Sources */,
 				AC85B45A8C0F3553835E4802 /* LegalLinks.swift in Sources */,
+				36FF5CA59FBC62AB28DDD1F3 /* WidgetSharedStore.swift in Sources */,
+				5B46712CEAADE1326D49A300 /* WidgetSync.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FD1A41E4D942568AEAD1E699 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1706FDF74079BEDE98359FA6 /* PortfolioWidget.swift in Sources */,
+				6F4E75E51BBB8982F4D41EEC /* PortfolioWidgetView.swift in Sources */,
+				57E48E96C51DB008F85AA174 /* WidgetPriceFetcher.swift in Sources */,
+				A2F9FC5C03699C78791E1932 /* WidgetSharedStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		656BA55DD3AC8C6BC4DB5704 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = MyGoldsWidget;
+			target = D5138B49E6F5BA9658D55274 /* MyGoldsWidget */;
+			targetProxy = B750409A328129516E5D7196 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		9B0F50502B7FFCB400A03018 /* Debug */ = {
@@ -996,6 +1129,73 @@
 			};
 			name = Release;
 		};
+		C63A6D6D06DCCEF0FDA326C8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = MyGoldsWidget/MyGoldsWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = ADPP457ME6;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MyGoldsWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Varlık Takibi";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 3.0.6;
+				PRODUCT_BUNDLE_IDENTIFIER = com.xptapps.assetbook.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		EF1F9E045DD3CB5B224F738D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = MyGoldsWidget/MyGoldsWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = ADPP457ME6;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MyGoldsWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Varlık Takibi";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 3.0.6;
+				PRODUCT_BUNDLE_IDENTIFIER = com.xptapps.assetbook.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1013,6 +1213,15 @@
 			buildConfigurations = (
 				9B0F50532B7FFCB400A03018 /* Debug */,
 				9B0F50542B7FFCB400A03018 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A9A82B9AB3F941C5CB8E475B /* Build configuration list for PBXNativeTarget "MyGoldsWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EF1F9E045DD3CB5B224F738D /* Release */,
+				C63A6D6D06DCCEF0FDA326C8 /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

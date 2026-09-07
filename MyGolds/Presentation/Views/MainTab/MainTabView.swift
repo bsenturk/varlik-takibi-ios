@@ -115,6 +115,14 @@ struct MainTabView: View {
         .fullScreenCover(item: $paywallContext) { context in
             PaywallView(onClose: { paywallContext = nil }, context: context)
         }
+        // Ana ekrandaki kilitli widget'a dokunulduğunda (mygolds://paywall).
+        // ponytail: onboarding'i bitirmemiş kullanıcıda MainTabView henüz
+        // hiyerarşide olmadığı için bağlantı sessizce yutulur — o kullanıcının
+        // zaten Pro'su yok, widget'ı da yeni eklemiş olması gerekir.
+        .onOpenURL { url in
+            guard url.scheme == "mygolds", url.host == "paywall" else { return }
+            paywallContext = .widget
+        }
         .onAppear {
             if adManager.shouldShowBanner {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {

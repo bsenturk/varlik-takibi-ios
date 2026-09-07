@@ -146,6 +146,8 @@ struct DashboardView: View {
             NotificationManager.shared.requestNotificationPermission()
             Task { await refresh() }
 
+            syncWidget()
+
             // Calm moment: ask for an App Store rating if the user is engaged enough.
             // Self-gates (≥3 distinct days + ≥2 assets, once per version, no ad on screen).
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
@@ -155,6 +157,9 @@ struct DashboardView: View {
         .onChange(of: assets) { _, _ in
             portfolioManager.updatePortfolio(with: ProLock.unlocked(assets, portfolios: portfolios))
         }
+        .onChange(of: widgetSyncKey) { _, _ in syncWidget() }
+        // Portföy adı/rengi editörde değişmiş olabilir; imza bunu görmüyor.
+        .onChange(of: editorMode?.id) { _, _ in syncWidget() }
         .fullScreenCover(item: $paywallContext) { context in
             PaywallView(onClose: { paywallContext = nil }, context: context)
         }
@@ -216,8 +221,9 @@ struct DashboardView: View {
     private func handleChipTap(_ portfolio: Portfolio) {
         // Kilitli portföy seçilemez; veri duruyor, erişim Pro'ya bağlı.
         guard !lockedPortfolioIDs.contains(portfolio.id) else {
-            paywallContext = .portfolioLimit
+            // Haptic her dokunuşta; paywall frekans tavanına tabi.
             UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            if FeatureGatePaywall.shouldShow() { paywallContext = .portfolioLimit }
             return
         }
         if portfolio.id == selectedPortfolio?.id, !portfolio.isGeneral {
@@ -260,9 +266,10 @@ struct DashboardView: View {
                 Group {
                     if item.isLocked {
                         Button {
+                            // Niyet sinyali her zaman loglanır; paywall tavana tabi.
                             FirebaseAnalyticsHelper.shared.logPremiumCategoryLocked(category: item.title)
-                            paywallContext = .fund
                             UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                            if FeatureGatePaywall.shouldShow() { paywallContext = .fund }
                         } label: {
                             DashboardRowView(item: item, valuesMasked: valuesMasked)
                         }
@@ -467,6 +474,31 @@ struct DashboardView: View {
         await marketDataManager.refreshData()
         await updateAssetPrices()
         portfolioManager.updatePortfolio(with: ProLock.unlocked(assets, portfolios: portfolios))
+        syncWidget()
+    }
+
+    // MARK: - Widget
+
+    /// Ana ekrandaki widget uygulamadaki seçimi izler: kullanıcı başka bir
+    /// portföy çipine dokunduğunda widget da ona geçer.
+    ///
+    /// ponytail: ucuz bir imza — portföyün *adı* ya da *rengi* değiştiğinde
+    /// tetiklenmez; onu editörün kapanışı ve sekmeye dönüş yakalıyor. Tutarlar
+    /// zaten widget'ın kendi fiyat çekiminden geldiği için burada gecikmenin
+    /// bedeli yok.
+    private var widgetSyncKey: String {
+        let amounts = assets.reduce(0) { $0 + $1.amount }
+        return "\(portfolios.count)|\(assets.count)|\(amounts)|\(selectedPortfolioIDString)|\(selectedCurrency.rawValue)|\(maskedPortfolios)"
+    }
+
+    private func syncWidget() {
+        WidgetSync.push(
+            portfolios: portfolios,
+            assets: assets,
+            selectedID: selectedPortfolio?.id.uuidString ?? "",
+            currency: selectedCurrency,
+            maskedRaw: maskedPortfolios
+        )
     }
 
     @MainActor
