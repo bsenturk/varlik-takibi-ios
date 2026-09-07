@@ -17,26 +17,13 @@
 
 import { createServiceClient } from "../_shared/prices.ts";
 import { errorResponse, handlePreflight, jsonResponse } from "../_shared/cors.ts";
+import { mapWithConcurrency, storeLogo } from "../_shared/logos.ts";
 
 const MARKETS_URL = "https://api.coingecko.com/api/v3/coins/markets";
-const BUCKET = "asset-logos";
-/// Logolar değişmiyor; bir yıl önbellek güvenli.
-const CACHE_CONTROL = "31536000";
 
 interface MarketRow {
   id: string;
   image: string | null;
-}
-
-/// İçerik tipinden dosya uzantısı. CoinGecko hepsini png servis etmiyor
-/// (ör. polkadot.jpg), uzantıyı yanıttan almak gerekiyor.
-function extensionFor(contentType: string | null, sourceURL: string): string {
-  if (contentType?.includes("png")) return "png";
-  if (contentType?.includes("jpeg") || contentType?.includes("jpg")) return "jpg";
-  if (contentType?.includes("webp")) return "webp";
-  if (contentType?.includes("svg")) return "svg";
-  const fromPath = new URL(sourceURL).pathname.split(".").pop();
-  return fromPath && fromPath.length <= 4 ? fromPath : "png";
 }
 
 Deno.serve(async (req: Request) => {
@@ -73,49 +60,24 @@ Deno.serve(async (req: Request) => {
     const imageById = new Map(markets.map((m) => [m.id, m.image]));
 
     // 3) İndir → Storage'a koy → logo_url'e kendi adresimizi yaz.
-    const updated: string[] = [];
-    const missing: string[] = [];
-
-    for (const [symbol, id] of idBySymbol) {
+    const entries = [...idBySymbol.entries()];
+    const outcomes = await mapWithConcurrency(entries, 6, async ([symbol, id]) => {
       const sourceURL = imageById.get(id);
-      if (!sourceURL) {
-        missing.push(symbol);
-        continue;
-      }
+      if (!sourceURL) return { symbol, ok: false };
+      const ok = await storeLogo(supabase, {
+        symbol,
+        assetType: "crypto",
+        sourceURL,
+        folder: "crypto",
+      });
+      return { symbol, ok };
+    });
 
-      const image = await fetch(sourceURL);
-      if (!image.ok) {
-        missing.push(symbol);
-        continue;
-      }
-      const contentType = image.headers.get("content-type");
-      const path = `crypto/${symbol}.${extensionFor(contentType, sourceURL)}`;
-      const bytes = new Uint8Array(await image.arrayBuffer());
-
-      const { error: uploadError } = await supabase.storage
-        .from(BUCKET)
-        .upload(path, bytes, {
-          contentType: contentType ?? "image/png",
-          cacheControl: CACHE_CONTROL,
-          upsert: true,
-        });
-      if (uploadError) throw new Error(`Storage upload error (${symbol}): ${uploadError.message}`);
-
-      const { data: publicURL } = supabase.storage.from(BUCKET).getPublicUrl(path);
-
-      // Sembole göre güncelleniyor: bir coin'in TRY ve USD satırlarının ikisi
-      // de aynı logoyu almalı.
-      const { error: updateError } = await supabase
-        .from("assets_prices")
-        .update({ logo_url: publicURL.publicUrl })
-        .eq("asset_type", "crypto")
-        .eq("symbol", symbol);
-      if (updateError) throw new Error(`DB update error (${symbol}): ${updateError.message}`);
-
-      updated.push(symbol);
-    }
-
-    return jsonResponse({ status: "ok", updated, missing });
+    return jsonResponse({
+      status: "ok",
+      updated: outcomes.filter((o) => o.ok).map((o) => o.symbol),
+      missing: outcomes.filter((o) => !o.ok).map((o) => o.symbol),
+    });
   } catch (err) {
     return errorResponse(err);
   }
