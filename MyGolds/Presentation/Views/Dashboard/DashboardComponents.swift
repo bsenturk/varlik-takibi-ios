@@ -221,7 +221,7 @@ struct BalanceCardView: View {
         )
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .shadow(color: portfolioColor.color.opacity(0.35), radius: 18, x: 0, y: 10)
-        .sheet(isPresented: $showingCurrencyPicker) { CurrencySelectionView() }
+        .fullScreenCover(isPresented: $showingCurrencyPicker) { CurrencySelectionView() }
     }
 
     /// Göz ikonu: yalnızca bu portföyün tutarlarını gizler/gösterir (tercih kalıcı).

@@ -75,7 +75,7 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $showingFeedback) { FeedbackView() }
         .sheet(isPresented: $showingDarkModeSettings) { DarkModeSettingsView() }
-        .sheet(isPresented: $showingCurrencyPicker) { CurrencySelectionView() }
+        .fullScreenCover(isPresented: $showingCurrencyPicker) { CurrencySelectionView() }
         .fullScreenCover(item: $paywallContext) { context in
             PaywallView(onClose: { paywallContext = nil }, context: context)
         }
