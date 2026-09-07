@@ -83,10 +83,10 @@ struct AnalysisView: View {
                                 valueCard
                                 distributionCard
                                 if !topGainers.isEmpty {
-                                    moversCard(title: "En Çok Kazandıranlar", assets: topGainers, positive: true)
+                                    moversCard(title: "En Çok Yükselenler", assets: topGainers, positive: true)
                                 }
                                 if !topLosers.isEmpty {
-                                    moversCard(title: "En Çok Kaybettirenler", assets: topLosers, positive: false)
+                                    moversCard(title: "En Çok Düşenler", assets: topLosers, positive: false)
                                 }
                             }
                         }
@@ -395,12 +395,23 @@ struct AnalysisView: View {
 
     // MARK: - Movers (gainers / losers)
 
+    /// Buradaki yüzde **fiyat hareketi**, portföy sekmesindeki ise alış fiyatına
+    /// göre kâr/zarar. İkisi aynı varlıkta farklı sayılar veriyor ve rozetler
+    /// birebir aynı göründüğü için karışıyordu: eski "Kazandıranlar /
+    /// Kaybettirenler" başlıkları para ima ediyordu. Başlık artık hareketi
+    /// söylüyor, alt satır da hangi tabana göre olduğunu.
     private func moversCard(title: String, assets: [Asset], positive: Bool) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(title)
                 .font(.system(size: 18, weight: .bold))
                 .padding(.horizontal, 18)
                 .padding(.top, 18)
+
+            Text("Son fiyat değişimine göre")
+                .font(.system(size: 13))
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 18)
+                .padding(.top, 2)
                 .padding(.bottom, 6)
 
             ForEach(Array(assets.enumerated()), id: \.element.id) { index, asset in
