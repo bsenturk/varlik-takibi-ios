@@ -267,7 +267,8 @@ struct AddAssetSheet: View {
                 || $0.symbol.localizedCaseInsensitiveContains(searchText)
         }
         return VStack(spacing: 0) {
-            searchBar
+            searchBar(for: category)
+            if category == .fund { fundSearchHint }
             ScrollView {
                 LazyVStack(spacing: 10) {
                     if items.isEmpty {
@@ -370,12 +371,41 @@ struct AddAssetSheet: View {
         }
     }
 
-    private var searchBar: some View {
+    /// Fon listesi TEFAS'ın tamamını içermiyor — yalnızca `assets_prices`'a daha
+    /// önce girmiş fonlar listeleniyor. Kullanıcı aradığı fonu listede
+    /// bulamayınca "bu uygulama o fonu desteklemiyor" sanıyordu; oysa arama
+    /// kutusuna kodunu yazınca `search-tefas` fonu canlı çekip ekliyor.
+    ///
+    /// Yalnızca fonlarda gösteriliyor: canlı arama yalnızca bu kategoride var,
+    /// hisse/kripto listelerinde aynı sözü vermek yanlış olurdu.
+    private var fundSearchHint: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "info.circle.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(ProStyle.accent)
+            Text("Listede tüm fonlar yok. Aradığın fonu göremiyorsan kodunu ya da adını yukarıya yaz — TEFAS'tan getirelim.")
+                .font(.system(size: 13))
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(ProStyle.accent.opacity(0.08))
+        )
+        .padding(.horizontal, 16)
+        .padding(.bottom, 12)
+    }
+
+    private func searchBar(for category: AssetCategory) -> some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundColor(.secondary)
-            TextField("Ara", text: $searchText)
+            // Fonlarda ipucu somut olsun: aranacak şey kod ya da ad.
+            TextField(category == .fund ? "Fon kodu veya adı" : "Ara", text: $searchText)
                 .font(.system(size: 16))
                 .autocorrectionDisabled()
             if !searchText.isEmpty {
