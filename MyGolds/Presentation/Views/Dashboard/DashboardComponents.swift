@@ -58,10 +58,19 @@ struct AssetIconTile: View {
 
     var body: some View {
         RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .fill(Color(hex: tintHex).opacity(0.16))
+            .fill(background)
             .frame(width: size, height: size)
             .overlay { content }
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    /// Kategori ikonu, ait olduğu kategorinin renk tonunda oturur. Logolar ise
+    /// kendi renklerini taşıyor: turuncu kripto zemini Cardano'nun mavisiyle ya
+    /// da Polkadot'un siyahıyla çakışıyordu. Logo varken nötr zemin.
+    private var background: AnyShapeStyle {
+        logoURL == nil
+            ? AnyShapeStyle(Color(hex: tintHex).opacity(0.16))
+            : AnyShapeStyle(Color(.secondarySystemFill))
     }
 
     @ViewBuilder
