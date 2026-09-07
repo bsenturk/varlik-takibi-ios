@@ -28,43 +28,14 @@ struct CurrencySelectionView: View {
             Color(.systemGroupedBackground).ignoresSafeArea()
 
             VStack(spacing: 0) {
-                header
+                SelectionScreenHeader(
+                    title: "Para Birimi",
+                    subtitle: "Portföyün bu para biriminde gösterilir",
+                    onClose: { dismiss() }
+                )
                 list
             }
         }
-    }
-
-    // MARK: - Başlık
-
-    private var header: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Para Birimi")
-                    .font(.system(size: 28, weight: .heavy))
-                    .foregroundColor(.primary)
-                Text("Portföyün bu para biriminde gösterilir")
-                    .font(.system(size: 14))
-                    .foregroundColor(.secondary)
-            }
-
-            Spacer(minLength: 16)
-
-            Button(action: { dismiss() }) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(.secondary)
-                    .frame(width: 30, height: 30)
-                    .background(Color(.secondarySystemFill))
-                    .clipShape(Circle())
-                    // Görsel daire 30pt, dokunma hedefi Apple'ın 44pt sınırında.
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
-            }
-            .offset(x: 8)
-        }
-        .padding(.horizontal, 20)
-        .padding(.top, 20)
-        .padding(.bottom, 16)
     }
 
     // MARK: - Liste

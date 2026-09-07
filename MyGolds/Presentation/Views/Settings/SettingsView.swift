@@ -74,7 +74,7 @@ struct SettingsView: View {
                 .presentationCornerRadius(28)
         }
         .sheet(isPresented: $showingFeedback) { FeedbackView() }
-        .sheet(isPresented: $showingDarkModeSettings) { DarkModeSettingsView() }
+        .fullScreenCover(isPresented: $showingDarkModeSettings) { DarkModeSettingsView() }
         .fullScreenCover(isPresented: $showingCurrencyPicker) { CurrencySelectionView() }
         .fullScreenCover(item: $paywallContext) { context in
             PaywallView(onClose: { paywallContext = nil }, context: context)

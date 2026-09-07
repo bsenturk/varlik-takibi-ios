@@ -17,6 +17,7 @@
 		271B53FCF47103949DE543E8 /* PortfolioSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26A5AF6D29D0C76F7C2C0305 /* PortfolioSnapshot.swift */; };
 		36FF5CA59FBC62AB28DDD1F3 /* WidgetSharedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36EF386890B8BC530367EF5C /* WidgetSharedStore.swift */; };
 		375CA5B6156431E084C93A86 /* PortfolioRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8EA8A77E2A393340062D5A0 /* PortfolioRepository.swift */; };
+		3899213248887ED43B3AB42A /* SelectionScreenHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB74F28B8E647460482BC981 /* SelectionScreenHeader.swift */; };
 		3963729C2B4D8369F69B4A37 /* PortfolioCalculatorService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01A9F05B1B928006A59FB128 /* PortfolioCalculatorService.swift */; };
 		41B01F051485178F0D8DB112 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12CAAD3CBA5A4B847F064538 /* PaywallView.swift */; };
 		41BB945641F3EC209AEAAF52 /* Portfolio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 247368DDD248FD2197BCB0D6 /* Portfolio.swift */; };
@@ -195,6 +196,7 @@
 		BD57CBF5F13AB266CF39E404 /* AssetEditSheet.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AssetEditSheet.swift; sourceTree = "<group>"; };
 		C3AE9AC81CAA069A44D2AFBD /* ProLock.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ProLock.swift; sourceTree = "<group>"; };
 		C5EECA123D70F085F351AB88 /* RatesViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RatesViewModel.swift; sourceTree = "<group>"; };
+		CB74F28B8E647460482BC981 /* SelectionScreenHeader.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SelectionScreenHeader.swift; sourceTree = "<group>"; };
 		D8581F1E2E0ED64D00E48444 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		D8581F212E0ED67700E48444 /* ATTPermissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTPermissionView.swift; sourceTree = "<group>"; };
 		D8581F242E0ED6DB00E48444 /* NotificationPermissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationPermissionView.swift; sourceTree = "<group>"; };
@@ -467,6 +469,7 @@
 			children = (
 				D8581F762E0FEB5A00E48444 /* CustomDeletePopup.swift */,
 				7968DC0D91AA68BE56367185 /* SparklineView.swift */,
+				CB74F28B8E647460482BC981 /* SelectionScreenHeader.swift */,
 			);
 			path = CommonUI;
 			sourceTree = "<group>";
@@ -903,6 +906,7 @@
 				36FF5CA59FBC62AB28DDD1F3 /* WidgetSharedStore.swift in Sources */,
 				5B46712CEAADE1326D49A300 /* WidgetSync.swift in Sources */,
 				0E3699DB6CF8105101818F76 /* CurrencySelectionView.swift in Sources */,
+				3899213248887ED43B3AB42A /* SelectionScreenHeader.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
