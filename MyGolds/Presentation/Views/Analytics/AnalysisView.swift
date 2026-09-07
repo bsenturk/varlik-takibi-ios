@@ -15,6 +15,7 @@ struct AnalysisView: View {
     @Query(sort: \Portfolio.sortOrder) private var portfolios: [Portfolio]
     @Query private var assets: [Asset]
     @StateObject private var portfolioManager = PortfolioManager.shared
+    @StateObject private var marketDataManager = MarketDataManager.shared
 
     @AppStorage("selectedCurrency") private var selectedCurrency: Currency = .TRY
     @AppStorage(UserDefaultsManager.maskedPortfoliosKey) private var maskedPortfolios = ""
@@ -461,6 +462,15 @@ struct AnalysisView: View {
     }
 
     private func assetDayChangePercent(_ asset: Asset) -> Double {
+        // Önce backend'in kendi günlük değişimi. Yerel geçmiş yalnızca uygulama
+        // açıkken yazıldığı için, birkaç gün girilmediğinde taban bayatlıyor ve
+        // "günlük" değişim aslında birkaç günlük oluyordu.
+        if let backend = marketDataManager.dayChangePercent(forSymbol: asset.symbol) {
+            return backend
+        }
+
+        // Backend'in değişim yayınlamadığı enstrümanlar (TEFAS fonları) için
+        // eski davranış: bugünden önceki son kayıtlı fiyata göre.
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
         let history = AssetHistoryManager.shared.getHistory(for: asset.symbol, context: modelContext)

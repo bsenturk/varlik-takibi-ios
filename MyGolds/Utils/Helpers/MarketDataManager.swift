@@ -120,6 +120,34 @@ final class MarketDataManager: ObservableObject {
         return rows.first?.price
     }
 
+    /// `symbol`ün TRY cinsinden günlük değişimi (%), backend'in `change_percent`
+    /// alanından. Yerel geçmişten hesaplamaya göre üstünlüğü: kullanıcı
+    /// uygulamayı günlerce açmasa da doğru kalır (yerel anlık görüntüler yalnızca
+    /// uygulama açıkken yazılıyor, taban bayatlıyordu).
+    ///
+    /// Backend'in TRY değişimi olmayan enstrümanlarda `nil` döner — çağıran taraf
+    /// yerel geçmişe düşer. Bugün itibarıyla tek böyle sınıf TEFAS fonları
+    /// (`change_percent` 172 satırın hepsinde boş).
+    func dayChangePercent(forSymbol symbol: String) -> Double? {
+        let rows = allPrices.filter { $0.symbol == symbol }
+
+        // Altın, döviz, BIST ve kripto: backend TRY satırını zaten yayınlıyor.
+        if let tryChange = rows.first(where: { $0.currency == "TRY" })?.changePercent {
+            return tryChange
+        }
+
+        // Yalnızca USD satırı olanlar (ABD hisseleri): TRY karşılığı hem
+        // enstrümanın hem kurun hareketini taşır, ikisi bileşiktir. Backend
+        // kriptonun TRY satırını da aynı şekilde üretiyor; burada onu ABD
+        // hisseleri için elde hesaplıyoruz ki sıralama tek bir para biriminde
+        // (TRY) kalsın — USD değişimini TRY değişimiyle yan yana sıralamak
+        // yanlış bir tablo verirdi.
+        guard let usdChange = rows.first(where: { $0.currency == "USD" })?.changePercent,
+              let fxChange = allPrices.first(where: { $0.symbol == "USD" && $0.currency == "TRY" })?.changePercent
+        else { return nil }
+        return ((1 + usdChange / 100) * (1 + fxChange / 100) - 1) * 100
+    }
+
     /// Build display instruments (TRY-priced) for a backend asset_type, deduped by symbol.
     private func makeTRYInstruments(assetType: String) -> [AssetsPrice] {
         let rows = allPrices.filter { $0.assetType == assetType }
