@@ -40,6 +40,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
         #if DEBUG
         AdPaywallGate.selfCheck()
         FeatureGatePaywall.selfCheck()
+        String.searchSelfCheck()
         ProLock.selfCheck()
         #endif
 

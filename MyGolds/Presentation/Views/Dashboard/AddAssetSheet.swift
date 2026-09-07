@@ -50,6 +50,15 @@ struct AddAssetSheet: View {
         case category
         case typeList(AssetCategory)
         case amount(Instrument)
+
+        /// Adımın ait olduğu kategori. Arama sorgusunun ömrü buna bağlı.
+        var category: AssetCategory? {
+            switch self {
+            case .category: return nil
+            case .typeList(let category): return category
+            case .amount(let instrument): return instrument.category
+            }
+        }
     }
 
     private enum InputField { case amount, purchasePrice }
@@ -109,6 +118,17 @@ struct AddAssetSheet: View {
             }
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        // Arama sorgusu kategoriye aittir. Kullanıcı "ALT" yazıp geri çıkıp
+        // Kripto'ya girdiğinde eski sorgu duruyor ve liste boş açılıyordu —
+        // arama kutusu ekranın üstünde olduğu için sebebi de görünmüyordu.
+        //
+        // Her adım değişiminde değil, yalnızca kategori değiştiğinde
+        // temizleniyor: miktar adımından geri dönen kullanıcı aynı listeye
+        // döndüğü için sorgusunu kaybetmemeli.
+        .onChange(of: step) { previous, current in
+            guard previous.category != current.category else { return }
+            searchText = ""
+        }
         .onAppear {
             selectedPortfolio = targetPortfolio ?? realPortfolios.first
             FirebaseAnalyticsHelper.shared.logAddAssetOpened(source: flowSource)
@@ -262,9 +282,7 @@ struct AddAssetSheet: View {
 
     private func typeList(for category: AssetCategory) -> some View {
         let items = instrumentsForCategory(category).filter {
-            searchText.isEmpty
-                || $0.name.localizedCaseInsensitiveContains(searchText)
-                || $0.symbol.localizedCaseInsensitiveContains(searchText)
+            $0.name.searchMatches(searchText) || $0.symbol.searchMatches(searchText)
         }
         return VStack(spacing: 0) {
             searchBar(for: category)
@@ -357,8 +375,7 @@ struct AddAssetSheet: View {
         }
         // Skip the round-trip if a cached fund already matches the query.
         let hasLocalMatch = marketData.instruments(for: .fund).contains {
-            $0.name.localizedCaseInsensitiveContains(trimmed)
-                || ($0.code ?? "").localizedCaseInsensitiveContains(trimmed)
+            $0.name.searchMatches(trimmed) || ($0.code ?? "").searchMatches(trimmed)
         }
         if hasLocalMatch { isSearchingFunds = false; return }
 
