@@ -223,10 +223,8 @@ struct PaywallView: View {
     @StateObject private var purchases = PurchaseManager.shared
     @State private var selectedPlan: ProPlan = .yearly
     @State private var alertMessage: String?
-    @State private var showingPrivacy = false
-
-    /// Apple's standard EULA — used unless a custom Terms of Use URL is provided.
-    private let termsURL = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
+    /// Paywall'ın açıldığı an — kapatmada "kaç saniye bakıldı" için.
+    @State private var shownAt = Date()
 
     private let features: [(icon: String, title: String, subtitle: String)] = [
         ("hand.thumbsup.fill", "Reklamsız Deneyim", "Kesintisiz, temiz bir arayüz"),
@@ -269,8 +267,10 @@ struct PaywallView: View {
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
             }
         }
-        .onAppear { FirebaseAnalyticsHelper.shared.logPaywallShown(context: context.analyticsName) }
-        .sheet(isPresented: $showingPrivacy) { PrivacyPolicyView() }
+        .onAppear {
+            shownAt = Date()
+            FirebaseAnalyticsHelper.shared.logPaywallShown(context: context.analyticsName)
+        }
         .alert("Bilgi", isPresented: Binding(
             get: { alertMessage != nil },
             set: { if !$0 { alertMessage = nil } }
@@ -287,7 +287,10 @@ struct PaywallView: View {
         HStack {
             Spacer()
             Button(action: {
-                FirebaseAnalyticsHelper.shared.logPaywallDismissed(context: context.analyticsName)
+                FirebaseAnalyticsHelper.shared.logPaywallDismissed(
+                    context: context.analyticsName,
+                    secondsShown: Int(Date().timeIntervalSince(shownAt))
+                )
                 onClose()
             }) {
                 Image(systemName: "xmark")
@@ -488,8 +491,11 @@ struct PaywallView: View {
     /// Guideline 3.1.2 for auto-renewable subscriptions.
     private var legalLinks: some View {
         HStack(spacing: 18) {
-            Button("Kullanım Şartları") { openURL(termsURL) }
-            Button("Gizlilik Politikası") { showingPrivacy = true }
+            // Apple'ın standart EULA'sı yerine kendi koşullarımız: sayfa
+            // otomatik yenilenme, 24 saat içinde iptal ve iade şartlarını
+            // içerdiği için 3.1.2'yi karşılıyor.
+            Button("Kullanım Koşulları") { openURL(LegalLinks.terms) }
+            Button("Gizlilik Politikası") { openURL(LegalLinks.privacy) }
             Button("Geri Yükle") { restorePurchases() }
                 .disabled(purchases.purchaseInProgress)
         }
@@ -522,15 +528,25 @@ struct PaywallView: View {
         let hadTrial = selectedPlan.freeTrial != nil
         FirebaseAnalyticsHelper.shared.logPaywallCtaTapped(plan: plan, hasTrial: hadTrial)
         Task {
-            let success = await purchases.purchase(package)
-            if success {
+            switch await purchases.purchase(package) {
+            case .subscribed:
                 // `PurchaseManager` already set `isPro` and hid the banner.
                 FirebaseAnalyticsHelper.shared.logSubscriptionPurchased(plan: plan, hadTrial: hadTrial)
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
                 onClose()
-            } else {
-                // Covers both store errors and user cancellation (drop-off signal).
-                FirebaseAnalyticsHelper.shared.logSubscriptionPurchaseFailed(plan: plan)
+            case .cancelled:
+                // Normal bir vazgeçiş; kullanıcıya uyarı gösterilmez.
+                FirebaseAnalyticsHelper.shared.logSubscriptionPurchaseFailed(
+                    plan: plan, reason: "cancelled", errorCode: nil
+                )
+            case .failed(let code, let message):
+                FirebaseAnalyticsHelper.shared.logSubscriptionPurchaseFailed(
+                    plan: plan, reason: "error", errorCode: code
+                )
+                // Gerçek hatada sessiz kalmak kullanıcıyı butona tekrar tekrar
+                // bastırıyordu; ne olduğu söylenmeli.
+                alertMessage = "Satın alma tamamlanamadı: \(message)"
+                UINotificationFeedbackGenerator().notificationOccurred(.error)
             }
         }
     }

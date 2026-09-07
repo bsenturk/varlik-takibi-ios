@@ -12,6 +12,22 @@
     </array>
     <key>NSPrivacyCollectedDataTypes</key>
     <array>
+        <!-- Uygulamanın kendi Firebase Analytics olayları: ekran görüntülemeleri,
+             varlık ekleme hunisi, paywall hunisi, abonelik sonuçları. Tutar,
+             bakiye veya fiyat ASLA gönderilmiyor; yalnızca davranışsal sinyaller
+             ve hassas olmayan kategoriler. Kullanıcı kimliğine bağlanmıyor. -->
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeProductInteraction</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+            </array>
+        </dict>
         <dict>
             <key>NSPrivacyCollectedDataType</key>
             <string>NSPrivacyCollectedDataTypeDeviceID</string>

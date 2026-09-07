@@ -7,6 +7,7 @@
 
 import Foundation
 import FirebaseAnalytics
+import GoogleMobileAds
 
 final class FirebaseAnalyticsHelper {
     static let shared = FirebaseAnalyticsHelper()
@@ -65,6 +66,62 @@ final class FirebaseAnalyticsHelper {
         ])
     }
     
+    // MARK: - Ad Revenue
+
+    /// AdMob'un impression-level revenue callback'i (`paidEventHandler`).
+    /// Firebase'in standart `ad_impression` olayı olarak yazılır; GA4 bunu
+    /// gelir olarak sayar, yani AdMob↔GA4 hesap bağlantısı olmadan da reklam
+    /// geliri raporlarda görünür.
+    func logAdRevenue(_ value: GADAdValue, format: String, adUnitID: String, source: String?) {
+        // GADAdValue mikro cinsindendir (1.000.000 mikro = 1 birim).
+        let amount = value.value.dividing(by: 1_000_000).doubleValue
+        var params: [String: Any] = [
+            AnalyticsParameterAdPlatform: "AdMob",
+            AnalyticsParameterAdFormat: format,
+            AnalyticsParameterAdUnitName: adUnitID,
+            AnalyticsParameterAdSource: source ?? "unknown",
+            "precision": value.precision.rawValue
+        ]
+        // GA4, currency geçersiz/boşsa `value`'yu sessizce yok sayar — gelir
+        // kaybolur ve nedeni raporda görünmez. Geçerli ISO-4217 yoksa event
+        // yine gönderilir (impression sayımı için) ama tutarsız gelir yazılmaz.
+        if value.currencyCode.count == 3 {
+            params[AnalyticsParameterCurrency] = value.currencyCode
+            params[AnalyticsParameterValue] = amount
+        } else {
+            params["invalid_currency"] = value.currencyCode.isEmpty ? "empty" : value.currencyCode
+        }
+        Analytics.logEvent(AnalyticsEventAdImpression, parameters: params)
+    }
+
+    // MARK: - Interstitial Ad Events
+
+    func logInterstitialAdLoaded() {
+        Analytics.logEvent("interstitial_ad_loaded", parameters: ["ad_type": "interstitial"])
+    }
+
+    func logInterstitialAdLoadFailed(error: String) {
+        Analytics.logEvent("interstitial_ad_load_failed", parameters: [
+            "error_message": error,
+            "ad_type": "interstitial"
+        ])
+    }
+
+    func logInterstitialAdWillPresent() {
+        Analytics.logEvent("interstitial_ad_will_present", parameters: ["ad_type": "interstitial"])
+    }
+
+    func logInterstitialAdDismissed() {
+        Analytics.logEvent("interstitial_ad_dismissed", parameters: ["ad_type": "interstitial"])
+    }
+
+    func logInterstitialAdPresentFailed(error: String) {
+        Analytics.logEvent("interstitial_ad_present_failed", parameters: [
+            "error_message": error,
+            "ad_type": "interstitial"
+        ])
+    }
+
     // MARK: - Banner Ad Events
     
     /// Banner Ad yüklendiğinde
@@ -144,14 +201,54 @@ final class FirebaseAnalyticsHelper {
 
     // MARK: Assets
 
+    // MARK: Varlık ekleme hunisi
+    //
+    // `asset_added` yalnızca BAŞARIYI logluyordu: aktif kullanıcıların %60'ının
+    // hiç varlık eklememesinin nedeni ölçülemiyordu — akışı hiç açmadılar mı,
+    // kategori ızgarasında mı bıraktılar, tutar ekranında mı vazgeçtiler?
+    // Aşağıdaki dört olay adımları ayırır. `source` her adımda taşınır ki
+    // onboarding'den gelen kullanıcı ile sonradan + butonuna basan ayrılabilsin.
+
+    /// Varlık ekleme akışı açıldı. `source`: "onboarding" | "manual".
+    func logAddAssetOpened(source: String) {
+        Analytics.logEvent("add_asset_opened", parameters: ["source": source])
+    }
+
+    /// Kategori ızgarasından bir kategori seçildi (1. adım geçildi).
+    func logAddAssetCategorySelected(category: String, source: String) {
+        Analytics.logEvent("add_asset_category_selected", parameters: [
+            "asset_category": category,
+            "source": source
+        ])
+    }
+
+    /// Listeden somut bir enstrüman seçildi (2. adım geçildi, tutar ekranı açıldı).
+    func logAddAssetInstrumentSelected(category: String, symbol: String, source: String) {
+        Analytics.logEvent("add_asset_instrument_selected", parameters: [
+            "asset_category": category,
+            "asset_symbol": symbol,
+            "source": source
+        ])
+    }
+
+    /// Akış varlık eklenmeden kapatıldı. `step` ulaşılan **en derin** adımdır
+    /// (geri dönülse bile), huninin nerede koptuğunu gösteren asıl olay budur.
+    /// - Parameter step: "category" | "type_list" | "amount"
+    func logAddAssetAbandoned(step: String, category: String?, source: String) {
+        var params: [String: Any] = ["step": step, "source": source]
+        if let category { params["asset_category"] = category }
+        Analytics.logEvent("add_asset_abandoned", parameters: params)
+    }
+
     /// Bir varlık eklendiğinde — yalnızca varlık sınıfı/sembolü ve davranışsal
     /// bayraklar; ASLA miktar, değer veya fiyat içermez.
-    func logAssetAdded(category: String, symbol: String, isMerge: Bool, hasPurchasePrice: Bool) {
+    func logAssetAdded(category: String, symbol: String, isMerge: Bool, hasPurchasePrice: Bool, source: String) {
         Analytics.logEvent("asset_added", parameters: [
             "asset_category": category,
             "asset_symbol": symbol,
             "is_merge": isMerge,
-            "has_purchase_price": hasPurchasePrice
+            "has_purchase_price": hasPurchasePrice,
+            "source": source
         ])
     }
 
@@ -200,10 +297,12 @@ final class FirebaseAnalyticsHelper {
         ])
     }
 
-    /// Paywall satın alma yapılmadan kapatıldığında.
-    func logPaywallDismissed(context: String) {
+    /// Paywall satın alma yapılmadan kapatıldığında. `seconds_shown`, refleks
+    /// kapatma ile "okudu ama ikna olmadı"yı ayırır.
+    func logPaywallDismissed(context: String, secondsShown: Int) {
         Analytics.logEvent("paywall_dismissed", parameters: [
-            "context": context
+            "context": context,
+            "seconds_shown": secondsShown
         ])
     }
 
@@ -215,11 +314,15 @@ final class FirebaseAnalyticsHelper {
         ])
     }
 
-    /// Abonelik satın alımı başarısız olduğunda / iptal edildiğinde.
-    func logSubscriptionPurchaseFailed(plan: String) {
-        Analytics.logEvent("subscription_purchase_failed", parameters: [
-            "plan": plan
-        ])
+    /// Abonelik satın alımı tamamlanmadığında. `reason` olmadan kullanıcı iptali
+    /// ile gerçek store hatası aynı sayıya düşüyordu; huninin son adımı okunamıyordu.
+    /// - Parameters:
+    ///   - reason: `cancelled` (kullanıcı App Store sayfasını kapattı) veya `error`.
+    ///   - errorCode: RevenueCat/StoreKit hata kodu; iptalde nil.
+    func logSubscriptionPurchaseFailed(plan: String, reason: String, errorCode: Int?) {
+        var params: [String: Any] = ["plan": plan, "reason": reason]
+        if let errorCode { params["error_code"] = errorCode }
+        Analytics.logEvent("subscription_purchase_failed", parameters: params)
     }
 
     /// Önceki satın alımlar geri yüklendiğinde.
@@ -236,10 +339,23 @@ final class FirebaseAnalyticsHelper {
         ])
     }
 
-    /// Görüntüleme para birimi değiştirildiğinde (yalnızca kod, tutar değil).
-    func logCurrencyChanged(to currency: String) {
+    /// Görüntüleme para birimi *gerçekten* değiştiğinde (yalnızca kod, tutar değil).
+    /// `from` olmadan tekrar eden değişimlerin bir gidiş-geliş mi yoksa tek yönlü
+    /// bir tercih mi olduğu ayırt edilemiyordu.
+    func logCurrencyChanged(from previous: String, to currency: String) {
         Analytics.logEvent("currency_changed", parameters: [
+            "from_currency": previous,
             "currency": currency
+        ])
+    }
+
+    // MARK: Permissions
+
+    /// ATT diyalogunun sonucu. Sadece reddi loglayan eski event izin oranını
+    /// hesaplanamaz bırakıyordu; burada her sonuç tek event'e yazılıyor.
+    func logATTResult(status: String) {
+        Analytics.logEvent("att_result", parameters: [
+            "status": status
         ])
     }
 }

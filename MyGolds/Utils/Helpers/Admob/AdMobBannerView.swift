@@ -28,7 +28,16 @@ struct AdMobBannerView: UIViewRepresentable {
             bannerView.rootViewController = rootViewController
         }
         bannerView.delegate = context.coordinator
-        
+        let unitID = adUnitID
+        bannerView.paidEventHandler = { [weak bannerView] value in
+            FirebaseAnalyticsHelper.shared.logAdRevenue(
+                value,
+                format: "Banner",
+                adUnitID: unitID,
+                source: bannerView?.responseInfo?.loadedAdNetworkResponseInfo?.adSourceName
+            )
+        }
+
         let request = GADRequest()
         bannerView.load(request)
         

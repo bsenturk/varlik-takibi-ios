@@ -24,10 +24,8 @@ struct DashboardView: View {
     @State private var assetToDelete: Asset?
     @State private var assetToEdit: Asset?
     @State private var showingDeletePopup = false
-    @State private var showingPaywall = false
-
-    /// Non-Pro users can keep at most this many real (non-Genel) portfolios.
-    private let freePortfolioLimit = 2
+    /// Non-nil while a paywall is up; the case also picks the headline.
+    @State private var paywallContext: PaywallContext?
 
     private enum EditorMode: Identifiable {
         case create
@@ -42,9 +40,15 @@ struct DashboardView: View {
 
     // MARK: - Selection
 
+    /// Pro bitince kilitlenen portföyler. Liste başına bir kez hesaplanır.
+    private var lockedPortfolioIDs: Set<UUID> { ProLock.lockedPortfolioIDs(portfolios) }
+
     private var selectedPortfolio: Portfolio? {
         if let id = UUID(uuidString: selectedPortfolioIDString),
-           let match = portfolios.first(where: { $0.id == id }) {
+           let match = portfolios.first(where: { $0.id == id }),
+           // Abonelik biterken seçili kalan portföy kilitlenmiş olabilir; o hâlde
+           // kilidin arkasına düşmemek için Genel'e dönülür.
+           !lockedPortfolioIDs.contains(match.id) {
             return match
         }
         return portfolios.first(where: { $0.isGeneral }) ?? portfolios.first
@@ -57,11 +61,26 @@ struct DashboardView: View {
         UserDefaultsManager.isPortfolioMasked(maskedPortfolios, selectedPortfolio?.id)
     }
 
-    /// Assets in scope for the current selection.
+    /// Assets in scope for the current selection (kilitliler dahil — listede
+    /// görünmeye devam ederler).
     private var scopedAssets: [Asset] {
         guard let selected = selectedPortfolio else { return [] }
-        if selected.isGeneral { return assets }
+        if selected.isGeneral {
+            // Genel bir toplam görünümü: kilitli portföylerin varlıkları buraya
+            // sızmamalı, yoksa kilit anlamsızlaşır.
+            return assets.filter { asset in
+                guard let pid = asset.portfolio?.id else { return true }
+                return !lockedPortfolioIDs.contains(pid)
+            }
+        }
         return assets.filter { $0.portfolio?.id == selected.id }
+    }
+
+    /// Yalnızca tutarlara/grafiklere girenler. Kilitli varlıklar hiçbir toplama
+    /// katılmaz (bkz. ProLock).
+    private var valuedAssets: [Asset] {
+        let lockedIDs = lockedPortfolioIDs
+        return scopedAssets.filter { !ProLock.isLocked($0, lockedIDs: lockedIDs) }
     }
 
     // MARK: - Body
@@ -133,9 +152,11 @@ struct DashboardView: View {
                 RatingManager.shared.requestReviewIfAppropriate(assetCount: assets.count)
             }
         }
-        .onChange(of: assets) { _, _ in portfolioManager.updatePortfolio(with: assets) }
-        .fullScreenCover(isPresented: $showingPaywall) {
-            PaywallView(onClose: { showingPaywall = false }, context: .portfolioLimit)
+        .onChange(of: assets) { _, _ in
+            portfolioManager.updatePortfolio(with: ProLock.unlocked(assets, portfolios: portfolios))
+        }
+        .fullScreenCover(item: $paywallContext) { context in
+            PaywallView(onClose: { paywallContext = nil }, context: context)
         }
         .sheet(item: $assetToEdit) { asset in
             AssetEditSheet(asset: asset, onDeleted: { deleteAsset($0) })
@@ -144,11 +165,10 @@ struct DashboardView: View {
 
     /// Opens the create-portfolio editor, or the paywall if a non-Pro user is at the limit.
     private func attemptCreatePortfolio() {
-        let realCount = portfolios.filter { !$0.isGeneral }.count
-        if !UserDefaultsManager.shared.isPro && realCount >= freePortfolioLimit {
-            showingPaywall = true
-        } else {
+        if ProLock.canCreatePortfolio(portfolios) {
             editorMode = .create
+        } else {
+            paywallContext = .portfolioLimit
         }
     }
 
@@ -183,6 +203,7 @@ struct DashboardView: View {
                         portfolio: portfolio,
                         isSelected: portfolio.id == selectedPortfolio?.id,
                         showsEditAffordance: false,
+                        isLocked: lockedPortfolioIDs.contains(portfolio.id),
                         onTap: { handleChipTap(portfolio) }
                     )
                 }
@@ -193,6 +214,12 @@ struct DashboardView: View {
     }
 
     private func handleChipTap(_ portfolio: Portfolio) {
+        // Kilitli portföy seçilemez; veri duruyor, erişim Pro'ya bağlı.
+        guard !lockedPortfolioIDs.contains(portfolio.id) else {
+            paywallContext = .portfolioLimit
+            UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            return
+        }
         if portfolio.id == selectedPortfolio?.id, !portfolio.isGeneral {
             // Tapping the already-selected (non-Genel) chip opens the editor.
             editorMode = .edit(portfolio)
@@ -209,7 +236,7 @@ struct DashboardView: View {
     private var balanceCard: some View {
         BalanceCardView(
             portfolioColor: selectedPortfolio?.color ?? .blue,
-            metrics: PortfolioMetrics.compute(for: scopedAssets, context: modelContext),
+            metrics: PortfolioMetrics.compute(for: valuedAssets, context: modelContext),
             portfolioID: selectedPortfolio?.id,
             selectedCurrency: $selectedCurrency
         )
@@ -231,7 +258,16 @@ struct DashboardView: View {
 
             ForEach(rowItems) { item in
                 Group {
-                    if let id = item.assetID, let asset = assets.first(where: { $0.id == id }) {
+                    if item.isLocked {
+                        Button {
+                            FirebaseAnalyticsHelper.shared.logPremiumCategoryLocked(category: item.title)
+                            paywallContext = .fund
+                            UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                        } label: {
+                            DashboardRowView(item: item, valuesMasked: valuesMasked)
+                        }
+                        .buttonStyle(.plain)
+                    } else if let id = item.assetID, let asset = assets.first(where: { $0.id == id }) {
                         Button {
                             assetToEdit = asset
                         } label: {
@@ -293,7 +329,8 @@ struct DashboardView: View {
     }
 
     private func assetRowItems() -> [DashboardRowItem] {
-        scopedAssets
+        let lockedIDs = lockedPortfolioIDs
+        return scopedAssets
             .sorted { $0.totalValue > $1.totalValue }
             .map { asset in
                 let spark = AssetHistoryManager.shared
@@ -308,14 +345,17 @@ struct DashboardView: View {
                     sparkline: spark,
                     icon: asset.type.tileIcon,
                     tintHex: asset.type.tileTintHex,
-                    assetID: asset.id
+                    assetID: asset.id,
+                    isLocked: ProLock.isLocked(asset, lockedIDs: lockedIDs)
                 )
             }
     }
 
     private func categoryRowItems() -> [DashboardRowItem] {
-        let grouped = Dictionary(grouping: assets) { $0.type.category }
-        return AssetCategory.allCases.compactMap { category -> DashboardRowItem? in
+        let lockedIDs = lockedPortfolioIDs
+        let lockedAssets = scopedAssets.filter { ProLock.isLocked($0, lockedIDs: lockedIDs) }
+        let grouped = Dictionary(grouping: valuedAssets) { $0.type.category }
+        let rows = AssetCategory.allCases.compactMap { category -> DashboardRowItem? in
             guard let items = grouped[category], !items.isEmpty else { return nil }
             let value = items.reduce(0) { $0 + $1.totalValue }
             guard value > 0 else { return nil }
@@ -351,6 +391,22 @@ struct DashboardView: View {
             )
         }
         .sorted { $0.value > $1.value }
+
+        guard !lockedAssets.isEmpty else { return rows }
+        // Kilitli içerik listeden kaybolmaz — kullanıcı neyi kaybettiğini görsün,
+        // ama tutar yazılmaz.
+        return rows + [DashboardRowItem(
+            id: "locked-summary",
+            title: "Pro içeriği",
+            subtitle: "\(lockedAssets.count) varlık kilitli",
+            value: 0,
+            changePercent: 0,
+            sparkline: [],
+            icon: "lock.fill",
+            tintHex: "#AF52DE",
+            assetID: nil,
+            isLocked: true
+        )]
     }
 
     /// Profit/loss percentage of a holding vs its weighted average cost.
@@ -410,7 +466,7 @@ struct DashboardView: View {
     private func refresh() async {
         await marketDataManager.refreshData()
         await updateAssetPrices()
-        portfolioManager.updatePortfolio(with: assets)
+        portfolioManager.updatePortfolio(with: ProLock.unlocked(assets, portfolios: portfolios))
     }
 
     @MainActor

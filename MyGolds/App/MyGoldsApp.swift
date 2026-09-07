@@ -8,6 +8,7 @@
 import SwiftUI
 import FirebaseCore
 import FirebaseMessaging
+import UserNotifications
 import GoogleMobileAds
 import FirebaseCrashlytics
 import AppTrackingTransparency
@@ -32,8 +33,13 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
         // Start AdMob (handled by AdMobManager)
         Logger.log("🔧 AdMob initialization will be handled by AdMobManager")
 
+        // İlk kare çizilmeden kapat: aksi hâlde içerik bir an görünüp üstüne
+        // açılış ekranı biner. Pro ve onboarding'de hiç kapanmaz.
+        AppOpenAdManager.shared.beginColdStartGate()
+
         #if DEBUG
         AdPaywallGate.selfCheck()
+        ProLock.selfCheck()
         #endif
 
         UNUserNotificationCenter.current().setBadgeCount(0) { _ in }
@@ -94,18 +100,93 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
         guard let fcmToken else { return }
         Logger.log("📱 FCM token received")
-        PushTokenService.syncToken(fcmToken, enabled: NotificationManager.shared.isAuthorized)
+        // `NotificationManager.isAuthorized` @Published ve asenkron doluyor;
+        // bu callback açılışta erken geldiği için izin vermiş kullanıcıda bile
+        // `false` okunup cihaz sunucuda kapatılıyordu. İzin durumu doğrudan
+        // sistemden sorulur.
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            PushTokenService.syncToken(fcmToken, enabled: settings.authorizationStatus == .authorized)
+        }
     }
 
-    // Diagnostic only: Firebase swizzles these too, but doesn't log them, so
-    // add our own to see directly whether Apple actually issued a token.
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         let hex = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
         Logger.log("📱 APNs device token received: \(hex)")
+        // FCM token'ı APNs token'ı olmadan üretilemiyor ("No APNS token
+        // specified before fetching FCM Token"). `registerForRemoteNotifications`
+        // asenkron olduğu için izin verildiği anda çalışan senkron denemeler
+        // ilk kurulumda kaçırıyordu — kaydın güvenilir tetikleyicisi burası.
+        PushTokenService.refresh()
     }
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
         Logger.log("📱 APNs registration FAILED: \(error)")
+    }
+}
+
+/// Soğuk açılış kapısının görünen yüzü.
+///
+/// `INFOPLIST_KEY_UILaunchScreen_Generation = YES` olduğu için sistemin ürettiği
+/// launch screen düz `systemBackground`. Aynı zemin üzerinde marka işaretini
+/// yumuşakça belirterek geçişi sıçratmadan bağlıyor — iki ayrı ekran gibi
+/// görünmüyor, tek bir açılış gibi.
+private struct ColdStartSplash: View {
+    @State private var appeared = false
+    @State private var pulse = false
+
+    var body: some View {
+        ZStack {
+            Color(.systemBackground).ignoresSafeArea()
+
+            // 8'lik ızgara: işaret → 24 → isim → 32 → yükleniyor göstergesi.
+            VStack(spacing: 24) {
+                mark
+                Text("Varlık Takibi")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundColor(.primary)
+                dots
+                    .padding(.top, 8)
+            }
+            .opacity(appeared ? 1 : 0)
+        }
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.35)) { appeared = true }
+            pulse = true
+        }
+    }
+
+    /// Uygulamanın gerçek ikonu (`AppLogo` imageset, AppIcon ile aynı görsel).
+    /// Kaynak PNG tam kare; ana ekrandaki ikonla aynı okunsun diye squircle'a
+    /// kırpılıyor — yarıçap Apple'ın ikon oranına yakın (88 × ~0.225).
+    private var mark: some View {
+        Image("AppLogo")
+            .resizable()
+            .interpolation(.high)
+            .frame(width: 88, height: 88)
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            // Gölge nötr gri değil, ikonun morundan tonlandı. Yarıçap dar
+            // tutuldu: geniş bırakınca parıltı alttaki isme taşıp puslandırıyor.
+            .shadow(color: Color(hex: "#AF52DE").opacity(0.28), radius: 16, x: 0, y: 10)
+    }
+
+    /// Dönen spinner yerine sakin bir nabız: "yükleniyor" der, "takıldı" demez.
+    /// Finansal bir uygulamada hareket bir güven sinyali.
+    private var dots: some View {
+        HStack(spacing: 8) {
+            ForEach(0..<3, id: \.self) { index in
+                Circle()
+                    .fill(Color.primary.opacity(0.3))
+                    .frame(width: 6, height: 6)
+                    .scaleEffect(pulse ? 1 : 0.5)
+                    .opacity(pulse ? 1 : 0.3)
+                    .animation(
+                        .easeInOut(duration: 0.6)
+                        .repeatForever(autoreverses: true)
+                        .delay(Double(index) * 0.15),
+                        value: pulse
+                    )
+            }
+        }
     }
 }
 
@@ -182,6 +263,17 @@ struct VarlikDefterimApp: App {
                 .onAppear {
                     setupInitialState()
                 }
+                // Soğuk açılışta app-open reklamı gösterilene (ya da zaman aşımına)
+                // kadar içeriği örter. Kullanıcının reklamı hiç görmeden portföyü
+                // görüp çıkmasını engeller; reklamın içerik kullanılırken
+                // patlamasını da engeller (AdMob app-open politikası).
+                .overlay {
+                    if appOpenAdManager.isColdStartGateClosed {
+                        ColdStartSplash()
+                            .transition(.opacity)
+                    }
+                }
+                .animation(.easeOut(duration: 0.25), value: appOpenAdManager.isColdStartGateClosed)
         }
     }
     

@@ -131,6 +131,11 @@ class InterstitialAdManager: NSObject, ObservableObject, GADFullScreenContentDel
     static let shared = InterstitialAdManager()
 
     private var interstitialAd: GADInterstitialAd?
+    /// Sabit 30 sn'lik yeniden deneme, dolum olmayan bir oturumda sonsuza kadar
+    /// dönüyordu; app-open tarafındaki ile aynı geri çekilme uygulanıyor.
+    private var consecutiveLoadFailures = 0
+    private static let maxLoadRetries = 5
+    private static let baseRetryDelay: TimeInterval = 30
     private var loadTime = Date()
     @Published var isAdShowing = false
     @Published var isAdLoaded = false
@@ -218,22 +223,44 @@ class InterstitialAdManager: NSObject, ObservableObject, GADFullScreenContentDel
 
                 if let error = error {
                     Logger.log("❌ Interstitial: Failed to load - \(error.localizedDescription)")
+                    FirebaseAnalyticsHelper.shared.logInterstitialAdLoadFailed(error: error.localizedDescription)
                     self.interstitialAd = nil
                     self.isAdLoaded = false
-
-                    // Retry loading after 30 seconds
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 30) {
-                        self.loadAd()
-                    }
+                    self.scheduleRetryAfterFailure()
                     return
                 }
 
                 Logger.log("✅ Interstitial: Ad loaded successfully")
+                self.consecutiveLoadFailures = 0
+                FirebaseAnalyticsHelper.shared.logInterstitialAdLoaded()
                 self.interstitialAd = ad
                 self.interstitialAd?.fullScreenContentDelegate = self
+                ad?.paidEventHandler = { [weak ad] value in
+                    FirebaseAnalyticsHelper.shared.logAdRevenue(
+                        value,
+                        format: "Interstitial",
+                        adUnitID: adID,
+                        source: ad?.responseInfo.loadedAdNetworkResponseInfo?.adSourceName
+                    )
+                }
                 self.loadTime = Date()
                 self.isAdLoaded = true
             }
+        }
+    }
+
+    /// 30s → 60s → 120s → 240s → 480s, sonra bu oturumda bırakılır. Bir sonraki
+    /// `preloadAd()` sayacı sıfırlar, yani kalıcı bir pes etme değil.
+    private func scheduleRetryAfterFailure() {
+        consecutiveLoadFailures += 1
+        guard consecutiveLoadFailures <= Self.maxLoadRetries else {
+            Logger.log("📱 Interstitial: \(Self.maxLoadRetries) deneme başarısız — bu oturumda bırakılıyor")
+            return
+        }
+        let delay = Self.baseRetryDelay * pow(2, Double(consecutiveLoadFailures - 1))
+        Logger.log("📱 Interstitial: Retry #\(consecutiveLoadFailures) in \(Int(delay))s")
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            self?.loadAd()
         }
     }
 
@@ -300,6 +327,7 @@ class InterstitialAdManager: NSObject, ObservableObject, GADFullScreenContentDel
             return
         }
 
+        consecutiveLoadFailures = 0
         loadAd()
     }
 
@@ -315,6 +343,7 @@ class InterstitialAdManager: NSObject, ObservableObject, GADFullScreenContentDel
 
     func ad(_ ad: GADFullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
         Logger.log("❌ Interstitial: Failed to present - \(error.localizedDescription)")
+        FirebaseAnalyticsHelper.shared.logInterstitialAdPresentFailed(error: error.localizedDescription)
 
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
@@ -332,6 +361,7 @@ class InterstitialAdManager: NSObject, ObservableObject, GADFullScreenContentDel
 
     func adWillPresentFullScreenContent(_ ad: GADFullScreenPresentingAd) {
         Logger.log("📱 Interstitial: Will present")
+        FirebaseAnalyticsHelper.shared.logInterstitialAdWillPresent()
 
         DispatchQueue.main.async { [weak self] in
             self?.isAdShowing = true
@@ -344,6 +374,7 @@ class InterstitialAdManager: NSObject, ObservableObject, GADFullScreenContentDel
 
     func adDidDismissFullScreenContent(_ ad: GADFullScreenPresentingAd) {
         Logger.log("📱 Interstitial: Did dismiss")
+        FirebaseAnalyticsHelper.shared.logInterstitialAdDismissed()
 
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }

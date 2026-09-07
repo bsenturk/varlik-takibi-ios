@@ -16,12 +16,32 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
     
     private var appOpenAd: GADAppOpenAd?
     private var loadTime = Date()
+    /// Ardışık yükleme hatası sayacı. Sabit 30 sn'lik yeniden deneme, dolum
+    /// olmayan bir oturumda saatlerce dönüp `app_open_ad_load_failed`'ı tek
+    /// kullanıcıda onlarca kez tetikliyordu.
+    private var consecutiveLoadFailures = 0
     @Published var isAdShowing = false
     /// Gösterim istendi ama reklam henüz yüklü değildi — yükleme bitince gösterilir.
     /// Bu olmadan her `loadAd` başarısı yeni bir gösterime yol açıyordu (döngü).
     private var pendingShowTrigger: Trigger?
     @Published var isAdLoaded = false
     @Published var isLoadingAd = false
+
+    // MARK: Soğuk açılış kapısı
+    //
+    // Eskiden reklam yüklenene kadar içerik görünüyordu: kullanıcı portföyünü
+    // görüp reklam hiç çıkmadan çıkabiliyordu. Daha kötüsü, yükleme geç
+    // biterse reklam kullanıcı içeriği kullanırken patlıyordu — AdMob'un
+    // app-open politikası bunu yasaklıyor (app-open yalnızca uygulama
+    // yüklenirken gösterilir).
+    //
+    // Kapı, açılış ekranını reklam gösterilene KADAR tutar; `coldStartTimeout`
+    // dolduğunda koşulsuz açılır. Süresiz bekletme, doluluk düşükken
+    // kullanıcıyı açılış ekranında kilitler ve App Store reddi getirir.
+    @Published private(set) var isColdStartGateClosed = false
+    /// ponytail: sabit; Remote Config'e taşınabilir ama önce ölçülmeli.
+    private static let coldStartTimeout: TimeInterval = 4
+    private var coldStartDeadline: Date?
     
     // Production Ad Unit ID
     private let adUnitID = "ca-app-pub-2545255000258244/1821136488"
@@ -96,6 +116,48 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
         AdMobManager.shared.showBannerAd()
     }
     
+    // MARK: - Cold start gate
+
+    /// Açılışta bir kez çağrılır. Reklam gösterilmeyecek durumlarda (Pro,
+    /// onboarding) kapı hiç kapanmaz ki o kullanıcılar açılış ekranı görmesin.
+    func beginColdStartGate() {
+        guard !UserDefaultsManager.shared.isPro,
+              UserDefaultsManager.shared.getValue(for: .hasSeenOnboarding) else {
+            Logger.log("📱 App Open Ad: Soğuk açılış kapısı atlandı (Pro/onboarding)")
+            return
+        }
+        isColdStartGateClosed = true
+        coldStartDeadline = Date().addingTimeInterval(Self.coldStartTimeout)
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.coldStartTimeout) { [weak self] in
+            guard let self, self.isColdStartGateClosed else { return }
+            // Reklam tam bu sırada ekrandaysa kapıyı açma: içerik reklamın
+            // arkasında açığa çıkar. Kapanışta `adDidDismiss` zaten açacak.
+            guard !self.isAdShowing else {
+                Logger.log("📱 App Open Ad: Zaman aşımı doldu ama reklam ekranda — kapı kapanışta açılacak")
+                return
+            }
+            Logger.log("📱 App Open Ad: Kapı zaman aşımıyla açıldı (\(Int(Self.coldStartTimeout))s)")
+            // Bekleyen gösterim de düşürülür: aksi hâlde reklam kullanıcı
+            // içeriği kullanırken açılır — politika ihlali olan tam bu.
+            self.pendingShowTrigger = nil
+            self.openColdStartGate()
+        }
+    }
+
+    /// İçeriği serbest bırakır. Reklam gösterildikten/kapandıktan sonra ya da
+    /// gösterilemeyeceği kesinleştiğinde çağrılır; birden çok kez güvenli.
+    private func openColdStartGate() {
+        guard isColdStartGateClosed else { return }
+        isColdStartGateClosed = false
+        coldStartDeadline = nil
+    }
+
+    /// Süre dolduysa bekleyen soğuk açılış gösterimi artık yapılmamalı.
+    private var coldStartWindowExpired: Bool {
+        guard let deadline = coldStartDeadline else { return false }
+        return Date() > deadline
+    }
+
     // MARK: - Load Ad
     
     func loadAd() {
@@ -133,11 +195,16 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
                     Logger.log("📱 App Open Ad: Failed to load - \(error.localizedDescription)")
                     FirebaseAnalyticsHelper.shared.logAppOpenAdLoadFailed(error: error.localizedDescription)
                     self?.isAdLoaded = false
-                    
-                    // Retry loading after delay
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 30) {
-                        self?.loadAd()
+                    // Soğuk açılış bu yüklemeyi bekliyorduysa sonuç artık kesin:
+                    // bir sonraki deneme en erken 30 sn sonra, yani 4 sn'lik
+                    // gösterim penceresinin çok dışında. Zaman aşımını beklemek
+                    // kullanıcıyı bedelsiz yere açılış ekranında tutar.
+                    if self?.pendingShowTrigger == .coldStart {
+                        Logger.log("📱 App Open Ad: Yükleme başarısız — kapı beklemeden açılıyor")
+                        self?.pendingShowTrigger = nil
+                        self?.openColdStartGate()
                     }
+                    self?.scheduleRetryAfterFailure()
                     return
                 }
                 
@@ -148,8 +215,18 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
                 }
                 
                 Logger.log("📱 App Open Ad: Loaded successfully")
+                self?.consecutiveLoadFailures = 0
+                FirebaseAnalyticsHelper.shared.logAppOpenAdLoaded()
                 self?.appOpenAd = ad
                 self?.appOpenAd?.fullScreenContentDelegate = self
+                ad.paidEventHandler = { [weak ad] value in
+                    FirebaseAnalyticsHelper.shared.logAdRevenue(
+                        value,
+                        format: "AppOpen",
+                        adUnitID: adID,
+                        source: ad?.responseInfo.loadedAdNetworkResponseInfo?.adSourceName
+                    )
+                }
                 self?.loadTime = Date()
                 self?.isAdLoaded = true
                 if let trigger = self?.pendingShowTrigger {
@@ -160,6 +237,25 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
         }
     }
     
+    /// Üstel geri çekilme, 5 denemede duruyor: 30s → 60s → 120s → 240s → 480s.
+    /// Bir sonraki foreground/cold start `preloadAd()` ile sayacı sıfırdan başlatır,
+    /// yani "pes etmek" kalıcı değil.
+    private func scheduleRetryAfterFailure() {
+        consecutiveLoadFailures += 1
+        guard consecutiveLoadFailures <= Self.maxLoadRetries else {
+            Logger.log("📱 App Open Ad: \(Self.maxLoadRetries) deneme başarısız — bu oturumda bırakılıyor")
+            return
+        }
+        let delay = Self.baseRetryDelay * pow(2, Double(consecutiveLoadFailures - 1))
+        Logger.log("📱 App Open Ad: Retry #\(consecutiveLoadFailures) in \(Int(delay))s")
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            self?.loadAd()
+        }
+    }
+
+    private static let maxLoadRetries = 5
+    private static let baseRetryDelay: TimeInterval = 30
+
     // MARK: - Show Ad
 
     /// `retriesLeft`: yalnızca *geçici* engeller için (pencere henüz hazır değil,
@@ -170,18 +266,28 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
         clearStaleShowingState()
 
         // No ads for Pro users.
-        guard !UserDefaultsManager.shared.isPro else { return }
+        guard !UserDefaultsManager.shared.isPro else { openColdStartGate(); return }
 
         // Don't show the app-open ad while the user is still in the onboarding flow.
         // Once onboarding is finished, app-open ads show normally.
         guard UserDefaultsManager.shared.getValue(for: .hasSeenOnboarding) else {
             Logger.log("📱 App Open Ad: Onboarding not finished — skipping app open ad")
+            openColdStartGate()
             preloadAd()
             return
         }
 
         guard isWithinFrequencyCap(trigger) else {
             Logger.log("📱 App Open Ad: Frequency cap — skipping")
+            openColdStartGate()
+            return
+        }
+
+        // Süre dolduktan sonra gelen gösterim isteği reddedilir: kullanıcı çoktan
+        // içeriğe geçti, reklam onu bölmemeli.
+        guard !coldStartWindowExpired || trigger == .foregroundReturn else {
+            Logger.log("📱 App Open Ad: Soğuk açılış penceresi kapandı — gösterim iptal")
+            pendingShowTrigger = nil
             return
         }
 
@@ -197,6 +303,7 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
               rootViewController.presentedViewController == nil else {
             guard retriesLeft > 0 else {
                 Logger.log("📱 App Open Ad: Still blocked, giving up for this launch")
+                openColdStartGate()
                 return
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
@@ -230,6 +337,9 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
     
     func preloadAd() {
         if !isAdAvailable && !isLoadingAd {
+            // Yeni bir açılış/foreground turu: geri çekilme sayacı sıfırdan başlar,
+            // yani "bu oturumda bırakıldı" kalıcı bir pes etme değil.
+            consecutiveLoadFailures = 0
             loadAd()
         }
     }
@@ -256,11 +366,26 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
         }
     }
     
+    func adDidRecordImpression(_ ad: GADFullScreenPresentingAd) {
+        FirebaseAnalyticsHelper.shared.logAppOpenAdDidPresent()
+    }
+
+    /// `adDidDismiss` reklam tamamen yıkıldıktan SONRA geliyor; kapıyı orada
+    /// açınca kullanıcı reklamı kapattıktan sonra açılış ekranını bir süre daha
+    /// görüyordu. Burada açınca içerik, reklamın kendi kapanma animasyonunun
+    /// altında ortaya çıkıyor — geçiş görünmüyor.
+    func adWillDismissFullScreenContent(_ ad: GADFullScreenPresentingAd) {
+        DispatchQueue.main.async { self.openColdStartGate() }
+    }
+
     func adDidDismissFullScreenContent(_ ad: GADFullScreenPresentingAd) {
         Logger.log("📱 App Open Ad: Did dismiss")
-        FirebaseAnalyticsHelper.shared.logBannerAdDidDismissScreen()
+        // Buradaki olay eskiden `banner_ad_did_dismiss_screen` idi; app-open
+        // kapanışları banner metriklerine karışıyordu.
+        FirebaseAnalyticsHelper.shared.logAppOpenAdDismissed()
         DispatchQueue.main.async {
             self.isAdShowing = false
+            self.openColdStartGate()
         }
         appOpenAd = nil
         isAdLoaded = false
@@ -281,6 +406,7 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
         FirebaseAnalyticsHelper.shared.logAppOpenAdPresentFailed(error: error.localizedDescription)
         DispatchQueue.main.async {
             self.isAdShowing = false
+            self.openColdStartGate()
         }
         appOpenAd = nil
         isAdLoaded = false

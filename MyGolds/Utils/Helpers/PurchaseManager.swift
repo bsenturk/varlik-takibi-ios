@@ -123,6 +123,11 @@ final class PurchaseManager: NSObject, ObservableObject {
             self.currentOffering = offerings.current
             let current = offerings.current
             Logger.log("✅ RevenueCat: offering '\(current?.identifier ?? "nil")' loaded with \(current?.availablePackages.count ?? 0) package(s): \(current?.availablePackages.map { $0.storeProduct.productIdentifier } ?? [])")
+            // Store'un intro offer döndürüp döndürmediğini doğrulamak için.
+            for package in current?.availablePackages ?? [] {
+                let intro = package.storeProduct.introductoryDiscount
+                Logger.log("💎 \(package.storeProduct.productIdentifier) intro: \(intro.map { "\($0.paymentMode) \($0.subscriptionPeriod)" } ?? "yok")")
+            }
             await refreshTrialEligibility()
         } catch {
             let ns = error as NSError
@@ -153,19 +158,40 @@ final class PurchaseManager: NSObject, ObservableObject {
 
     // MARK: - Purchase / Restore
 
-    /// Purchases the given package. Returns true if the user ends up subscribed.
+    /// Bir satın almanın nasıl bittiği. Düz `Bool`, kullanıcının App Store
+    /// sayfasını kapatmasıyla gerçek bir store hatasını aynı sonuca indiriyordu;
+    /// huninin son adımı analitikte okunamaz hale geliyordu.
+    enum PurchaseOutcome {
+        case subscribed
+        case cancelled
+        /// `code`: RevenueCat `ErrorCode` ham değeri (yoksa NSError kodu).
+        case failed(code: Int, message: String)
+    }
+
+    /// Purchases the given package.
     @discardableResult
-    func purchase(_ package: Package) async -> Bool {
+    func purchase(_ package: Package) async -> PurchaseOutcome {
         purchaseInProgress = true
         defer { purchaseInProgress = false }
         do {
             let result = try await Purchases.shared.purchase(package: package)
-            if result.userCancelled { return false }
+            if result.userCancelled { return .cancelled }
             updateEntitlement(from: result.customerInfo)
-            return isSubscribed(result.customerInfo)
+            guard isSubscribed(result.customerInfo) else {
+                // İşlem hatasız bitti ama entitlement gelmedi (dashboard eşleşmesi
+                // ya da gecikmiş receipt). Sessizce "iptal" saymak yanıltıcı olur.
+                return .failed(code: -1, message: "entitlement_missing")
+            }
+            return .subscribed
         } catch {
-            Logger.log("❌ RevenueCat: purchase failed - \(error)")
-            return false
+            // RevenueCat iptali hem `userCancelled` hem de `.purchaseCancelled`
+            // hatası olarak verebiliyor; ikisi de iptal sayılmalı.
+            if let rcError = error as? RevenueCat.ErrorCode, rcError == .purchaseCancelledError {
+                return .cancelled
+            }
+            let ns = error as NSError
+            Logger.log("❌ RevenueCat: purchase failed - code \(ns.code) - \(error)")
+            return .failed(code: ns.code, message: ns.localizedDescription)
         }
     }
 

@@ -16,8 +16,14 @@ final class AddAssetPresenter: ObservableObject {
     /// the natural transition *after* the sheet closes (best practice) instead of
     /// interrupting the user the moment it opens.
     private var pendingInterstitial = false
+    /// Akışı ne açtı — "onboarding" (ilk varlık devri) ya da "manual" (+ butonu).
+    /// Huni olaylarının hepsi bunu taşır ki iki kitle ayrı okunabilsin.
+    private(set) var source = "manual"
     private init() {}
-    func present() { isPresented = true }
+    func present(source: String = "manual") {
+        self.source = source
+        isPresented = true
+    }
     func scheduleInterstitialAfterClose() { pendingInterstitial = true }
     /// Returns whether an interstitial is pending and clears the flag.
     func consumePendingInterstitial() -> Bool {
@@ -64,11 +70,12 @@ struct MainTabView: View {
 
     /// The portfolio a newly added asset should land in (never the "Genel" aggregate).
     private var addTargetPortfolio: Portfolio? {
+        let lockedIDs = ProLock.lockedPortfolioIDs(portfolios)
         if let selected = portfolios.first(where: { $0.id.uuidString == selectedPortfolioIDString }),
-           !selected.isGeneral {
+           !selected.isGeneral, !lockedIDs.contains(selected.id) {
             return selected
         }
-        return portfolios.first(where: { !$0.isGeneral })
+        return portfolios.first { !$0.isGeneral && !lockedIDs.contains($0.id) }
     }
 
     var body: some View {
@@ -132,7 +139,7 @@ struct MainTabView: View {
         guard UserDefaultsManager.shared.getValue(for: .pendingFirstAssetAdd) else { return }
         UserDefaultsManager.shared.setValue(value: false, key: .pendingFirstAssetAdd)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
-            addPresenter.present()
+            addPresenter.present(source: "onboarding")
         }
     }
 
@@ -145,9 +152,12 @@ struct MainTabView: View {
 
         // Onboarding hand-off: paywall instead of an interstitial.
         if UserDefaultsManager.shared.getValue(for: .pendingOnboardingPaywall) {
+            // Hiç varlık eklemeden gelen kullanıcı henüz uygulamanın ne yaptığını
+            // görmedi; orada açılan paywall neredeyse tamamen kapatılıyordu.
+            // Bayrak tüketilmiyor: paywall iptal değil, ilk gerçek eklemeye erteleniyor.
+            guard didAddAsset else { return }
             UserDefaultsManager.shared.setValue(value: false, key: .pendingOnboardingPaywall)
             // Never paywall an already-subscribed user (e.g. reinstall + restore).
-            // Varlık eklenmese de (X ile kapatma) paywall gösterilir.
             guard !UserDefaultsManager.shared.isPro else { return }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                 guard !UserDefaultsManager.shared.isPro else { return }

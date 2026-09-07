@@ -18,6 +18,7 @@
 		41BB945641F3EC209AEAAF52 /* Portfolio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 247368DDD248FD2197BCB0D6 /* Portfolio.swift */; };
 		498450D4CD87F6A6B8A131FB /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = C1961964D2580EE33B8B1AE3 /* Supabase */; };
 		49C05C98D9EDA2703B539338 /* AssetEditSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD57CBF5F13AB266CF39E404 /* AssetEditSheet.swift */; };
+		50D46FD578C08637DC264227 /* ProLock.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3AE9AC81CAA069A44D2AFBD /* ProLock.swift */; };
 		515B55E34135116A7F9ECB0B /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7D00CE426CA4105B5D702D76 /* PrivacyInfo.xcprivacy */; };
 		51B8DA64BB6557E6D81A8390 /* PurchaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3FA32630A917E0B54622A5C /* PurchaseManager.swift */; };
 		57346157300FA9A706701060 /* AppError.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E50DD4E3D3B4F3BAC569F8 /* AppError.swift */; };
@@ -68,6 +69,7 @@
 		A484FB09E87A14FFABAF3791 /* PushTokenService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FEAE132EC61C7E384CF314C /* PushTokenService.swift */; };
 		A8C3E38C16158BA7797038CB /* PortfolioEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BF667F5C586B464A6A9DF44 /* PortfolioEditorView.swift */; };
 		AAD70E9A546417685D9CC705 /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = F9CEB7A7386B60B483DDD43D /* RevenueCat */; };
+		AC85B45A8C0F3553835E4802 /* LegalLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9729B2A951EE89080AD8D9CA /* LegalLinks.swift */; };
 		B517DB3FA8623083E22DDB03 /* PortfolioColor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5134E28796004C70C938911A /* PortfolioColor.swift */; };
 		C5964977E0A820E5F620E295 /* SparklineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7968DC0D91AA68BE56367185 /* SparklineView.swift */; };
 		CF12A212BAB889AB7D3D6DA3 /* PortfolioMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8B998C21C6F270752DCED6D /* PortfolioMetrics.swift */; };
@@ -79,7 +81,6 @@
 		D8581F342E0EDB3700E48444 /* RateAppView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F332E0EDB3300E48444 /* RateAppView.swift */; };
 		D8581F362E0EDB4C00E48444 /* FeedbackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F352E0EDB4900E48444 /* FeedbackView.swift */; };
 		D8581F382E0EDB6800E48444 /* ShareView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F372E0EDB6700E48444 /* ShareView.swift */; };
-		D8581F3A2E0EDB7F00E48444 /* PrivacyPolicyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F392E0EDB7A00E48444 /* PrivacyPolicyView.swift */; };
 		D8581F3E2E0EDBD600E48444 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F3D2E0EDBD100E48444 /* MainTabView.swift */; };
 		D8581F442E0EDC6900E48444 /* OnboardingStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F432E0EDC6800E48444 /* OnboardingStep.swift */; };
 		D8581F462E0EDCAB00E48444 /* AssetType.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F452E0EDCAA00E48444 /* AssetType.swift */; };
@@ -133,6 +134,7 @@
 		7968DC0D91AA68BE56367185 /* SparklineView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SparklineView.swift; sourceTree = "<group>"; };
 		7BF667F5C586B464A6A9DF44 /* PortfolioEditorView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PortfolioEditorView.swift; sourceTree = "<group>"; };
 		7D00CE426CA4105B5D702D76 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		9729B2A951EE89080AD8D9CA /* LegalLinks.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LegalLinks.swift; sourceTree = "<group>"; };
 		9B0F503F2B7FFCB300A03018 /* MyGolds.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MyGolds.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9B0F50422B7FFCB300A03018 /* MyGoldsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyGoldsApp.swift; sourceTree = "<group>"; };
 		9B0F50462B7FFCB400A03018 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -148,6 +150,7 @@
 		B7E50DD4E3D3B4F3BAC569F8 /* AppError.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
 		BD256FBA733EBE4803F3F420 /* SupabaseModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SupabaseModels.swift; sourceTree = "<group>"; };
 		BD57CBF5F13AB266CF39E404 /* AssetEditSheet.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AssetEditSheet.swift; sourceTree = "<group>"; };
+		C3AE9AC81CAA069A44D2AFBD /* ProLock.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ProLock.swift; sourceTree = "<group>"; };
 		C5EECA123D70F085F351AB88 /* RatesViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RatesViewModel.swift; sourceTree = "<group>"; };
 		D8581F1E2E0ED64D00E48444 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		D8581F212E0ED67700E48444 /* ATTPermissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATTPermissionView.swift; sourceTree = "<group>"; };
@@ -157,7 +160,6 @@
 		D8581F332E0EDB3300E48444 /* RateAppView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RateAppView.swift; sourceTree = "<group>"; };
 		D8581F352E0EDB4900E48444 /* FeedbackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackView.swift; sourceTree = "<group>"; };
 		D8581F372E0EDB6700E48444 /* ShareView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareView.swift; sourceTree = "<group>"; };
-		D8581F392E0EDB7A00E48444 /* PrivacyPolicyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyPolicyView.swift; sourceTree = "<group>"; };
 		D8581F3D2E0EDBD100E48444 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		D8581F432E0EDC6800E48444 /* OnboardingStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingStep.swift; sourceTree = "<group>"; };
 		D8581F452E0EDCAA00E48444 /* AssetType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetType.swift; sourceTree = "<group>"; };
@@ -447,12 +449,12 @@
 			isa = PBXGroup;
 			children = (
 				D8581F8F2E133B6F00E48444 /* DarkModeSettingsView.swift */,
-				D8581F392E0EDB7A00E48444 /* PrivacyPolicyView.swift */,
 				D8581F372E0EDB6700E48444 /* ShareView.swift */,
 				D8581F352E0EDB4900E48444 /* FeedbackView.swift */,
 				D8581F332E0EDB3300E48444 /* RateAppView.swift */,
 				D8581F312E0EDB0F00E48444 /* SettingsItemView.swift */,
 				D8581F2F2E0EDAFC00E48444 /* SettingsView.swift */,
+				9729B2A951EE89080AD8D9CA /* LegalLinks.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -521,6 +523,7 @@
 				6756A37D257C1F93381E6719 /* PortfolioStore.swift */,
 				F3FA32630A917E0B54622A5C /* PurchaseManager.swift */,
 				4BBDD6ED0FF9AD49042FAE92 /* RatingManager.swift */,
+				C3AE9AC81CAA069A44D2AFBD /* ProLock.swift */,
 			);
 			path = Helpers;
 			sourceTree = "<group>";
@@ -732,7 +735,6 @@
 				D8581F462E0EDCAB00E48444 /* AssetType.swift in Sources */,
 				D8581F342E0EDB3700E48444 /* RateAppView.swift in Sources */,
 				D8581F322E0EDB1300E48444 /* SettingsItemView.swift in Sources */,
-				D8581F3A2E0EDB7F00E48444 /* PrivacyPolicyView.swift in Sources */,
 				D8581F622E0EEDAA00E48444 /* NotificationMessage.swift in Sources */,
 				D8581F852E11522A00E48444 /* AppOpenAdManager.swift in Sources */,
 				D8581F772E0FEB5D00E48444 /* CustomDeletePopup.swift in Sources */,
@@ -782,6 +784,8 @@
 				51B8DA64BB6557E6D81A8390 /* PurchaseManager.swift in Sources */,
 				0528278AD78F91F4408501DF /* RatingManager.swift in Sources */,
 				A484FB09E87A14FFABAF3791 /* PushTokenService.swift in Sources */,
+				50D46FD578C08637DC264227 /* ProLock.swift in Sources */,
+				AC85B45A8C0F3553835E4802 /* LegalLinks.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -930,13 +934,13 @@
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 3.0.5;
+				MARKETING_VERSION = 3.0.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.xptapps.assetbook;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -972,13 +976,13 @@
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 3.0.5;
+				MARKETING_VERSION = 3.0.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.xptapps.assetbook;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";

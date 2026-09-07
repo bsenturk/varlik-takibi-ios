@@ -22,6 +22,8 @@ struct DashboardRowItem: Identifiable {
     let tintHex: String
     /// Present only for single-asset rows (used for tap-to-detail / delete).
     let assetID: UUID?
+    /// Pro bitince erişimi kapanan satır: tutarı gizlenir, dokunulunca paywall açılır.
+    var isLocked: Bool = false
 }
 
 // MARK: - Icon tile
@@ -83,23 +85,39 @@ struct DashboardRowView: View {
 
             Spacer(minLength: 8)
 
-            SparklineView(
-                values: item.sparkline,
-                lineColor: isPositive ? .green : .red
-            )
-            .frame(width: 56, height: 32)
+            if !item.isLocked {
+                SparklineView(
+                    values: item.sparkline,
+                    lineColor: isPositive ? .green : .red
+                )
+                .frame(width: 56, height: 32)
+            }
 
-            VStack(alignment: .trailing, spacing: 3) {
-                Text(PortfolioManager.shared
-                    .convertToTargetCurrency(item.value, targetCurrency: selectedCurrency)
-                    .formatAsCurrency(currency: selectedCurrency)
-                    .maskedIfNeeded(valuesMasked))
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundColor(.primary)
-                    .lineLimit(1)
-                Text(changeText)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(isPositive ? .green : .red)
+            if item.isLocked {
+                // Tutar hiç yazılmaz: kilit "gösterme" değil "erişim" kısıtı.
+                HStack(spacing: 5) {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 12, weight: .bold))
+                    Text("Pro")
+                        .font(.system(size: 13, weight: .bold))
+                }
+                .foregroundColor(ProStyle.accent)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Capsule().fill(ProStyle.tint))
+            } else {
+                VStack(alignment: .trailing, spacing: 3) {
+                    Text(PortfolioManager.shared
+                        .convertToTargetCurrency(item.value, targetCurrency: selectedCurrency)
+                        .formatAsCurrency(currency: selectedCurrency)
+                        .maskedIfNeeded(valuesMasked))
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+                    Text(changeText)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(isPositive ? .green : .red)
+                }
             }
         }
         .padding(.horizontal, 14)
@@ -226,8 +244,14 @@ struct BalanceCardView: View {
         Menu {
             ForEach(Currency.allCases, id: \.self) { currency in
                 Button {
+                    // Zaten seçili olana tekrar basmak "değişim" değil; eskiden
+                    // o da loglanıp currency_changed sayısını şişiriyordu.
+                    guard currency != selectedCurrency else { return }
+                    let previous = selectedCurrency
                     withAnimation { selectedCurrency = currency }
-                    FirebaseAnalyticsHelper.shared.logCurrencyChanged(to: currency.rawValue)
+                    FirebaseAnalyticsHelper.shared.logCurrencyChanged(
+                        from: previous.rawValue, to: currency.rawValue
+                    )
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 } label: {
                     Label(currency.displayName, systemImage: selectedCurrency == currency ? "checkmark" : "")
@@ -258,6 +282,8 @@ struct PortfolioChip: View {
     let showsEditAffordance: Bool
     /// Whether tapping the selected chip edits it (shows a pencil). Off on the Analiz page.
     var showsEditPencil: Bool = true
+    /// Pro bitince ücretsiz sınırın dışında kalan portföy: seçilemez, dokununca paywall.
+    var isLocked: Bool = false
     let onTap: () -> Void
 
     var body: some View {
@@ -270,6 +296,10 @@ struct PortfolioChip: View {
                     .fill(portfolio.color.color)
                     .frame(width: 8, height: 8)
             }
+            if isLocked {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 10, weight: .bold))
+            }
             Text(portfolio.name)
                 .font(.system(size: 15, weight: .semibold))
                 .lineLimit(1)
@@ -278,7 +308,7 @@ struct PortfolioChip: View {
                     .font(.system(size: 11, weight: .bold))
             }
         }
-        .foregroundColor(isSelected ? .white : .primary)
+        .foregroundColor(isSelected ? .white : (isLocked ? .secondary : .primary))
         .padding(.horizontal, 16)
         .padding(.vertical, 9)
         .background(chipBackground)
