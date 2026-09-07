@@ -352,6 +352,7 @@ struct DashboardView: View {
                     sparkline: spark,
                     icon: asset.type.tileIcon,
                     tintHex: asset.type.tileTintHex,
+                    logoURL: marketDataManager.logoURL(forSymbol: asset.symbol),
                     assetID: asset.id,
                     isLocked: ProLock.isLocked(asset, lockedIDs: lockedIDs)
                 )

@@ -148,6 +148,17 @@ final class MarketDataManager: ObservableObject {
         return ((1 + usdChange / 100) * (1 + fxChange / 100) - 1) * 100
     }
 
+    /// Enstrümanın kendi logosu. Fiyattaki gibi TRY/USD satırı ayrımı yok:
+    /// aynı sembolün bütün satırları aynı logoyu taşıyor.
+    ///
+    /// nil dönmesi normaldir (altın, döviz, fon ve logosu bulunamayan hisseler);
+    /// çağıran taraf mevcut kategori ikonunda kalır.
+    func logoURL(forSymbol symbol: String) -> URL? {
+        guard let raw = allPrices.first(where: { $0.symbol == symbol && $0.logoUrl != nil })?.logoUrl
+        else { return nil }
+        return URL(string: raw)
+    }
+
     /// Build display instruments (TRY-priced) for a backend asset_type, deduped by symbol.
     private func makeTRYInstruments(assetType: String) -> [AssetsPrice] {
         let rows = allPrices.filter { $0.assetType == assetType }

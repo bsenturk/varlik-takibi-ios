@@ -81,7 +81,12 @@ struct AssetEditSheet: View {
 
     private var header: some View {
         HStack(spacing: 12) {
-            AssetIconTile(icon: asset.type.tileIcon, tintHex: asset.type.tileTintHex, size: 44)
+            AssetIconTile(
+                icon: asset.type.tileIcon,
+                tintHex: asset.type.tileTintHex,
+                size: 44,
+                logoURL: marketData.logoURL(forSymbol: asset.symbol)
+            )
             VStack(alignment: .leading, spacing: 2) {
                 Text(asset.name)
                     .font(.system(size: 18, weight: .bold))

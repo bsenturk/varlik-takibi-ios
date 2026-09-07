@@ -325,7 +325,12 @@ struct AddAssetSheet: View {
                             withAnimation(.easeInOut(duration: 0.2)) { step = .amount(instrument) }
                         } label: {
                             HStack(spacing: 12) {
-                                AssetIconTile(icon: instrument.iconName, tintHex: instrument.tintHex, size: 40)
+                                AssetIconTile(
+                                    icon: instrument.iconName,
+                                    tintHex: instrument.tintHex,
+                                    size: 40,
+                                    logoURL: marketData.logoURL(forSymbol: instrument.symbol)
+                                )
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(instrument.name)
                                         .font(.system(size: 16, weight: .semibold))
@@ -458,7 +463,12 @@ struct AddAssetSheet: View {
             ScrollView {
                 VStack(spacing: 16) {
                     HStack(spacing: 10) {
-                        AssetIconTile(icon: instrument.iconName, tintHex: instrument.tintHex, size: 34)
+                        AssetIconTile(
+                            icon: instrument.iconName,
+                            tintHex: instrument.tintHex,
+                            size: 34,
+                            logoURL: marketData.logoURL(forSymbol: instrument.symbol)
+                        )
                         Text(instrument.name)
                             .font(.system(size: 18, weight: .bold))
                     }

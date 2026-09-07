@@ -435,7 +435,12 @@ struct AnalysisView: View {
         let color = positive ? Color(hex: "#34C759") : Color(hex: "#FF3B30")
         let value = portfolioManager.convertToTargetCurrency(asset.totalValue, targetCurrency: selectedCurrency)
         return HStack(spacing: 12) {
-            AssetIconTile(icon: asset.type.tileIcon, tintHex: asset.type.tileTintHex, size: 48)
+            AssetIconTile(
+                icon: asset.type.tileIcon,
+                tintHex: asset.type.tileTintHex,
+                size: 48,
+                logoURL: marketDataManager.logoURL(forSymbol: asset.symbol)
+            )
             VStack(alignment: .leading, spacing: 3) {
                 Text(asset.name)
                     .font(.system(size: 16, weight: .semibold))

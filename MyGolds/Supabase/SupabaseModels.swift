@@ -25,6 +25,9 @@ struct AssetPrice: Codable, Identifiable, Hashable, Sendable {
     let price: Double
     let changePercent: Double?
     let source: String?
+    /// Enstrümanın kendi logosu (kendi Storage'ımızdan). nil = logo yok,
+    /// istemci kategori ikonuna düşer.
+    let logoUrl: String?
     let updatedAt: Date
 
     enum CodingKeys: String, CodingKey {
@@ -35,6 +38,7 @@ struct AssetPrice: Codable, Identifiable, Hashable, Sendable {
         case source
         case assetType     = "asset_type"
         case changePercent = "change_percent"
+        case logoUrl       = "logo_url"
         case updatedAt      = "updated_at"
     }
 }

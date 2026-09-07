@@ -20,6 +20,9 @@ struct DashboardRowItem: Identifiable {
     let sparkline: [Double]
     let icon: String
     let tintHex: String
+    /// Enstrümanın kendi logosu. Yalnızca tek varlık satırlarında dolu;
+    /// kategori satırları (Genel görünümü) tek bir enstrümana ait değil.
+    var logoURL: URL? = nil
     /// Present only for single-asset rows (used for tap-to-detail / delete).
     let assetID: UUID?
     /// Pro bitince erişimi kapanan satır: tutarı gizlenir, dokunulunca paywall açılır.
@@ -49,12 +52,37 @@ struct AssetIconTile: View {
     let icon: String
     let tintHex: String
     var size: CGFloat = 44
+    /// Enstrümanın kendi logosu. nil ise — ya da indirilemezse — kategori
+    /// ikonuna düşülür: her kripto satırında aynı ₿ durmasın diye eklendi.
+    var logoURL: URL? = nil
 
     var body: some View {
         RoundedRectangle(cornerRadius: 12, style: .continuous)
             .fill(Color(hex: tintHex).opacity(0.16))
             .frame(width: size, height: size)
-            .overlay(AssetGlyph(icon: icon, color: Color(hex: tintHex), size: size * 0.42))
+            .overlay { content }
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if let logoURL {
+            AsyncImage(url: logoURL) { phase in
+                if let image = phase.image {
+                    image.resizable().scaledToFit().padding(size * 0.18)
+                } else {
+                    // Yükleniyor ya da başarısız. Boş kutu göstermek satırı bir
+                    // an kimliksiz bırakıyor; kategori ikonu her hâlükârda doğru.
+                    glyph
+                }
+            }
+        } else {
+            glyph
+        }
+    }
+
+    private var glyph: some View {
+        AssetGlyph(icon: icon, color: Color(hex: tintHex), size: size * 0.42)
     }
 }
 
@@ -70,7 +98,7 @@ struct DashboardRowView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            AssetIconTile(icon: item.icon, tintHex: item.tintHex)
+            AssetIconTile(icon: item.icon, tintHex: item.tintHex, logoURL: item.logoURL)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.title)

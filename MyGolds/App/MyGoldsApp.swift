@@ -20,6 +20,13 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil
     ) -> Bool {
 
+        // Enstrüman logoları `AsyncImage` ile, yani URLSession.shared üzerinden
+        // iniyor. Paylaşılan cache varsayılanda küçük ve bellek ağırlıklı;
+        // büyütmek logoların diskte kalmasını ve her liste açılışında yeniden
+        // inmemesini sağlıyor. Herhangi bir URLSession kullanılmadan önce
+        // kurulmalı, o yüzden burada en başta.
+        URLCache.shared = URLCache(memoryCapacity: 8 << 20, diskCapacity: 64 << 20)
+
         // Configure Firebase
         FirebaseApp.configure()
         Logger.log("🔧 Firebase configured")
