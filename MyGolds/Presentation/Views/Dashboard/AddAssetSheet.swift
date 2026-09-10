@@ -452,14 +452,14 @@ struct AddAssetSheet: View {
     private func priceLabel(for instrument: Instrument) -> String {
         let price = currentMarketPrice(for: instrument)
         guard price > 0 else { return instrument.unit }
-        return "₺\(String(format: "%.2f", price)) / \(instrument.unit)"
+        // Locale'e uygun biçim: "%.2f" tüm listede nokta ayraç yazıyordu.
+        return "\(price.formatAsCurrency()) / \(instrument.unit)"
     }
 
     // MARK: - Step 3: amount entry
 
     private func amountEntry(for instrument: Instrument) -> some View {
-        VStack(spacing: 0) {
-            ScrollView {
+        ScrollView {
                 VStack(spacing: 16) {
                     HStack(spacing: 10) {
                         AssetIconTile(
@@ -526,21 +526,23 @@ struct AddAssetSheet: View {
                 .contentShape(Rectangle())
                 .onTapGesture { focusedField = nil }
             }
-            .scrollIndicators(.hidden)
-            .scrollDismissesKeyboard(.interactively)
-            .onChange(of: amount) { _, new in
-                let clean = new.sanitizedDecimal(maxDecimals: 4)
-                if clean != new { amount = clean }
-            }
-            .onChange(of: purchasePrice) { _, new in
-                let clean = new.sanitizedDecimal(maxDecimals: 2)
-                if clean != new { purchasePrice = clean }
-            }
-
-            // Klavyenin hemen üstündeki çubuk. decimalPad'de return tuşu yok;
-            // sistemin `.keyboard` toolbar'ı ise iOS 26'da yüzen bir kapsül olarak
-            // Kaydet'in üstüne biniyordu — kapatma düğmesi bu yüzden kendi
-            // çubuğumuzda, yalnızca bir alan odaklıyken görünüyor.
+        .scrollIndicators(.hidden)
+        .scrollDismissesKeyboard(.interactively)
+        .onChange(of: amount) { _, new in
+            let clean = new.sanitizedDecimal(maxDecimals: 4)
+            if clean != new { amount = clean }
+        }
+        .onChange(of: purchasePrice) { _, new in
+            let clean = new.sanitizedDecimal(maxDecimals: 2)
+            if clean != new { purchasePrice = clean }
+        }
+        // Alt çubuk `safeAreaInset` ile veriliyor: VStack'in içindeyken kaydırma
+        // alanı çubuğun varlığından habersizdi ve klavye açıldığında odaklanan
+        // alan Kaydet'in altında kalıyordu.
+        .safeAreaInset(edge: .bottom) {
+            // decimalPad'de return tuşu yok; sistemin `.keyboard` toolbar'ı ise
+            // iOS 26'da yüzen bir kapsül olarak Kaydet'in üstüne biniyordu —
+            // kapatma düğmesi bu yüzden burada, yalnızca bir alan odaklıyken.
             HStack(spacing: 10) {
                 if focusedField != nil {
                     Button { focusedField = nil } label: {
@@ -561,6 +563,7 @@ struct AddAssetSheet: View {
             .padding(.horizontal, 16)
             .padding(.top, 8)
             .padding(.bottom, 16)
+            .background(.bar)
         }
     }
 
@@ -579,17 +582,21 @@ struct AddAssetSheet: View {
                         .foregroundColor(.secondary)
                 }
                 Spacer()
-                if !purchasePrice.isEmpty {
-                    Text("₺")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.primary)
+                // ₺ ile sayı bitişik durmalı: ayrı elemanlarken alan sağa
+                // hizalandığı için arada boşluk kalıyordu.
+                HStack(spacing: 2) {
+                    if !purchasePrice.isEmpty {
+                        Text("₺")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.primary)
+                    }
+                    TextField("Güncel fiyat", text: $purchasePrice)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .font(.system(size: 16, weight: purchasePrice.isEmpty ? .regular : .semibold))
+                        .fixedSize()
+                        .focused($focusedField, equals: .purchasePrice)
                 }
-                TextField("Güncel fiyat", text: $purchasePrice)
-                    .keyboardType(.decimalPad)
-                    .multilineTextAlignment(.trailing)
-                    .font(.system(size: 16, weight: purchasePrice.isEmpty ? .regular : .semibold))
-                    .frame(maxWidth: 160)
-                    .focused($focusedField, equals: .purchasePrice)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
