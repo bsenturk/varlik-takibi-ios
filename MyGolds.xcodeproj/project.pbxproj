@@ -15,6 +15,7 @@
 		1EC57CE76295482DD6403A65 /* PortfolioStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6756A37D257C1F93381E6719 /* PortfolioStore.swift */; };
 		1EFF8EC1021D8F8FF79E4B01 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E45113718A2BE02F9C91637 /* DashboardView.swift */; };
 		271B53FCF47103949DE543E8 /* PortfolioSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26A5AF6D29D0C76F7C2C0305 /* PortfolioSnapshot.swift */; };
+		34580A39895C8787B5FEE9FA /* InstrumentChartCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18CFD416652C895A8EB79337 /* InstrumentChartCard.swift */; };
 		36FF5CA59FBC62AB28DDD1F3 /* WidgetSharedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36EF386890B8BC530367EF5C /* WidgetSharedStore.swift */; };
 		375CA5B6156431E084C93A86 /* PortfolioRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8EA8A77E2A393340062D5A0 /* PortfolioRepository.swift */; };
 		3899213248887ED43B3AB42A /* SelectionScreenHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB74F28B8E647460482BC981 /* SelectionScreenHeader.swift */; };
@@ -154,6 +155,7 @@
 		0D622DCF483F536017FC218F /* MyGoldsWidget.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = MyGoldsWidget.entitlements; sourceTree = "<group>"; };
 		12CAAD3CBA5A4B847F064538 /* PaywallView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
 		17AEA84E07605177D2C0484B /* RatesView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RatesView.swift; sourceTree = "<group>"; };
+		18CFD416652C895A8EB79337 /* InstrumentChartCard.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = InstrumentChartCard.swift; sourceTree = "<group>"; };
 		2067482A4B559D884A7F51B8 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		247368DDD248FD2197BCB0D6 /* Portfolio.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Portfolio.swift; sourceTree = "<group>"; };
 		26A5AF6D29D0C76F7C2C0305 /* PortfolioSnapshot.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PortfolioSnapshot.swift; sourceTree = "<group>"; };
@@ -328,6 +330,7 @@
 				3E45113718A2BE02F9C91637 /* DashboardView.swift */,
 				7BF667F5C586B464A6A9DF44 /* PortfolioEditorView.swift */,
 				BD57CBF5F13AB266CF39E404 /* AssetEditSheet.swift */,
+				18CFD416652C895A8EB79337 /* InstrumentChartCard.swift */,
 			);
 			path = Dashboard;
 			sourceTree = "<group>";
@@ -907,6 +910,7 @@
 				5B46712CEAADE1326D49A300 /* WidgetSync.swift in Sources */,
 				0E3699DB6CF8105101818F76 /* CurrencySelectionView.swift in Sources */,
 				3899213248887ED43B3AB42A /* SelectionScreenHeader.swift in Sources */,
+				34580A39895C8787B5FEE9FA /* InstrumentChartCard.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1081,7 +1085,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 3.0.6;
+				MARKETING_VERSION = 3.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.xptapps.assetbook;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1123,7 +1127,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 3.0.6;
+				MARKETING_VERSION = 3.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.xptapps.assetbook;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1156,7 +1160,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 3.0.6;
+				MARKETING_VERSION = 3.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.xptapps.assetbook.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -1189,7 +1193,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 3.0.6;
+				MARKETING_VERSION = 3.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.xptapps.assetbook.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;

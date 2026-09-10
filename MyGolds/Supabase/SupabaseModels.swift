@@ -42,3 +42,33 @@ struct AssetPrice: Codable, Identifiable, Hashable, Sendable {
         case updatedAt      = "updated_at"
     }
 }
+
+/// Bir enstrümanın geçmiş fiyat serisi (`price-chart` Edge Function'dan).
+///
+/// Geçmişi kendi veritabanımızda tutmuyoruz; fonksiyon canlı fiyat için zaten
+/// kullandığımız kaynaklara (Yahoo / CoinGecko / TEFAS) proxy yapıyor. Altın ve
+/// döviz kapsam dışı — kaynağımız Truncgil geçmiş yayımlamıyor.
+struct PriceSeries: Decodable, Sendable {
+    let symbol: String
+    /// Serinin para birimi. ABD hisseleri USD, diğerleri TRY.
+    let currency: String
+    let points: [PricePoint]
+}
+
+struct PricePoint: Decodable, Identifiable, Sendable {
+    /// Epoch saniye.
+    let t: Double
+    /// Kapanış fiyatı.
+    let c: Double
+
+    var id: Double { t }
+    var date: Date { Date(timeIntervalSince1970: t) }
+}
+
+/// Grafik zaman aralığı. `rawValue` backend'in beklediği anahtar, `label` UI etiketi.
+enum ChartRange: String, CaseIterable, Identifiable, Sendable {
+    case week = "1h", month = "1a", quarter = "3a", year = "1y"
+
+    var id: String { rawValue }
+    var label: String { rawValue.uppercased() }
+}

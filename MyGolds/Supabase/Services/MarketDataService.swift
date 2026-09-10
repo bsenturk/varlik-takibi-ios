@@ -23,6 +23,10 @@ protocol MarketDataServiceProtocol: Sendable {
     /// `search-tefas` Edge Function. The backend fetches the funds live, upserts
     /// them into `assets_prices`, and returns the matching rows.
     func searchFunds(query: String) async throws -> [AssetPrice]
+    /// Bir enstrümanın geçmiş fiyat serisini `price-chart` Edge Function'dan alır.
+    /// Yalnızca kripto / BIST / ABD / fon destekleniyor (altın ve dövizin geçmiş
+    /// kaynağı yok); desteklenmeyen sembollerde `AppError` fırlatır.
+    func fetchPriceSeries(symbol: String, range: ChartRange) async throws -> PriceSeries
 }
 
 /// Envelope returned by the `search-tefas` Edge Function.
@@ -86,6 +90,19 @@ final class MarketDataService: MarketDataServiceProtocol {
                 try Self.functionDecoder.decode(FundSearchResponse.self, from: data)
             }
             return response.data
+        } catch {
+            throw AppError.map(error)
+        }
+    }
+
+    func fetchPriceSeries(symbol: String, range: ChartRange) async throws -> PriceSeries {
+        do {
+            return try await client.functions.invoke(
+                "price-chart",
+                options: FunctionInvokeOptions(body: ["symbol": symbol, "range": range.rawValue])
+            ) { data, _ in
+                try Self.functionDecoder.decode(PriceSeries.self, from: data)
+            }
         } catch {
             throw AppError.map(error)
         }
