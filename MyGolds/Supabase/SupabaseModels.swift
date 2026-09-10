@@ -22,7 +22,11 @@ struct AssetPrice: Codable, Identifiable, Hashable, Sendable {
     let name: String?
     /// Backend category: "crypto", "currency", "gold", "bist", "us_stock", "fund".
     let assetType: String
+    /// Satış fiyatı — değerleme her yerde bunun üzerinden.
     let price: Double
+    /// Alış fiyatı. Yalnızca makas yayımlayan kaynaklarda (altın/döviz) dolu;
+    /// kripto/hisse/fon satırlarında nil — o zaman tek fiyat gösterilir.
+    let buyPrice: Double?
     let changePercent: Double?
     let source: String?
     /// Enstrümanın kendi logosu (kendi Storage'ımızdan). nil = logo yok,
@@ -36,6 +40,7 @@ struct AssetPrice: Codable, Identifiable, Hashable, Sendable {
         case name
         case price
         case source
+        case buyPrice      = "buy_price"
         case assetType     = "asset_type"
         case changePercent = "change_percent"
         case logoUrl       = "logo_url"

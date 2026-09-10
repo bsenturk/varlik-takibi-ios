@@ -32,31 +32,35 @@ struct RateCardView: View {
                     .font(.system(size: 17, weight: .bold))
                     .foregroundColor(.primary)
                     .lineLimit(1)
-                HStack(alignment: .top, spacing: 18) {
-                    priceColumn("Alış", buyRate)
-                    priceColumn("Satış", sellRate)
+                // Kaynak makas yayımlıyorsa iki sütun; yayımlamıyorsa tek "Fiyat"
+                // sütunu. Daha önce alış sütununa da satış fiyatı yazılıyordu,
+                // yani her kalemde sıfır makas gösteriliyordu.
+                HStack(alignment: .top, spacing: 14) {
+                    if buyRate.isEmpty {
+                        priceColumn("Fiyat", sellRate)
+                    } else {
+                        priceColumn("Alış", buyRate)
+                        priceColumn("Satış", sellRate)
+                    }
                 }
             }
+            .layoutPriority(1)
 
             Spacer(minLength: 6)
 
-            // Change pill + sparkline
-            VStack(alignment: .trailing, spacing: 8) {
-                HStack(spacing: 3) {
-                    Image(systemName: isChangeRatePositive ? "arrow.up" : "arrow.down")
-                        .font(.system(size: 10, weight: .bold))
-                    Text("\(isChangeRatePositive ? "+" : "−")\(formattedPercent)")
-                        .font(.system(size: 13, weight: .bold))
-                }
-                .foregroundColor(changeColor)
-                .padding(.horizontal, 9)
-                .padding(.vertical, 5)
-                .background(changeColor.opacity(0.15))
-                .clipShape(Capsule())
-
-                SparklineView(values: sparkValues, lineColor: changeColor)
-                    .frame(width: 70, height: 26)
+            // Günlük değişim
+            HStack(spacing: 3) {
+                Image(systemName: isChangeRatePositive ? "arrow.up" : "arrow.down")
+                    .font(.system(size: 10, weight: .bold))
+                Text("\(isChangeRatePositive ? "+" : "−")\(formattedPercent)")
+                    .font(.system(size: 13, weight: .bold))
             }
+            .fixedSize()   // fiyat bloğu genişlik önceliğini aldı; rozet sarmamalı
+            .foregroundColor(changeColor)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 5)
+            .background(changeColor.opacity(0.15))
+            .clipShape(Capsule())
         }
         .padding(14)
         .background(
@@ -79,6 +83,9 @@ struct RateCardView: View {
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundColor(.primary)
                 .lineLimit(1)
+                // Tam/Cumhuriyet altını gibi altı haneli tutarlar kırpılmasın.
+                .minimumScaleFactor(0.75)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -86,22 +93,5 @@ struct RateCardView: View {
         let raw = change.replacingOccurrences(of: ",", with: ".").replacingOccurrences(of: "%", with: "")
         let value = abs(Double(raw) ?? 0)
         return "%" + String(format: "%.2f", value).replacingOccurrences(of: ".", with: ",")
-    }
-
-    /// Directional, deterministic sparkline (trend matches the real daily change sign).
-    private var sparkValues: [Double] {
-        var seed = UInt64(abs(title.utf8.reduce(0) { $0 &+ Int($1) }) + 7)
-        func next() -> Double {
-            seed = seed &* 6364136223846793005 &+ 1442695040888963407
-            return Double((seed >> 33) & 0xFFFF) / 65535.0
-        }
-        let drift = isChangeRatePositive ? 1.5 : -1.5
-        var v = 50.0
-        var values: [Double] = []
-        for _ in 0..<14 {
-            v += drift + (next() - 0.5) * 4.0
-            values.append(v)
-        }
-        return values
     }
 }

@@ -171,7 +171,8 @@ final class MarketDataManager: ObservableObject {
             return AssetsPrice(
                 name: name,
                 code: symbol,
-                buyPrice: priceString,
+                // Dinamik enstrümanlarda makas yok: tek fiyat.
+                buyPrice: "",
                 sellPrice: priceString,
                 change: "",
                 changePercent: change.map { String($0) } ?? "",
@@ -245,10 +246,14 @@ final class MarketDataManager: ObservableObject {
 
     private static func makeAssetsPrice(_ p: AssetPrice) -> AssetsPrice {
         let priceString = formatPrice(p.price)
+        // Alış fiyatı yoksa boş bırakılıyor: aynı sayıyı iki sütuna yazmak
+        // olmayan bir makas uydurmak olurdu (Piyasalar ekranı buna göre tek
+        // sütuna düşüyor).
+        let buyString = p.buyPrice.map(formatPrice) ?? ""
         return AssetsPrice(
             name: p.name ?? p.symbol,
             code: p.symbol,
-            buyPrice: priceString,
+            buyPrice: buyString,
             sellPrice: priceString,
             change: "",
             changePercent: p.changePercent.map { String($0) } ?? "",
