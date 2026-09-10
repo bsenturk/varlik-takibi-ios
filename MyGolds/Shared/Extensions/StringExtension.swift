@@ -53,7 +53,48 @@ extension String {
         assert(!"Bitcoin".searchMatches("doge"), "alakasız sorgu eşleşmemeli")
         assert("Bitcoin".searchMatches(""), "boş sorgu her şeyi eşlemeli")
     }
+
+    /// Sayı alanlarının temizleyici + biçimleyici çifti. Düzenlenebilir alanda
+    /// binlik ayracı OLMAMALI: `parsedAmount` "1.873.746,00"u ayrıştıramaz.
+    static func numberSelfCheck() {
+        assert("0,25".sanitizedDecimal(maxDecimals: 4) == "0,25")
+        assert("1.5".sanitizedDecimal(maxDecimals: 4) == "1,5", "nokta virgüle çevrilmeli")
+        assert(",5".sanitizedDecimal(maxDecimals: 4) == "0,5", "baştaki ayraca 0 eklenmeli")
+        assert("1,2,3".sanitizedDecimal(maxDecimals: 4) == "1,23", "tek ayraç kalmalı")
+        assert("0,123456".sanitizedDecimal(maxDecimals: 4) == "0,1234", "ondalık sınırı")
+        assert("12a3₺".sanitizedDecimal(maxDecimals: 2) == "123", "rakam dışı atılmalı")
+        assert("7".sanitizedDecimal(maxDecimals: 0) == "7")
+        // %g 1e6'dan sonra bilimsel gösterime düşüyordu (3,74749e+06 hatası).
+        assert(Double.editableString(3_747_490, maxDecimals: 2) == "3747490",
+               "büyük tutar bilimsel gösterime düşmemeli")
+        assert(Double.editableString(0.12345678, maxDecimals: 8) == "0,12345678",
+               "kripto miktarı kırpılmamalı")
+    }
     #endif
+
+    /// Serbest metni tek ondalık ayraçlı bir sayıya indirger: yalnızca rakamlar
+    /// ve tek bir ayraç kalır, ondalık basamak sayısı sınırlanır. Sistem
+    /// klavyesi ve yapıştırma her şeyi verebildiği için miktar/fiyat alanları
+    /// yazıldıkça bundan geçiyor. Bölge ayarına göre "." gelebildiğinden
+    /// virgüle çevriliyor — ayrıştırma tarafı virgül bekliyor.
+    func sanitizedDecimal(maxDecimals: Int) -> String {
+        var out = ""
+        var seenSeparator = false
+        var decimals = 0
+        for ch in self {
+            if ch.isNumber {
+                if seenSeparator {
+                    if decimals == maxDecimals { continue }
+                    decimals += 1
+                }
+                out.append(ch)
+            } else if (ch == "," || ch == ".") && !seenSeparator && maxDecimals > 0 {
+                seenSeparator = true
+                out.append(out.isEmpty ? "0," : ",")
+            }
+        }
+        return out
+    }
 
     func parseToDouble() -> Double? {
         let cleanString = self

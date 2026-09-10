@@ -108,6 +108,10 @@ struct AssetEditSheet: View {
                 TextField("0", text: $amountText)
                     .keyboardType(.decimalPad)
                     .font(.system(size: 28, weight: .bold))
+                    .onChange(of: amountText) { _, new in
+                        let clean = new.sanitizedDecimal(maxDecimals: 8)
+                        if clean != new { amountText = clean }
+                    }
                 Text(asset.unit).foregroundColor(.secondary)
             }
             .padding(.horizontal, 14).padding(.vertical, 12)
@@ -135,6 +139,10 @@ struct AssetEditSheet: View {
                 TextField("0", text: $costText)
                     .keyboardType(.decimalPad)
                     .font(.system(size: 22, weight: .bold))
+                    .onChange(of: costText) { _, new in
+                        let clean = new.sanitizedDecimal(maxDecimals: 2)
+                        if clean != new { costText = clean }
+                    }
             }
             .padding(.horizontal, 14).padding(.vertical, 12)
             .background(Color(.secondarySystemGroupedBackground))
@@ -238,14 +246,13 @@ struct AssetEditSheet: View {
         dismiss()
     }
 
+    /// Miktar gösterimi. Kripto miktarları 8 basamağa kadar anlamlı olabiliyor.
     private static func format(_ v: Double) -> String {
-        v.truncatingRemainder(dividingBy: 1) == 0
-            ? String(format: "%.0f", v)
-            : String(format: "%g", v)
+        Double.editableString(v, maxDecimals: 8)
     }
 
     /// Price/cost formatted with a comma decimal for the editable field.
     private static func formatPrice(_ v: Double) -> String {
-        String(format: "%g", v).replacingOccurrences(of: ".", with: ",")
+        Double.editableString(v, maxDecimals: 2)
     }
 }

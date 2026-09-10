@@ -529,11 +529,11 @@ struct AddAssetSheet: View {
             .scrollIndicators(.hidden)
             .scrollDismissesKeyboard(.interactively)
             .onChange(of: amount) { _, new in
-                let clean = Self.sanitizedNumber(new, maxDecimals: 4)
+                let clean = new.sanitizedDecimal(maxDecimals: 4)
                 if clean != new { amount = clean }
             }
             .onChange(of: purchasePrice) { _, new in
-                let clean = Self.sanitizedNumber(new, maxDecimals: 2)
+                let clean = new.sanitizedDecimal(maxDecimals: 2)
                 if clean != new { purchasePrice = clean }
             }
 
@@ -742,29 +742,6 @@ struct AddAssetSheet: View {
         let value = (current - purchase) * amountValue
         let percent = (current - purchase) / purchase * 100.0
         return (value, percent)
-    }
-
-    /// Sistem klavyesi (ve yapıştırma) serbest metin verebiliyor: yalnızca rakam
-    /// ve tek bir ondalık ayracı bırakılıyor, ondalık basamak sayısı sınırlanıyor.
-    /// Bölge ayarına göre "." gelebildiği için virgüle çevriliyor — kaydetme
-    /// tarafındaki ayrıştırma virgül bekliyor.
-    static func sanitizedNumber(_ raw: String, maxDecimals: Int) -> String {
-        var out = ""
-        var seenSeparator = false
-        var decimals = 0
-        for ch in raw {
-            if ch.isNumber {
-                if seenSeparator {
-                    if decimals == maxDecimals { continue }
-                    decimals += 1
-                }
-                out.append(ch)
-            } else if (ch == "," || ch == ".") && !seenSeparator && maxDecimals > 0 {
-                seenSeparator = true
-                out.append(out.isEmpty ? "0," : ",")
-            }
-        }
-        return out
     }
 
     // MARK: - Save

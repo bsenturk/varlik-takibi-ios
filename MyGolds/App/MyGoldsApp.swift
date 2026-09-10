@@ -49,6 +49,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
         FeatureGatePaywall.selfCheck()
         String.searchSelfCheck()
         ProLock.selfCheck()
+        String.numberSelfCheck()
         #endif
 
         UNUserNotificationCenter.current().setBadgeCount(0) { _ in }

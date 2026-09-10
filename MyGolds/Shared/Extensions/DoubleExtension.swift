@@ -48,6 +48,22 @@ extension Double {
     }
 }
 
+extension Double {
+    /// Düzenlenebilir bir metin alanına yazılacak sayı gösterimi: Türkçe virgül,
+    /// **binlik ayracı yok** (alan `parseToDouble` ile geri okunuyor) ve asla
+    /// bilimsel gösterim yok — `String(format: "%g")` 1.000.000'dan sonra
+    /// "3,74749e+06" üretiyordu.
+    static func editableString(_ value: Double, maxDecimals: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "tr_TR")
+        formatter.numberStyle = .decimal
+        formatter.usesGroupingSeparator = false
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = maxDecimals
+        return formatter.string(from: NSNumber(value: value)) ?? String(value)
+    }
+}
+
 extension String {
     /// Portföyün gözü kapalıyken tutarın yerine geçen metin. Bayrağı
     /// `UserDefaultsManager.isPortfolioMasked(...)` ile hesaplayan ekranlar çağırır.
