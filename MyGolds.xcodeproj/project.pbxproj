@@ -758,9 +758,10 @@
 			};
 			buildConfigurationList = 9B0F503A2B7FFCB300A03018 /* Build configuration list for PBXProject "MyGolds" */;
 			compatibilityVersion = "Xcode 14.0";
-			developmentRegion = en;
+			developmentRegion = tr;
 			hasScannedForEncodings = 0;
 			knownRegions = (
+				tr,
 				en,
 				Base,
 			);
@@ -1073,6 +1074,7 @@
 				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MyGolds/Info.plist;
+				INFOPLIST_KEY_CFBundleDevelopmentRegion = tr;
 				INFOPLIST_KEY_CFBundleDisplayName = "Varlık Takibi";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				INFOPLIST_KEY_NSUserTrackingUsageDescription = "Bu izin size kişiselleştirilmiş reklamlar sunmak için kullanılacaktır.";
@@ -1115,6 +1117,7 @@
 				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MyGolds/Info.plist;
+				INFOPLIST_KEY_CFBundleDevelopmentRegion = tr;
 				INFOPLIST_KEY_CFBundleDisplayName = "Varlık Takibi";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				INFOPLIST_KEY_NSUserTrackingUsageDescription = "Bu izin size kişiselleştirilmiş reklamlar sunmak için kullanılacaktır.";
@@ -1152,6 +1155,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MyGoldsWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDevelopmentRegion = tr;
 				INFOPLIST_KEY_CFBundleDisplayName = "Varlık Takibi";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -1185,6 +1189,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MyGoldsWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDevelopmentRegion = tr;
 				INFOPLIST_KEY_CFBundleDisplayName = "Varlık Takibi";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;

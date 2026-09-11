@@ -2,6 +2,14 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <!-- Arayüz yalnızca Türkçe. .lproj klasörü olmadığı için App Store dili
+         geliştirme bölgesinden türetiyordu ve listede "English" yazıyordu. -->
+    <key>CFBundleDevelopmentRegion</key>
+    <string>tr</string>
+    <key>CFBundleLocalizations</key>
+    <array>
+        <string>tr</string>
+    </array>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
     <!-- Widget'tan paywall'a derin bağlantı (mygolds://paywall). Tek tüketici
