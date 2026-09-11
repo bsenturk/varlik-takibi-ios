@@ -57,6 +57,16 @@ function priceOf(rate: TruncgilRate | undefined): number {
   return Number.isFinite(sell) ? sell : toNumber(rate.Buying);
 }
 
+/// Alış fiyatı. Satışa eşit ya da ondan yüksek gelen değerler (kaynak bazı
+/// kalemlerde makas yayımlamıyor) null'a düşürülüyor — istemci o zaman tek
+/// fiyat gösteriyor, uydurma bir makas çizmiyor.
+function buyPriceOf(rate: TruncgilRate | undefined, sell: number): number | null {
+  if (!rate) return null;
+  const buy = toNumber(rate.Buying);
+  if (!Number.isFinite(buy) || buy <= 0) return null;
+  return buy < sell ? buy : null;
+}
+
 Deno.serve(async (req: Request) => {
   const preflight = handlePreflight(req);
   if (preflight) return preflight;
@@ -82,6 +92,7 @@ Deno.serve(async (req: Request) => {
         name: g.name,
         asset_type: "gold",
         price,
+        buy_price: buyPriceOf(rate, price),
         currency: "TRY",
         change_percent: rate ? toNumber(rate.Change) : null,
         source: "truncgil",
@@ -92,11 +103,14 @@ Deno.serve(async (req: Request) => {
       const rate = rates[fx.key];
       const price = priceOf(rate) * (fx.scale ?? 1);
       if (!Number.isFinite(price)) continue;
+      const fxBuy = buyPriceOf(rate, priceOf(rate));
       rows.push({
         symbol: fx.symbol,
         name: fx.name,
         asset_type: "currency",
         price,
+        // JPY gibi ölçeklenen kurlarda alış da aynı katsayıyla çarpılmalı.
+        buy_price: fxBuy === null ? null : fxBuy * (fx.scale ?? 1),
         currency: "TRY",
         change_percent: rate ? toNumber(rate.Change) : null,
         source: "truncgil",
@@ -109,6 +123,7 @@ Deno.serve(async (req: Request) => {
       name: "Türk Lirası",
       asset_type: "currency",
       price: 1,
+      buy_price: null,
       currency: "TRY",
       change_percent: 0,
       source: "truncgil",

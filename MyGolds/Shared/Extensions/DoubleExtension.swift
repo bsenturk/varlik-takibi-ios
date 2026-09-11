@@ -41,28 +41,26 @@ extension Double {
          }
      }
     
+    /// Biçimlendirme kuralı `Currency` içinde; burası yalnızca çağrı yeri
+    /// kolaylığı için duruyor.
     func formatAsCurrency(currency: Currency = .TRY) -> String {
+        currency.format(self)
+    }
+}
+
+extension Double {
+    /// Düzenlenebilir bir metin alanına yazılacak sayı gösterimi: Türkçe virgül,
+    /// **binlik ayracı yok** (alan `parseToDouble` ile geri okunuyor) ve asla
+    /// bilimsel gösterim yok — `String(format: "%g")` 1.000.000'dan sonra
+    /// "3,74749e+06" üretiyordu.
+    static func editableString(_ value: Double, maxDecimals: Int) -> String {
         let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
-        
-        switch currency {
-        case .TRY:
-            formatter.currencySymbol = "₺"
-            formatter.locale = Locale(identifier: "tr_TR")
-        case .USD:
-            formatter.currencySymbol = "$"
-            formatter.locale = Locale(identifier: "en_US")
-        case .EUR:
-            formatter.currencySymbol = "€"
-            formatter.locale = Locale(identifier: "en_US")
-        case .GBP:
-            formatter.currencySymbol = "£"
-            formatter.locale = Locale(identifier: "en_GB")
-        }
-        
-        return formatter.string(from: NSNumber(value: self)) ?? "\(currency.symbol)0,00"
+        formatter.locale = Locale(identifier: "tr_TR")
+        formatter.numberStyle = .decimal
+        formatter.usesGroupingSeparator = false
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = maxDecimals
+        return formatter.string(from: NSNumber(value: value)) ?? String(value)
     }
 }
 

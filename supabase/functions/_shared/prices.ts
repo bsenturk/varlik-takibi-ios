@@ -14,7 +14,11 @@ export interface AssetPrice {
   symbol: string;
   name?: string | null;
   asset_type: AssetType;
+  /// Satış fiyatı — uygulamanın her yerinde değerleme bunun üzerinden yapılır.
   price: number;
+  /// Alış fiyatı. Yalnızca makas yayımlayan kaynaklarda (altın/döviz) dolu;
+  /// tek fiyatlı kaynaklarda (kripto, hisse, fon) null.
+  buy_price?: number | null;
   currency: string;
   change_percent?: number | null;
   source: string;
@@ -54,6 +58,7 @@ export async function upsertPrices(
     name: r.name ?? null,
     asset_type: r.asset_type,
     price: r.price,
+    buy_price: r.buy_price ?? null,
     currency: r.currency,
     change_percent: r.change_percent ?? null,
     source: r.source,

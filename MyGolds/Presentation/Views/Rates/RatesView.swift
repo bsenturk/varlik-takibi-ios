@@ -28,7 +28,7 @@ struct RatesView: View {
 
     private var filteredRates: [RateDisplayModel] {
         guard !searchText.isEmpty else { return allRates }
-        return allRates.filter { $0.title.localizedCaseInsensitiveContains(searchText) }
+        return allRates.filter { $0.title.searchMatches(searchText) }
     }
 
     /// Finans kategorisinde canlı piyasa verisi gösteren bir uygulamada

@@ -16,6 +16,22 @@ enum ProStyle {
     static var border: Color { accent.opacity(0.35) }
 }
 
+/// App Store vitrin puanı.
+///
+/// Elle güncelleniyor: çalışma anında çekmek paywall'a bir ağ bağımlılığı ve
+/// sessizce boş kalabilecek bir hata yolu eklerdi.
+///
+/// Kaynak: `itunes.apple.com/lookup?id=6479618311` — 7 Eylül 2026 itibarıyla
+/// 4,25926 ortalama / 27 oy. **Her sürümde tazele**; bayatlamış bir puan
+/// kullanıcıya yanlış beyandır.
+///
+/// Oy sayısı kasten gösterilmiyor. 27 ile "yalnızca 27 kişi mi" etkisi (negatif
+/// sosyal kanıt) puanın kendisinden çok daha fazla zarar verir; ortalama ise
+/// olduğu gibi doğru.
+enum StoreRating {
+    static let display = "4,3"
+}
+
 /// Abonelik planları ve fiyat metinleri — paywall ve ayarlar kartı aynı kaynağı
 /// kullansın diye tek yerde.
 @MainActor
@@ -120,7 +136,11 @@ enum ProPlan: String, CaseIterable, Identifiable {
 /// Where the paywall was opened from — drives the context-aware sub-headline so a
 /// feature-gate prompt leads with the benefit the user was just reaching for.
 enum PaywallContext: Identifiable {
-    case general, onboarding, fund, portfolioLimit, ads
+    case general, onboarding, fund, portfolioLimit, ads, widget
+    /// Ayarlardaki "Pro'ya geç" banner'ı.
+    case settings
+    /// Üyelik sayfasındaki "Pro'ya Geç" butonu.
+    case membership
 
     var id: String { analyticsName }
 
@@ -132,6 +152,9 @@ enum PaywallContext: Identifiable {
         case .fund:           return "fund"
         case .portfolioLimit: return "portfolio_limit"
         case .ads:            return "ads"
+        case .widget:         return "widget"
+        case .settings:       return "settings"
+        case .membership:     return "membership"
         }
     }
 
@@ -140,25 +163,28 @@ enum PaywallContext: Identifiable {
         case .fund:           return "Fonlarını da\nburada takip et."
         case .portfolioLimit: return "Her hedefe\nayrı portföy."
         case .ads:            return "Reklamlar olmadan\ndaha rahat."
-        case .onboarding, .general: return "Portföyünün\ntamamını gör."
+        case .widget:         return "Portföyün\nana ekranında."
+        case .onboarding, .general, .settings, .membership: return "Portföyünün\ntamamını gör."
         }
     }
 
     var subtitle: String {
         switch self {
         case .fund:
-            return "TEFAS fonları Pro ile açılıyor — diğer iki özellikle birlikte."
+            return "TEFAS fonları Pro ile açılıyor — diğer üç özellikle birlikte."
         case .portfolioLimit:
-            return "Portföy sınırı Pro ile kalkıyor — diğer iki özellikle birlikte."
+            return "Portföy sınırı Pro ile kalkıyor — diğer üç özellikle birlikte."
         case .ads:
-            return "Reklamlar Pro ile kapanıyor — diğer iki özellikle birlikte."
-        case .onboarding, .general:
-            return "Üç özellik şu an kilitli. Pro ile üçü birden açılıyor."
+            return "Reklamlar Pro ile kapanıyor — diğer üç özellikle birlikte."
+        case .widget:
+            return "Ana ekran widget'ı Pro ile açılıyor — diğer üç özellikle birlikte."
+        case .onboarding, .general, .settings, .membership:
+            return "Dört özellik şu an kilitli. Pro ile dördü birden açılıyor."
         }
     }
 }
 
-/// Reklam yerine paywall: "Reklamsız Deneyim" üç Pro özelliğinden en çok
+/// Reklam yerine paywall: "Reklamsız Deneyim" Pro özelliklerinden en çok
 /// karşılaşılanı ama tek tetikleyicisi yoktu. Sayaç *gösterilebilir interstitial
 /// fırsatlarını* sayar (varlık eklemeyi değil) — eklemelerin çoğu 30 sn cooldown
 /// ya da yüklü reklam olmaması yüzünden zaten reklama dönüşmüyor.
@@ -212,6 +238,48 @@ enum AdPaywallGate {
     #endif
 }
 
+/// Kilitli satır/çip dokunuşlarıyla açılan paywall'ın frekans tavanı.
+///
+/// `AdPaywallGate` reklam tarafını dizginliyordu ama özellik kapılarının hiç
+/// kapısı yoktu: üç kilitli fonu olan kullanıcı listede gezinirken art arda üç
+/// tam ekran paywall görüyordu. Tavan yalnızca *gezinme* tetikleyicilerine
+/// uygulanır — "+ portföy ekle" gibi açık niyet beyanlarında paywall her zaman
+/// açılır, yoksa kullanıcı sessiz bir çıkmazda kalır.
+///
+/// ponytail: bellekte tek tarih, UserDefaults yok. Soğuk açılış sayacı sıfırlar
+/// ve bu doğru davranış — yeni oturum, yeni bir gösterim hakkı.
+@MainActor
+enum FeatureGatePaywall {
+    private static let cooldown: TimeInterval = 15 * 60
+    private static var lastShown: Date?
+
+    /// `true` dönerse paywall açılır. `false` ise çağıran taraf yalnızca
+    /// haptic ile "burası kilitli" geri bildirimini verir.
+    static func shouldShow() -> Bool {
+        if let last = lastShown, Date().timeIntervalSince(last) < cooldown { return false }
+        lastShown = Date()
+        return true
+    }
+
+    #if DEBUG
+    /// Tek çalıştırılabilir kontrol: ilk dokunuş açar, soğuma içindekiler yutulur,
+    /// soğuma dolunca yeniden açılır. Test target'ı yok, bu yüzden launch'ta
+    /// assert olarak koşuyor (AdPaywallGate.selfCheck ile aynı kalıp).
+    static func selfCheck() {
+        let saved = lastShown
+        defer { lastShown = saved }
+
+        lastShown = nil
+        assert(shouldShow(), "İlk dokunuş paywall'ı açmalı")
+        assert(!shouldShow(), "Soğuma içindeki dokunuş yutulmalı")
+        assert(!shouldShow(), "Soğuma içindeki üçüncü dokunuş da yutulmalı")
+
+        lastShown = Date().addingTimeInterval(-cooldown - 1)
+        assert(shouldShow(), "Soğuma dolduktan sonra yeniden açılmalı")
+    }
+    #endif
+}
+
 struct PaywallView: View {
     /// Called when the sheet should close (purchase completed or dismissed).
     var onClose: () -> Void
@@ -225,11 +293,23 @@ struct PaywallView: View {
     @State private var alertMessage: String?
     /// Paywall'ın açıldığı an — kapatmada "kaç saniye bakıldı" için.
     @State private var shownAt = Date()
+    /// `paywall_shown` bu sunum için gönderildi mi.
+    ///
+    /// Savunma amaçlı: iOS 26'da StoreKit sayfası, Safari dönüşü ve açılış
+    /// reklamı üzerine binip kalktığında `onAppear` *tekrar tetiklenmiyor*
+    /// (ölçüldü), ama SwiftUI bunu garanti etmiyor. Mükerrer bir gösterim olayı
+    /// dönüşüm oranının paydasını sessizce şişirir ve yanlış karar aldırır;
+    /// üç satırlık bir bayrak bu riski tamamen kapatıyor.
+    ///
+    /// `@State` her sunumda sıfırlanır (cover içeriği her açılışta yeniden
+    /// kurulur), yani sayaç sunumla aynı ömre sahip.
+    @State private var didLogShown = false
 
     private let features: [(icon: String, title: String, subtitle: String)] = [
         ("hand.thumbsup.fill", "Reklamsız Deneyim", "Kesintisiz, temiz bir arayüz"),
         ("chart.pie.fill", "Fon Ekleme", "TEFAS yatırım fonlarını takip et"),
-        ("infinity", "Sınırsız Portföy", "İstediğin kadar portföy oluştur")
+        ("infinity", "Sınırsız Portföy", "İstediğin kadar portföy oluştur"),
+        ("square.grid.2x2.fill", "Ana Ekran Widget'ı", "Bakiyeni ana ekranından takip et")
     ]
 
     var body: some View {
@@ -249,6 +329,8 @@ struct PaywallView: View {
                         .padding(.top, 12)
                     ctaButton
                         .padding(.top, 32)
+                    trustRow
+                        .padding(.top, 16)
                     finePrint
                         .padding(.top, 12)
                     legalLinks
@@ -268,6 +350,10 @@ struct PaywallView: View {
             }
         }
         .onAppear {
+            guard !didLogShown else { return }
+            didLogShown = true
+            // `shownAt` de yalnızca burada kurulur; her yeniden "appear"da
+            // sıfırlansaydı `seconds_shown` olduğundan kısa görünürdü.
             shownAt = Date()
             FirebaseAnalyticsHelper.shared.logPaywallShown(context: context.analyticsName)
         }
@@ -299,9 +385,14 @@ struct PaywallView: View {
                     .frame(width: 30, height: 30)
                     .background(Color(.secondarySystemBackground))
                     .clipShape(Circle())
+                    // Daire 30pt kalıyor ama dokunma hedefi Apple'ın 44pt
+                    // alt sınırına çıkıyor: kapatması zor bir paywall hem
+                    // erişilebilirlik hatası hem App Review'da karanlık desen.
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
         }
-        .padding(.top, 8)
+        .padding(.top, 1)
     }
 
     private var eyebrow: some View {
@@ -311,6 +402,16 @@ struct PaywallView: View {
             Text("VARLIK TAKİBİ PRO")
                 .font(.system(size: 12, weight: .bold))
                 .kerning(1.2)
+
+            Spacer(minLength: 8)
+
+            // Puan en üstte: güven, fiyatı görmeden önce kurulmalı.
+            HStack(spacing: 3) {
+                Image(systemName: "star.fill")
+                    .font(.system(size: 10, weight: .bold))
+                Text("\(StoreRating.display) · App Store")
+                    .font(.system(size: 12, weight: .semibold))
+            }
         }
         .foregroundColor(ProStyle.accent)
         .padding(.top, 4)
@@ -355,7 +456,7 @@ struct PaywallView: View {
                         Text(feature.subtitle).font(.system(size: 14)).foregroundColor(.secondary)
                     }
                     Spacer(minLength: 8)
-                    // Kilit: bu üç özelliğin şu an kapalı olduğunu tek bakışta anlatır.
+                    // Kilit: bu özelliklerin şu an kapalı olduğunu tek bakışta anlatır.
                     Image(systemName: "lock.open")
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundColor(ProStyle.accent.opacity(0.7))
@@ -477,6 +578,36 @@ struct PaywallView: View {
 
     private var ctaTitle: String {
         selectedPlan.freeTrial != nil ? "Ücretsiz Dene" : "Pro'ya Geç"
+    }
+
+    /// CTA'nın hemen altındaki itiraz karşılama satırı.
+    ///
+    /// Finans uygulamasında ödemenin önündeki asıl engel özellik eksikliği değil
+    /// güven: "portföyümü kime veriyorum, param kilitlenir mi". İki iddia da
+    /// kodda doğrulanabilir — sunucuya yalnızca cihaz kimliği + FCM token
+    /// yazılıyor (`PushTokenService`), portföy SwiftData'da lokal duruyor ve
+    /// analytics olayları bakiye/miktar taşımıyor (`FirebaseAnalyticsHelper`
+    /// gizlilik notu).
+    private var trustRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            trustItem("lock.shield.fill", "Hesap gerekmez — portföyün cihazında kalır")
+            trustItem("arrow.uturn.backward", "İstediğin an iptal edebilirsin")
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func trustItem(_ icon: String, _ text: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(ProStyle.accent)
+                .frame(width: 16)
+            Text(text)
+                .font(.system(size: 13))
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
     }
 
     private var finePrint: some View {

@@ -20,6 +20,9 @@ struct DashboardRowItem: Identifiable {
     let sparkline: [Double]
     let icon: String
     let tintHex: String
+    /// Enstrümanın kendi logosu. Yalnızca tek varlık satırlarında dolu;
+    /// kategori satırları (Genel görünümü) tek bir enstrümana ait değil.
+    var logoURL: URL? = nil
     /// Present only for single-asset rows (used for tap-to-detail / delete).
     let assetID: UUID?
     /// Pro bitince erişimi kapanan satır: tutarı gizlenir, dokunulunca paywall açılır.
@@ -49,12 +52,46 @@ struct AssetIconTile: View {
     let icon: String
     let tintHex: String
     var size: CGFloat = 44
+    /// Enstrümanın kendi logosu. nil ise — ya da indirilemezse — kategori
+    /// ikonuna düşülür: her kripto satırında aynı ₿ durmasın diye eklendi.
+    var logoURL: URL? = nil
 
     var body: some View {
         RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .fill(Color(hex: tintHex).opacity(0.16))
+            .fill(background)
             .frame(width: size, height: size)
-            .overlay(AssetGlyph(icon: icon, color: Color(hex: tintHex), size: size * 0.42))
+            .overlay { content }
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    /// Kategori ikonu, ait olduğu kategorinin renk tonunda oturur. Logolar ise
+    /// kendi renklerini taşıyor: turuncu kripto zemini Cardano'nun mavisiyle ya
+    /// da Polkadot'un siyahıyla çakışıyordu. Logo varken nötr zemin.
+    private var background: AnyShapeStyle {
+        logoURL == nil
+            ? AnyShapeStyle(Color(hex: tintHex).opacity(0.16))
+            : AnyShapeStyle(Color(.secondarySystemFill))
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if let logoURL {
+            AsyncImage(url: logoURL) { phase in
+                if let image = phase.image {
+                    image.resizable().scaledToFit().padding(size * 0.18)
+                } else {
+                    // Yükleniyor ya da başarısız. Boş kutu göstermek satırı bir
+                    // an kimliksiz bırakıyor; kategori ikonu her hâlükârda doğru.
+                    glyph
+                }
+            }
+        } else {
+            glyph
+        }
+    }
+
+    private var glyph: some View {
+        AssetGlyph(icon: icon, color: Color(hex: tintHex), size: size * 0.42)
     }
 }
 
@@ -70,7 +107,7 @@ struct DashboardRowView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            AssetIconTile(icon: item.icon, tintHex: item.tintHex)
+            AssetIconTile(icon: item.icon, tintHex: item.tintHex, logoURL: item.logoURL)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.title)
@@ -149,6 +186,7 @@ struct BalanceCardView: View {
     @Binding var selectedCurrency: Currency
     @StateObject private var portfolioManager = PortfolioManager.shared
     @AppStorage(UserDefaultsManager.maskedPortfoliosKey) private var maskedPortfolios = ""
+    @State private var showingCurrencyPicker = false
 
     private var valuesMasked: Bool {
         UserDefaultsManager.isPortfolioMasked(maskedPortfolios, portfolioID)
@@ -220,6 +258,7 @@ struct BalanceCardView: View {
         )
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .shadow(color: portfolioColor.color.opacity(0.35), radius: 18, x: 0, y: 10)
+        .fullScreenCover(isPresented: $showingCurrencyPicker) { CurrencySelectionView() }
     }
 
     /// Göz ikonu: yalnızca bu portföyün tutarlarını gizler/gösterir (tercih kalıcı).
@@ -240,23 +279,12 @@ struct BalanceCardView: View {
         .accessibilityLabel(valuesMasked ? "Tutarları göster" : "Tutarları gizle")
     }
 
+    /// Para birimi seçimi artık ayrı bir ekranda: on beş döviz açılır menüye
+    /// sığmıyordu ve menüde kur bilgisi gösterilemiyordu.
     private var currencyMenu: some View {
-        Menu {
-            ForEach(Currency.allCases, id: \.self) { currency in
-                Button {
-                    // Zaten seçili olana tekrar basmak "değişim" değil; eskiden
-                    // o da loglanıp currency_changed sayısını şişiriyordu.
-                    guard currency != selectedCurrency else { return }
-                    let previous = selectedCurrency
-                    withAnimation { selectedCurrency = currency }
-                    FirebaseAnalyticsHelper.shared.logCurrencyChanged(
-                        from: previous.rawValue, to: currency.rawValue
-                    )
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                } label: {
-                    Label(currency.displayName, systemImage: selectedCurrency == currency ? "checkmark" : "")
-                }
-            }
+        Button {
+            showingCurrencyPicker = true
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
         } label: {
             HStack(spacing: 4) {
                 Text(selectedCurrency.rawValue)

@@ -147,28 +147,21 @@ class PortfolioManager: ObservableObject {
         }
     }
     
+    /// TRY tutarını hedef para birimine çevirir.
+    ///
+    /// Kur, koda göre aranıyor: yeni bir para birimi eklendiğinde burada
+    /// değişiklik gerekmiyor (eskiden her birim için ayrı bir `case` vardı).
+    ///
+    /// Kaynak bilerek `tryPrice(forSymbol:)`, `currencyRates` değil: ikincisi
+    /// ekranda göstermek için üretilmiş bir görünüm modeli ve fiyatı iki
+    /// ondalıklı bir *metne* çevirip geri okuyor. Dolarda sapma binde iki
+    /// olduğu için fark edilmiyordu; Japon Yeni'nde (0,3144 → 0,31) toplam
+    /// %1,4 kayıyordu.
     func convertToTargetCurrency(_ amount: Double, targetCurrency: Currency) -> Double {
-         guard targetCurrency != .TRY else { return amount }
-         
-         let rates = MarketDataManager.shared.currencyRates
-         
-         switch targetCurrency {
-         case .TRY:
-             return amount
-         case .USD:
-             if let usdRate = rates.first(where: { $0.code == "USD" })?.sellPrice.parseToDouble() {
-                 return amount / usdRate
-             }
-         case .EUR:
-             if let eurRate = rates.first(where: { $0.code == "EUR" })?.sellPrice.parseToDouble() {
-                 return amount / eurRate
-             }
-         case .GBP:
-             if let gbpRate = rates.first(where: { $0.code == "GBP" })?.sellPrice.parseToDouble() {
-                 return amount / gbpRate
-             }
-         }
-         
-         return amount
-     }
+        guard targetCurrency != .TRY else { return amount }
+        guard let rate = MarketDataManager.shared.tryPrice(forSymbol: targetCurrency.rawValue),
+              rate > 0
+        else { return amount }
+        return amount / rate
+    }
 }

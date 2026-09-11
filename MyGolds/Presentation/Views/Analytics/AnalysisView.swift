@@ -15,6 +15,7 @@ struct AnalysisView: View {
     @Query(sort: \Portfolio.sortOrder) private var portfolios: [Portfolio]
     @Query private var assets: [Asset]
     @StateObject private var portfolioManager = PortfolioManager.shared
+    @StateObject private var marketDataManager = MarketDataManager.shared
 
     @AppStorage("selectedCurrency") private var selectedCurrency: Currency = .TRY
     @AppStorage(UserDefaultsManager.maskedPortfoliosKey) private var maskedPortfolios = ""
@@ -83,10 +84,10 @@ struct AnalysisView: View {
                                 valueCard
                                 distributionCard
                                 if !topGainers.isEmpty {
-                                    moversCard(title: "En Çok Kazandıranlar", assets: topGainers, positive: true)
+                                    moversCard(title: "En Çok Yükselenler", assets: topGainers, positive: true)
                                 }
                                 if !topLosers.isEmpty {
-                                    moversCard(title: "En Çok Kaybettirenler", assets: topLosers, positive: false)
+                                    moversCard(title: "En Çok Düşenler", assets: topLosers, positive: false)
                                 }
                             }
                         }
@@ -127,8 +128,10 @@ struct AnalysisView: View {
                         isLocked: lockedPortfolioIDs.contains(portfolio.id),
                         onTap: {
                             guard !lockedPortfolioIDs.contains(portfolio.id) else {
-                                showingPaywall = true
+                                // Haptic her dokunuşta; paywall frekans tavanına
+                                // tabi (dashboard'daki kilitli çiple aynı kural).
                                 UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                                if FeatureGatePaywall.shouldShow() { showingPaywall = true }
                                 return
                             }
                             withAnimation(.easeInOut(duration: 0.2)) {
@@ -393,12 +396,23 @@ struct AnalysisView: View {
 
     // MARK: - Movers (gainers / losers)
 
+    /// Buradaki yüzde **fiyat hareketi**, portföy sekmesindeki ise alış fiyatına
+    /// göre kâr/zarar. İkisi aynı varlıkta farklı sayılar veriyor ve rozetler
+    /// birebir aynı göründüğü için karışıyordu: eski "Kazandıranlar /
+    /// Kaybettirenler" başlıkları para ima ediyordu. Başlık artık hareketi
+    /// söylüyor, alt satır da hangi tabana göre olduğunu.
     private func moversCard(title: String, assets: [Asset], positive: Bool) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(title)
                 .font(.system(size: 18, weight: .bold))
                 .padding(.horizontal, 18)
                 .padding(.top, 18)
+
+            Text("Son fiyat değişimine göre")
+                .font(.system(size: 13))
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 18)
+                .padding(.top, 2)
                 .padding(.bottom, 6)
 
             ForEach(Array(assets.enumerated()), id: \.element.id) { index, asset in
@@ -421,7 +435,12 @@ struct AnalysisView: View {
         let color = positive ? Color(hex: "#34C759") : Color(hex: "#FF3B30")
         let value = portfolioManager.convertToTargetCurrency(asset.totalValue, targetCurrency: selectedCurrency)
         return HStack(spacing: 12) {
-            AssetIconTile(icon: asset.type.tileIcon, tintHex: asset.type.tileTintHex, size: 48)
+            AssetIconTile(
+                icon: asset.type.tileIcon,
+                tintHex: asset.type.tileTintHex,
+                size: 48,
+                logoURL: marketDataManager.logoURL(forSymbol: asset.symbol)
+            )
             VStack(alignment: .leading, spacing: 3) {
                 Text(asset.name)
                     .font(.system(size: 16, weight: .semibold))
@@ -448,6 +467,15 @@ struct AnalysisView: View {
     }
 
     private func assetDayChangePercent(_ asset: Asset) -> Double {
+        // Önce backend'in kendi günlük değişimi. Yerel geçmiş yalnızca uygulama
+        // açıkken yazıldığı için, birkaç gün girilmediğinde taban bayatlıyor ve
+        // "günlük" değişim aslında birkaç günlük oluyordu.
+        if let backend = marketDataManager.dayChangePercent(forSymbol: asset.symbol) {
+            return backend
+        }
+
+        // Backend'in değişim yayınlamadığı enstrümanlar (TEFAS fonları) için
+        // eski davranış: bugünden önceki son kayıtlı fiyata göre.
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
         let history = AssetHistoryManager.shared.getHistory(for: asset.symbol, context: modelContext)

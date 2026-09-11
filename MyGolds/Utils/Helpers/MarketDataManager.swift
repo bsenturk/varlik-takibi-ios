@@ -120,6 +120,45 @@ final class MarketDataManager: ObservableObject {
         return rows.first?.price
     }
 
+    /// `symbol`ün TRY cinsinden günlük değişimi (%), backend'in `change_percent`
+    /// alanından. Yerel geçmişten hesaplamaya göre üstünlüğü: kullanıcı
+    /// uygulamayı günlerce açmasa da doğru kalır (yerel anlık görüntüler yalnızca
+    /// uygulama açıkken yazılıyor, taban bayatlıyordu).
+    ///
+    /// Backend'in TRY değişimi olmayan enstrümanlarda `nil` döner — çağıran taraf
+    /// yerel geçmişe düşer. Bugün itibarıyla tek böyle sınıf TEFAS fonları
+    /// (`change_percent` 172 satırın hepsinde boş).
+    func dayChangePercent(forSymbol symbol: String) -> Double? {
+        let rows = allPrices.filter { $0.symbol == symbol }
+
+        // Altın, döviz, BIST ve kripto: backend TRY satırını zaten yayınlıyor.
+        if let tryChange = rows.first(where: { $0.currency == "TRY" })?.changePercent {
+            return tryChange
+        }
+
+        // Yalnızca USD satırı olanlar (ABD hisseleri): TRY karşılığı hem
+        // enstrümanın hem kurun hareketini taşır, ikisi bileşiktir. Backend
+        // kriptonun TRY satırını da aynı şekilde üretiyor; burada onu ABD
+        // hisseleri için elde hesaplıyoruz ki sıralama tek bir para biriminde
+        // (TRY) kalsın — USD değişimini TRY değişimiyle yan yana sıralamak
+        // yanlış bir tablo verirdi.
+        guard let usdChange = rows.first(where: { $0.currency == "USD" })?.changePercent,
+              let fxChange = allPrices.first(where: { $0.symbol == "USD" && $0.currency == "TRY" })?.changePercent
+        else { return nil }
+        return ((1 + usdChange / 100) * (1 + fxChange / 100) - 1) * 100
+    }
+
+    /// Enstrümanın kendi logosu. Fiyattaki gibi TRY/USD satırı ayrımı yok:
+    /// aynı sembolün bütün satırları aynı logoyu taşıyor.
+    ///
+    /// nil dönmesi normaldir (altın, döviz, fon ve logosu bulunamayan hisseler);
+    /// çağıran taraf mevcut kategori ikonunda kalır.
+    func logoURL(forSymbol symbol: String) -> URL? {
+        guard let raw = allPrices.first(where: { $0.symbol == symbol && $0.logoUrl != nil })?.logoUrl
+        else { return nil }
+        return URL(string: raw)
+    }
+
     /// Build display instruments (TRY-priced) for a backend asset_type, deduped by symbol.
     private func makeTRYInstruments(assetType: String) -> [AssetsPrice] {
         let rows = allPrices.filter { $0.assetType == assetType }
@@ -132,7 +171,8 @@ final class MarketDataManager: ObservableObject {
             return AssetsPrice(
                 name: name,
                 code: symbol,
-                buyPrice: priceString,
+                // Dinamik enstrümanlarda makas yok: tek fiyat.
+                buyPrice: "",
                 sellPrice: priceString,
                 change: "",
                 changePercent: change.map { String($0) } ?? "",
@@ -206,10 +246,14 @@ final class MarketDataManager: ObservableObject {
 
     private static func makeAssetsPrice(_ p: AssetPrice) -> AssetsPrice {
         let priceString = formatPrice(p.price)
+        // Alış fiyatı yoksa boş bırakılıyor: aynı sayıyı iki sütuna yazmak
+        // olmayan bir makas uydurmak olurdu (Piyasalar ekranı buna göre tek
+        // sütuna düşüyor).
+        let buyString = p.buyPrice.map(formatPrice) ?? ""
         return AssetsPrice(
             name: p.name ?? p.symbol,
             code: p.symbol,
-            buyPrice: priceString,
+            buyPrice: buyString,
             sellPrice: priceString,
             change: "",
             changePercent: p.changePercent.map { String($0) } ?? "",

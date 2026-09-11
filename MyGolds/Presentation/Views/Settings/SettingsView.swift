@@ -18,7 +18,10 @@ struct SettingsView: View {
     @State private var showingRateApp = false
     @State private var showingFeedback = false
     @State private var showingDarkModeSettings = false
-    @State private var showingPaywall = false
+    @State private var showingCurrencyPicker = false
+    /// Non-nil while a paywall is up; hangi yüzeyden açıldığını da taşır —
+    /// banner ile üyelik sayfası eskiden tek `general` bağlamında toplanıyordu.
+    @State private var paywallContext: PaywallContext?
     @State private var showingMembership = false
     @State private var shareItem: ShareItem?
 
@@ -71,12 +74,15 @@ struct SettingsView: View {
                 .presentationCornerRadius(28)
         }
         .sheet(isPresented: $showingFeedback) { FeedbackView() }
-        .sheet(isPresented: $showingDarkModeSettings) { DarkModeSettingsView() }
-        .fullScreenCover(isPresented: $showingPaywall) { PaywallView(onClose: { showingPaywall = false }) }
+        .fullScreenCover(isPresented: $showingDarkModeSettings) { DarkModeSettingsView() }
+        .fullScreenCover(isPresented: $showingCurrencyPicker) { CurrencySelectionView() }
+        .fullScreenCover(item: $paywallContext) { context in
+            PaywallView(onClose: { paywallContext = nil }, context: context)
+        }
         .sheet(isPresented: $showingMembership) {
             MembershipSheet(isPro: userDefaults.isPro, onUpgrade: {
                 showingMembership = false
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { showingPaywall = true }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { paywallContext = .membership }
             })
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
@@ -101,7 +107,7 @@ struct SettingsView: View {
     /// Fiyat, paywall'daki yıllık planın aya düşen tutarı — "aylık şu kadar"
     /// çapası kartın kendisinde duruyor ki kullanıcı tıklamadan maliyeti bilsin.
     private var proBanner: some View {
-        Button(action: { showingPaywall = true }) {
+        Button(action: { paywallContext = .settings }) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 12) {
                     RoundedRectangle(cornerRadius: 11, style: .continuous)
@@ -121,7 +127,7 @@ struct SettingsView: View {
                         Text("Pro'ya geç")
                             .font(.system(size: 17, weight: .bold))
                             .foregroundColor(.primary)
-                        Text("Kilitli 3 özelliği aç")
+                        Text("Kilitli 4 özelliği aç")
                             .font(.system(size: 13))
                             .foregroundColor(.secondary)
                     }
@@ -146,10 +152,12 @@ struct SettingsView: View {
                         .foregroundColor(.secondary.opacity(0.6))
                 }
 
-                HStack(spacing: 14) {
+                // Dört rozet dar ekranda sığsın diye aralık 14 → 10.
+                HStack(spacing: 10) {
                     proPerk("Reklamsız")
                     proPerk("TEFAS")
                     proPerk("Sınırsız portföy")
+                    proPerk("Widget")
                     Spacer(minLength: 0)
                 }
             }
@@ -174,6 +182,8 @@ struct SettingsView: View {
             Text(title)
                 .font(.system(size: 13))
                 .foregroundColor(.primary.opacity(0.75))
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
                 .lineLimit(1)
         }
         .fixedSize()
@@ -204,23 +214,15 @@ struct SettingsView: View {
 
     private var preferencesSection: some View {
         section("Tercihler") {
-            // Currency
-            Menu {
-                ForEach(Currency.allCases, id: \.self) { currency in
-                    Button {
-                        selectedCurrency = currency
-                    } label: {
-                        Label("\(currency.rawValue) (\(currency.symbol))",
-                              systemImage: selectedCurrency == currency ? "checkmark" : "")
-                    }
-                }
-            } label: {
+            // Currency — seçim ayrı bir ekranda (bkz. CurrencySelectionView).
+            Button(action: { showingCurrencyPicker = true }) {
                 settingsRow(
                     icon: "turkishlirasign.square.fill", color: Color(hex: "#0A84FF"),
                     title: "Para Birimi",
-                    trailing: .value("\(selectedCurrency.rawValue) (\(selectedCurrency.symbol))")
+                    trailing: .value("\(selectedCurrency.flag) \(selectedCurrency.rawValue)")
                 )
             }
+            .buttonStyle(.plain)
 
             divider
 

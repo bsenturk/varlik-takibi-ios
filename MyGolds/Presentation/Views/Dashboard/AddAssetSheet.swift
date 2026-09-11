@@ -50,15 +50,24 @@ struct AddAssetSheet: View {
         case category
         case typeList(AssetCategory)
         case amount(Instrument)
+
+        /// Adımın ait olduğu kategori. Arama sorgusunun ömrü buna bağlı.
+        var category: AssetCategory? {
+            switch self {
+            case .category: return nil
+            case .typeList(let category): return category
+            case .amount(let instrument): return instrument.category
+            }
+        }
     }
 
-    private enum InputField { case amount, purchasePrice }
+    private enum InputField: Hashable { case amount, purchasePrice }
 
     @State private var step: Step = .category
     @State private var searchText = ""
     @State private var amount = ""
     @State private var purchasePrice = ""
-    @State private var activeField: InputField = .amount
+    @FocusState private var focusedField: InputField?
     @State private var selectedPortfolio: Portfolio?
     @State private var showAlert = false
     @State private var alertMessage = ""
@@ -109,6 +118,17 @@ struct AddAssetSheet: View {
             }
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        // Arama sorgusu kategoriye aittir. Kullanıcı "ALT" yazıp geri çıkıp
+        // Kripto'ya girdiğinde eski sorgu duruyor ve liste boş açılıyordu —
+        // arama kutusu ekranın üstünde olduğu için sebebi de görünmüyordu.
+        //
+        // Her adım değişiminde değil, yalnızca kategori değiştiğinde
+        // temizleniyor: miktar adımından geri dönen kullanıcı aynı listeye
+        // döndüğü için sorgusunu kaybetmemeli.
+        .onChange(of: step) { previous, current in
+            guard previous.category != current.category else { return }
+            searchText = ""
+        }
         .onAppear {
             selectedPortfolio = targetPortfolio ?? realPortfolios.first
             FirebaseAnalyticsHelper.shared.logAddAssetOpened(source: flowSource)
@@ -262,12 +282,11 @@ struct AddAssetSheet: View {
 
     private func typeList(for category: AssetCategory) -> some View {
         let items = instrumentsForCategory(category).filter {
-            searchText.isEmpty
-                || $0.name.localizedCaseInsensitiveContains(searchText)
-                || $0.symbol.localizedCaseInsensitiveContains(searchText)
+            $0.name.searchMatches(searchText) || $0.symbol.searchMatches(searchText)
         }
         return VStack(spacing: 0) {
-            searchBar
+            searchBar(for: category)
+            if category == .fund { fundSearchHint }
             ScrollView {
                 LazyVStack(spacing: 10) {
                     if items.isEmpty {
@@ -296,7 +315,6 @@ struct AddAssetSheet: View {
                         Button {
                             amount = ""
                             purchasePrice = ""
-                            activeField = .amount
                             markStep("amount")
                             FirebaseAnalyticsHelper.shared.logAddAssetInstrumentSelected(
                                 category: String(describing: instrument.category),
@@ -306,7 +324,12 @@ struct AddAssetSheet: View {
                             withAnimation(.easeInOut(duration: 0.2)) { step = .amount(instrument) }
                         } label: {
                             HStack(spacing: 12) {
-                                AssetIconTile(icon: instrument.iconName, tintHex: instrument.tintHex, size: 40)
+                                AssetIconTile(
+                                    icon: instrument.iconName,
+                                    tintHex: instrument.tintHex,
+                                    size: 40,
+                                    logoURL: marketData.logoURL(forSymbol: instrument.symbol)
+                                )
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(instrument.name)
                                         .font(.system(size: 16, weight: .semibold))
@@ -356,8 +379,7 @@ struct AddAssetSheet: View {
         }
         // Skip the round-trip if a cached fund already matches the query.
         let hasLocalMatch = marketData.instruments(for: .fund).contains {
-            $0.name.localizedCaseInsensitiveContains(trimmed)
-                || ($0.code ?? "").localizedCaseInsensitiveContains(trimmed)
+            $0.name.searchMatches(trimmed) || ($0.code ?? "").searchMatches(trimmed)
         }
         if hasLocalMatch { isSearchingFunds = false; return }
 
@@ -370,12 +392,41 @@ struct AddAssetSheet: View {
         }
     }
 
-    private var searchBar: some View {
+    /// Fon listesi TEFAS'ın tamamını içermiyor — yalnızca `assets_prices`'a daha
+    /// önce girmiş fonlar listeleniyor. Kullanıcı aradığı fonu listede
+    /// bulamayınca "bu uygulama o fonu desteklemiyor" sanıyordu; oysa arama
+    /// kutusuna kodunu yazınca `search-tefas` fonu canlı çekip ekliyor.
+    ///
+    /// Yalnızca fonlarda gösteriliyor: canlı arama yalnızca bu kategoride var,
+    /// hisse/kripto listelerinde aynı sözü vermek yanlış olurdu.
+    private var fundSearchHint: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "info.circle.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(ProStyle.accent)
+            Text("Listede tüm fonlar yok. Aradığın fonu göremiyorsan kodunu ya da adını yukarıya yaz — TEFAS'tan getirelim.")
+                .font(.system(size: 13))
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(ProStyle.accent.opacity(0.08))
+        )
+        .padding(.horizontal, 16)
+        .padding(.bottom, 12)
+    }
+
+    private func searchBar(for category: AssetCategory) -> some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundColor(.secondary)
-            TextField("Ara", text: $searchText)
+            // Fonlarda ipucu somut olsun: aranacak şey kod ya da ad.
+            TextField(category == .fund ? "Fon kodu veya adı" : "Ara", text: $searchText)
                 .font(.system(size: 16))
                 .autocorrectionDisabled()
             if !searchText.isEmpty {
@@ -401,70 +452,118 @@ struct AddAssetSheet: View {
     private func priceLabel(for instrument: Instrument) -> String {
         let price = currentMarketPrice(for: instrument)
         guard price > 0 else { return instrument.unit }
-        return "₺\(String(format: "%.2f", price)) / \(instrument.unit)"
+        // Locale'e uygun biçim: "%.2f" tüm listede nokta ayraç yazıyordu.
+        return "\(price.formatAsCurrency()) / \(instrument.unit)"
     }
 
     // MARK: - Step 3: amount entry
 
     private func amountEntry(for instrument: Instrument) -> some View {
-        VStack(spacing: 0) {
-            ScrollView {
+        ScrollView {
                 VStack(spacing: 16) {
                     HStack(spacing: 10) {
-                        AssetIconTile(icon: instrument.iconName, tintHex: instrument.tintHex, size: 34)
+                        AssetIconTile(
+                            icon: instrument.iconName,
+                            tintHex: instrument.tintHex,
+                            size: 34,
+                            logoURL: marketData.logoURL(forSymbol: instrument.symbol)
+                        )
                         Text(instrument.name)
                             .font(.system(size: 18, weight: .bold))
                     }
                     .padding(.top, 8)
 
-                    // Amount (drives the keypad when active)
-                    Button { activeField = .amount } label: {
-                        VStack(spacing: 4) {
-                            Text("Miktar")
-                                .font(.system(size: 14))
-                                .foregroundColor(.secondary)
-                            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                                Text(amount.isEmpty ? "0" : amount)
-                                    .font(.system(size: 44, weight: .heavy))
-                                    .foregroundColor(amount.isEmpty ? .secondary : .primary)
-                                Text(instrument.unit)
-                                    .font(.system(size: 20, weight: .medium))
-                                    .foregroundColor(.secondary)
-                            }
-                            Rectangle()
-                                .fill(activeField == .amount ? Color.accentColor : Color.clear)
-                                .frame(width: 120, height: 2)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .contentShape(Rectangle())
+                    // Enstrüman detayı: güncel fiyat + geçmiş grafik. Yalnızca
+                    // dinamik kategorilerde — altın/dövizin geçmiş kaynağı yok.
+                    if instrument.category.isDynamic {
+                        InstrumentChartCard(
+                            symbol: instrument.symbol,
+                            category: instrument.category,
+                            tint: Color(hex: instrument.tintHex),
+                            currentPrice: currentMarketPrice(for: instrument),
+                            dayChangePercent: marketData.dayChangePercent(forSymbol: instrument.symbol)
+                        )
                     }
-                    .buttonStyle(.plain)
+
+                    // Miktar — sistem klavyesi (decimalPad). Klavye yalnızca alana
+                    // dokunulunca açılıyor; kapalıyken grafik ve tüm alanlar tek
+                    // ekranda görünüyor.
+                    VStack(spacing: 4) {
+                        Text("Miktar")
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            TextField("0", text: $amount)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .font(.system(size: 44, weight: .heavy))
+                                .fixedSize()
+                                .focused($focusedField, equals: .amount)
+                            Text(instrument.unit)
+                                .font(.system(size: 20, weight: .medium))
+                                .foregroundColor(.secondary)
+                        }
+                        Rectangle()
+                            .fill(focusedField == .amount ? Color.accentColor : Color.secondary.opacity(0.25))
+                            .frame(width: 120, height: 2)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .contentShape(Rectangle())
+                    .onTapGesture { focusedField = .amount }
 
                     portfolioPicker
 
                     // Türk Lirası has no purchase rate (it's the base currency).
                     if instrument.symbol != "TRY" {
                         purchasePriceField(for: instrument)
-                        liveValuePreview(for: instrument)
+                        liveValuePreview(for: instrument, showsUnitPrice: !instrument.category.isDynamic)
                         profitLossPreview(for: instrument)
                     }
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 8)
+                // Boşluğa dokunmak da klavyeyi kapatır (kaydırma da).
+                .contentShape(Rectangle())
+                .onTapGesture { focusedField = nil }
             }
-            .scrollIndicators(.hidden)
-
-            Keypad(
-                onDigit: appendDigit,
-                onComma: appendComma,
-                onBackspace: backspace
-            )
-            .padding(.horizontal, 12)
-
-            saveButton(for: instrument)
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
-                .padding(.bottom, 16)
+        .scrollIndicators(.hidden)
+        .scrollDismissesKeyboard(.interactively)
+        .onChange(of: amount) { _, new in
+            let clean = new.sanitizedDecimal(maxDecimals: 4)
+            if clean != new { amount = clean }
+        }
+        .onChange(of: purchasePrice) { _, new in
+            let clean = new.sanitizedDecimal(maxDecimals: 2)
+            if clean != new { purchasePrice = clean }
+        }
+        // Alt çubuk `safeAreaInset` ile veriliyor: VStack'in içindeyken kaydırma
+        // alanı çubuğun varlığından habersizdi ve klavye açıldığında odaklanan
+        // alan Kaydet'in altında kalıyordu.
+        .safeAreaInset(edge: .bottom) {
+            // decimalPad'de return tuşu yok; sistemin `.keyboard` toolbar'ı ise
+            // iOS 26'da yüzen bir kapsül olarak Kaydet'in üstüne biniyordu —
+            // kapatma düğmesi bu yüzden burada, yalnızca bir alan odaklıyken.
+            HStack(spacing: 10) {
+                if focusedField != nil {
+                    Button { focusedField = nil } label: {
+                        Image(systemName: "keyboard.chevron.compact.down")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundColor(.primary)
+                            .frame(width: 54, height: 54)
+                            .background(Color(.secondarySystemGroupedBackground))
+                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Klavyeyi kapat")
+                    .transition(.move(edge: .leading).combined(with: .opacity))
+                }
+                saveButton(for: instrument)
+            }
+            .animation(.easeInOut(duration: 0.2), value: focusedField)
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+            .padding(.bottom, 16)
+            .background(.bar)
         }
     }
 
@@ -473,37 +572,42 @@ struct AddAssetSheet: View {
     private func purchasePriceField(for instrument: Instrument) -> some View {
         let label = instrument.category.isDynamic ? "Ortalama Maliyet" : "Satın Alınan Kur"
         return VStack(alignment: .leading, spacing: 6) {
-            Button { activeField = .purchasePrice } label: {
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(label)
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundColor(.primary)
-                        Text("(Opsiyonel)")
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                    }
-                    Spacer()
-                    if purchasePrice.isEmpty {
-                        Text("Güncel fiyat")
-                            .font(.system(size: 16))
-                            .foregroundColor(.secondary)
-                    } else {
-                        Text("₺\(purchasePrice)")
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(label)
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(.primary)
+                    Text("(Opsiyonel)")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                // ₺ ile sayı bitişik durmalı: ayrı elemanlarken alan sağa
+                // hizalandığı için arada boşluk kalıyordu.
+                HStack(spacing: 2) {
+                    if !purchasePrice.isEmpty {
+                        Text("₺")
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(.primary)
                     }
+                    TextField("Güncel fiyat", text: $purchasePrice)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .font(.system(size: 16, weight: purchasePrice.isEmpty ? .regular : .semibold))
+                        .fixedSize()
+                        .focused($focusedField, equals: .purchasePrice)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 14)
-                .background(Color(.secondarySystemGroupedBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(activeField == .purchasePrice ? Color.accentColor : Color.clear, lineWidth: 2)
-                )
             }
-            .buttonStyle(.plain)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(focusedField == .purchasePrice ? Color.accentColor : Color.clear, lineWidth: 2)
+            )
+            .contentShape(Rectangle())
+            .onTapGesture { focusedField = .purchasePrice }
 
             HStack(spacing: 5) {
                 Image(systemName: "info.circle")
@@ -520,24 +624,28 @@ struct AddAssetSheet: View {
     /// Live summary under the purchase-rate field: the current market price per
     /// unit and the entered amount × that price (total value), updated as the user
     /// types the quantity.
+    /// `showsUnitPrice`: birim fiyat satırı. Grafik kartı gösterilen
+    /// enstrümanlarda fiyat zaten kartın başlığında — burada tekrarlanmıyor.
     @ViewBuilder
-    private func liveValuePreview(for instrument: Instrument) -> some View {
+    private func liveValuePreview(for instrument: Instrument, showsUnitPrice: Bool = true) -> some View {
         let unitPrice = currentMarketPrice(for: instrument)
         if unitPrice > 0 {
             let qty = Double(amount.replacingOccurrences(of: ",", with: ".")) ?? 0
             VStack(spacing: 0) {
-                HStack {
-                    Text("Güncel Fiyat")
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text("\(unitPrice.formatAsCurrency()) / \(instrument.unit)")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(.primary)
-                }
-                .padding(.vertical, 12)
+                if showsUnitPrice {
+                    HStack {
+                        Text("Güncel Fiyat")
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text("\(unitPrice.formatAsCurrency()) / \(instrument.unit)")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(.primary)
+                    }
+                    .padding(.vertical, 12)
 
-                Divider()
+                    Divider()
+                }
 
                 HStack {
                     Text("Toplam Değer")
@@ -620,7 +728,7 @@ struct AddAssetSheet: View {
         .disabled(!isValidAmount)
     }
 
-    // MARK: - Keypad input
+    // MARK: - Sayı girişi
 
     private var isValidAmount: Bool {
         (Double(amount.replacingOccurrences(of: ",", with: ".")) ?? 0) > 0 && selectedPortfolio != nil
@@ -641,42 +749,6 @@ struct AddAssetSheet: View {
         let value = (current - purchase) * amountValue
         let percent = (current - purchase) / purchase * 100.0
         return (value, percent)
-    }
-
-    private func appendDigit(_ digit: String) {
-        let maxDecimals = activeField == .amount ? 4 : 2
-        switch activeField {
-        case .amount: amount = appended(amount, digit, maxDecimals: maxDecimals)
-        case .purchasePrice: purchasePrice = appended(purchasePrice, digit, maxDecimals: maxDecimals)
-        }
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-    }
-
-    private func appended(_ value: String, _ digit: String, maxDecimals: Int) -> String {
-        var s = value
-        if s == "0" { s = "" }
-        if let commaIndex = s.firstIndex(of: ",") {
-            let decimals = s.distance(from: commaIndex, to: s.endIndex) - 1
-            if decimals >= maxDecimals { return s }
-        }
-        return s + digit
-    }
-
-    private func appendComma() {
-        switch activeField {
-        case .amount:
-            if !amount.contains(",") { amount = amount.isEmpty ? "0," : amount + "," }
-        case .purchasePrice:
-            if !purchasePrice.contains(",") { purchasePrice = purchasePrice.isEmpty ? "0," : purchasePrice + "," }
-        }
-    }
-
-    private func backspace() {
-        switch activeField {
-        case .amount: if !amount.isEmpty { amount.removeLast() }
-        case .purchasePrice: if !purchasePrice.isEmpty { purchasePrice.removeLast() }
-        }
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
     // MARK: - Save
@@ -760,48 +832,5 @@ struct AddAssetSheet: View {
         // Pro). MainTabView shows it once the sheet has dismissed.
         AddAssetPresenter.shared.scheduleInterstitialAfterClose()
         dismiss()
-    }
-}
-
-// MARK: - Custom keypad
-
-private struct Keypad: View {
-    let onDigit: (String) -> Void
-    let onComma: () -> Void
-    let onBackspace: () -> Void
-
-    private let rows: [[String]] = [
-        ["1", "2", "3"],
-        ["4", "5", "6"],
-        ["7", "8", "9"],
-        [",", "0", "⌫"]
-    ]
-
-    var body: some View {
-        VStack(spacing: 6) {
-            ForEach(rows, id: \.self) { row in
-                HStack(spacing: 6) {
-                    ForEach(row, id: \.self) { key in
-                        Button { tap(key) } label: {
-                            Text(key)
-                                .font(.system(size: 26, weight: .regular))
-                                .foregroundColor(.primary)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 52)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-        }
-    }
-
-    private func tap(_ key: String) {
-        switch key {
-        case ",": onComma()
-        case "⌫": onBackspace()
-        default: onDigit(key)
-        }
     }
 }
