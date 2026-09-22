@@ -226,9 +226,8 @@ struct DashboardView: View {
             if FeatureGatePaywall.shouldShow() { paywallContext = .portfolioLimit }
             return
         }
-        if portfolio.id == selectedPortfolio?.id {
-            // Tapping the already-selected chip opens the editor. "Genel" de
-            // buraya düşüyor — orada yalnızca hedef düzenleniyor (adı/rengi sabit).
+        if portfolio.id == selectedPortfolio?.id, !portfolio.isGeneral {
+            // Tapping the already-selected (non-Genel) chip opens the editor.
             editorMode = .edit(portfolio)
         } else {
             withAnimation(.easeInOut(duration: 0.2)) {
@@ -245,10 +244,25 @@ struct DashboardView: View {
             portfolioColor: selectedPortfolio?.color ?? .blue,
             metrics: PortfolioMetrics.compute(for: valuedAssets, context: modelContext),
             portfolioID: selectedPortfolio?.id,
-            targetValue: selectedPortfolio?.targetValue ?? 0,
-            onSetTarget: { if let p = selectedPortfolio { editorMode = .edit(p) } },
+            targetValue: displayedTarget,
+            // "Genel" hedefi kendi tutmaz, türetir — orada düzenleme yok.
+            onSetTarget: isGeneralSelected
+                ? nil
+                : { if let p = selectedPortfolio { editorMode = .edit(p) } },
             selectedCurrency: $selectedCurrency
         )
+    }
+
+    /// Kartta gösterilecek hedef. "Genel" kendi hedefini tutmaz: diğer
+    /// portföylerin hedeflerinin toplamını gösterir. Kilitli portföyler
+    /// toplamdan düşer — varlıkları da toplam bakiyeye girmiyor, yoksa oran
+    /// olduğundan düşük çıkardı (bkz. `valuedAssets`).
+    private var displayedTarget: Double {
+        guard isGeneralSelected else { return selectedPortfolio?.targetValue ?? 0 }
+        let locked = lockedPortfolioIDs
+        return portfolios
+            .filter { !$0.isGeneral && !locked.contains($0.id) }
+            .reduce(0) { $0 + $1.targetValue }
     }
 
     // MARK: - Assets

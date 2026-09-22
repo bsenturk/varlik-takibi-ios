@@ -94,11 +94,11 @@ enum PortfolioStore {
 
     @MainActor
     static func update(_ portfolio: Portfolio, name: String, color: PortfolioColor, target: Double, context: ModelContext) {
-        // "Genel"in adı/rengi sabit; editör orada yalnızca hedefi gösteriyor.
-        if !portfolio.isGeneral {
-            portfolio.name = name
-            portfolio.colorHex = color.rawValue
-        }
+        // "Genel" editöre hiç girmiyor: adı/rengi sabit, hedefi de alt
+        // portföylerin toplamından türetiliyor (bkz. DashboardView.displayedTarget).
+        guard !portfolio.isGeneral else { return }
+        portfolio.name = name
+        portfolio.colorHex = color.rawValue
         portfolio.targetValue = max(0, target)
         try? context.save()
     }

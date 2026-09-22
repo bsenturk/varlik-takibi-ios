@@ -37,11 +37,9 @@ struct PortfolioEditorView: View {
     }
 
     private var isEdit: Bool { portfolio != nil }
-    /// "Genel" silinemez ve adı/rengi sabit — orada yalnızca hedef düzenlenir.
-    private var isGeneral: Bool { portfolio?.isGeneral ?? false }
     /// Boş bırakmak hedefi kaldırır, o yüzden 0 geçerli bir değer.
     private var parsedTarget: Double { Double(targetText) ?? 0 }
-    private var canSave: Bool { isGeneral || !name.trimmingCharacters(in: .whitespaces).isEmpty }
+    private var canSave: Bool { !name.trimmingCharacters(in: .whitespaces).isEmpty }
 
     var body: some View {
         ZStack {
@@ -61,38 +59,35 @@ struct PortfolioEditorView: View {
     private var card: some View {
         VStack(spacing: 20) {
             VStack(spacing: 4) {
-                Text(isGeneral ? "Hedef Belirle" : (isEdit ? "Portföyü Düzenle" : "Yeni Portföy"))
+                Text(isEdit ? "Portföyü Düzenle" : "Yeni Portföy")
                     .font(.system(size: 19, weight: .bold))
-                Text(isGeneral ? "Tüm varlıklarının toplamı için bir hedef koy"
-                               : (isEdit ? "Adını, rengini ve hedefini güncelleyin" : "Bir ad, renk ve hedef seçin"))
+                Text(isEdit ? "Adını, rengini ve hedefini güncelleyin" : "Bir ad, renk ve hedef seçin")
                     .font(.system(size: 14))
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
             }
 
-            if !isGeneral {
-                TextField("Portföy adı", text: $name)
-                    .font(.system(size: 16, weight: .medium))
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 14)
-                    .background(Color(.secondarySystemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            TextField("Portföy adı", text: $name)
+                .font(.system(size: 16, weight: .medium))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
-                HStack(spacing: 14) {
-                    ForEach(PortfolioColor.allCases) { option in
-                        Circle()
-                            .fill(option.color)
-                            .frame(width: 30, height: 30)
-                            .overlay(
-                                Circle()
-                                    .stroke(Color.primary.opacity(0.9), lineWidth: color == option ? 3 : 0)
-                                    .padding(-3)
-                            )
-                            .onTapGesture {
-                                withAnimation(.easeInOut(duration: 0.15)) { color = option }
-                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            }
-                    }
+            HStack(spacing: 14) {
+                ForEach(PortfolioColor.allCases) { option in
+                    Circle()
+                        .fill(option.color)
+                        .frame(width: 30, height: 30)
+                        .overlay(
+                            Circle()
+                                .stroke(Color.primary.opacity(0.9), lineWidth: color == option ? 3 : 0)
+                                .padding(-3)
+                        )
+                        .onTapGesture {
+                            withAnimation(.easeInOut(duration: 0.15)) { color = option }
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        }
                 }
             }
 
@@ -127,7 +122,7 @@ struct PortfolioEditorView: View {
                 .disabled(!canSave)
             }
 
-            if isEdit, !isGeneral, let onDelete {
+            if isEdit, let onDelete {
                 Button(role: .destructive, action: onDelete) {
                     Text("Portföyü Sil")
                         .font(.system(size: 15, weight: .semibold))

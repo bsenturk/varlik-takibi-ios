@@ -185,7 +185,8 @@ struct BalanceCardView: View {
     var portfolioID: UUID? = nil
     /// Portföyün değer hedefi (TRY). 0 → çubuk yerine "Hedef belirle" kısayolu.
     var targetValue: Double = 0
-    /// Hedef düzenleyiciyi açar. nil ise hedef satırı hiç çizilmez (onboarding mock'ları).
+    /// Hedef düzenleyiciyi açar. nil ise hedef salt okunur: "Genel"de hedef
+    /// alt portföylerden türetilir, onboarding mock'larında hiç yoktur.
     var onSetTarget: (() -> Void)? = nil
     @Binding var selectedCurrency: Currency
     @StateObject private var portfolioManager = PortfolioManager.shared
@@ -245,7 +246,9 @@ struct BalanceCardView: View {
                 }
             }
 
-            if onSetTarget != nil { targetSection }
+            // Düzenlenebiliyorsa her zaman (boşken "Hedef belirle" kısayolu),
+            // salt okunur hâlde yalnızca gerçekten bir hedef varsa.
+            if onSetTarget != nil || targetValue > 0 { targetSection }
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -281,7 +284,11 @@ struct BalanceCardView: View {
                 HStack(spacing: 6) {
                     Image(systemName: targetProgress >= 1 ? "checkmark.seal.fill" : "target")
                         .font(.system(size: 11, weight: .bold))
-                    Text(targetProgress >= 1 ? "Hedefe ulaşıldı" : "Hedef")
+                    // "Genel"de etiket her hâlükârda "Toplam hedef" kalıyor:
+                    // oranın türetilmiş bir toplamdan geldiği kaybolmasın.
+                    Text(onSetTarget == nil
+                         ? "Toplam hedef"
+                         : (targetProgress >= 1 ? "Hedefe ulaşıldı" : "Hedef"))
                         .font(.system(size: 13))
                     Spacer(minLength: 4)
                     Text("%\(Self.percentText(targetProgress))")
@@ -311,6 +318,7 @@ struct BalanceCardView: View {
             }
             .contentShape(Rectangle())
             .onTapGesture { onSetTarget?() }
+            .allowsHitTesting(onSetTarget != nil)
         } else {
             Button { onSetTarget?() } label: {
                 HStack(spacing: 6) {
