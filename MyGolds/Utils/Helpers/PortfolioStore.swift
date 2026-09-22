@@ -78,7 +78,7 @@ enum PortfolioStore {
 
     @MainActor
     @discardableResult
-    static func create(name: String, color: PortfolioColor, context: ModelContext) -> Portfolio {
+    static func create(name: String, color: PortfolioColor, target: Double = 0, context: ModelContext) -> Portfolio {
         let maxOrder = allPortfolios(context: context).map(\.sortOrder).max() ?? 0
         let portfolio = Portfolio(
             name: name,
@@ -86,15 +86,20 @@ enum PortfolioStore {
             sortOrder: maxOrder + 1,
             isGeneral: false
         )
+        portfolio.targetValue = max(0, target)
         context.insert(portfolio)
         try? context.save()
         return portfolio
     }
 
     @MainActor
-    static func update(_ portfolio: Portfolio, name: String, color: PortfolioColor, context: ModelContext) {
-        portfolio.name = name
-        portfolio.colorHex = color.rawValue
+    static func update(_ portfolio: Portfolio, name: String, color: PortfolioColor, target: Double, context: ModelContext) {
+        // "Genel"in adı/rengi sabit; editör orada yalnızca hedefi gösteriyor.
+        if !portfolio.isGeneral {
+            portfolio.name = name
+            portfolio.colorHex = color.rawValue
+        }
+        portfolio.targetValue = max(0, target)
         try? context.save()
     }
 

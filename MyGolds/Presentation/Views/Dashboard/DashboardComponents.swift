@@ -183,6 +183,10 @@ struct BalanceCardView: View {
     let metrics: PortfolioMetrics
     /// Göz ikonunun hangi portföyü gizleyeceği. nil ise ikon gösterilmez (onboarding mock'ları).
     var portfolioID: UUID? = nil
+    /// Portföyün değer hedefi (TRY). 0 → çubuk yerine "Hedef belirle" kısayolu.
+    var targetValue: Double = 0
+    /// Hedef düzenleyiciyi açar. nil ise hedef satırı hiç çizilmez (onboarding mock'ları).
+    var onSetTarget: (() -> Void)? = nil
     @Binding var selectedCurrency: Currency
     @StateObject private var portfolioManager = PortfolioManager.shared
     @AppStorage(UserDefaultsManager.maskedPortfoliosKey) private var maskedPortfolios = ""
@@ -240,6 +244,8 @@ struct BalanceCardView: View {
                         .foregroundColor(.white.opacity(0.8))
                 }
             }
+
+            if onSetTarget != nil { targetSection }
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -259,6 +265,74 @@ struct BalanceCardView: View {
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .shadow(color: portfolioColor.color.opacity(0.35), radius: 18, x: 0, y: 10)
         .fullScreenCover(isPresented: $showingCurrencyPicker) { CurrencySelectionView() }
+    }
+
+    // MARK: - Hedef
+
+    private var targetProgress: Double {
+        guard targetValue > 0 else { return 0 }
+        return max(0, metrics.totalValue / targetValue)
+    }
+
+    @ViewBuilder
+    private var targetSection: some View {
+        if targetValue > 0 {
+            VStack(spacing: 7) {
+                HStack(spacing: 6) {
+                    Image(systemName: targetProgress >= 1 ? "checkmark.seal.fill" : "target")
+                        .font(.system(size: 11, weight: .bold))
+                    Text(targetProgress >= 1 ? "Hedefe ulaşıldı" : "Hedef")
+                        .font(.system(size: 13))
+                    Spacer(minLength: 4)
+                    Text("%\(Self.percentText(targetProgress))")
+                        .font(.system(size: 13, weight: .heavy))
+                    Text("·")
+                        .font(.system(size: 13))
+                        .foregroundColor(.white.opacity(0.6))
+                    Text(portfolioManager
+                            .convertToTargetCurrency(targetValue, targetCurrency: selectedCurrency)
+                            .formatAsCurrency(currency: selectedCurrency)
+                            .maskedIfNeeded(valuesMasked))
+                        .font(.system(size: 13, weight: .semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
+                .foregroundColor(.white.opacity(0.9))
+
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color.white.opacity(0.22))
+                        Capsule()
+                            .fill(Color.white)
+                            .frame(width: max(0, min(1, targetProgress)) * geo.size.width)
+                    }
+                }
+                .frame(height: 6)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { onSetTarget?() }
+        } else {
+            Button { onSetTarget?() } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "target")
+                        .font(.system(size: 11, weight: .bold))
+                    Text("Hedef belirle")
+                        .font(.system(size: 13, weight: .semibold))
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Color.white.opacity(0.18))
+                .clipShape(Capsule())
+            }
+        }
+    }
+
+    /// %0,4 gibi küçük oranlar 0 görünmesin diye iki basamağa kadar iniyor.
+    private static func percentText(_ ratio: Double) -> String {
+        let pct = ratio * 100
+        let decimals = pct >= 10 ? 0 : (pct >= 1 ? 1 : 2)
+        return String(format: "%.\(decimals)f", pct).replacingOccurrences(of: ".", with: ",")
     }
 
     /// Göz ikonu: yalnızca bu portföyün tutarlarını gizler/gösterir (tercih kalıcı).

@@ -18,6 +18,8 @@ final class Portfolio {
     var sortOrder: Int = 0
     /// The special, non-deletable "Genel" portfolio that aggregates every asset by category.
     var isGeneral: Bool = false
+    /// Değer hedefi (TRY). 0 = hedef yok. Defaulted for SwiftData lightweight migration.
+    var targetValue: Double = 0
     var createdAt: Date = Date()
 
     /// Assets that belong directly to this portfolio. `Genel` keeps this empty and
@@ -46,5 +48,13 @@ final class Portfolio {
 
     var color: PortfolioColor {
         PortfolioColor(rawValue: colorHex) ?? .blue
+    }
+
+    var hasTarget: Bool { targetValue > 0 }
+
+    /// Hedefe ulaşma oranı (0...1+). Hedef yoksa 0.
+    func progress(towards currentValue: Double) -> Double {
+        guard targetValue > 0 else { return 0 }
+        return max(0, currentValue / targetValue)
     }
 }

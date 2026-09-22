@@ -226,8 +226,9 @@ struct DashboardView: View {
             if FeatureGatePaywall.shouldShow() { paywallContext = .portfolioLimit }
             return
         }
-        if portfolio.id == selectedPortfolio?.id, !portfolio.isGeneral {
-            // Tapping the already-selected (non-Genel) chip opens the editor.
+        if portfolio.id == selectedPortfolio?.id {
+            // Tapping the already-selected chip opens the editor. "Genel" de
+            // buraya düşüyor — orada yalnızca hedef düzenleniyor (adı/rengi sabit).
             editorMode = .edit(portfolio)
         } else {
             withAnimation(.easeInOut(duration: 0.2)) {
@@ -244,6 +245,8 @@ struct DashboardView: View {
             portfolioColor: selectedPortfolio?.color ?? .blue,
             metrics: PortfolioMetrics.compute(for: valuedAssets, context: modelContext),
             portfolioID: selectedPortfolio?.id,
+            targetValue: selectedPortfolio?.targetValue ?? 0,
+            onSetTarget: { if let p = selectedPortfolio { editorMode = .edit(p) } },
             selectedCurrency: $selectedCurrency
         )
     }
@@ -439,8 +442,8 @@ struct DashboardView: View {
         case .create:
             PortfolioEditorView(
                 portfolio: nil,
-                onSave: { name, color in
-                    let new = PortfolioStore.create(name: name, color: color, context: modelContext)
+                onSave: { name, color, target in
+                    let new = PortfolioStore.create(name: name, color: color, target: target, context: modelContext)
                     selectedPortfolioIDString = new.id.uuidString
                     editorMode = nil
                 },
@@ -450,8 +453,8 @@ struct DashboardView: View {
         case .edit(let portfolio):
             PortfolioEditorView(
                 portfolio: portfolio,
-                onSave: { name, color in
-                    PortfolioStore.update(portfolio, name: name, color: color, context: modelContext)
+                onSave: { name, color, target in
+                    PortfolioStore.update(portfolio, name: name, color: color, target: target, context: modelContext)
                     editorMode = nil
                 },
                 onDelete: {
