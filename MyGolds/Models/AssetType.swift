@@ -135,12 +135,6 @@ enum AssetType: String, CaseIterable, Codable {
     case goldEighteen = "gold_eighteen"
     case goldTwoAndHalf = "gold_twoandhalf"
     case goldTwentyTwoBracelet = "gold_twentytwo_bracelet"
-    // Trabzon hasır gramla satılan bir ziynet; kaynakta (Truncgil) kendi
-    // fiyatı yok. Değeri ağırlık × o ayarın gram fiyatı — işçilik bozdururken
-    // geri alınmıyor. Fiyat sembolünü 14 ayar / gram altınla paylaşıyor
-    // (bkz. supabaseSymbol); birleştirme bu yüzden türe de bakıyor.
-    case trabzonHasir14 = "trabzon_hasir_14"
-    case trabzonHasir24 = "trabzon_hasir_24"
     case silver = "silver"
     case tl = "tl"
     case usd = "usd"
@@ -268,8 +262,6 @@ enum AssetType: String, CaseIterable, Codable {
         case .goldEighteen: return "18 Ayar Altın"
         case .goldTwoAndHalf: return "İki Buçuk Altın"
         case .goldTwentyTwoBracelet: return "22 Ayar Bilezik"
-        case .trabzonHasir14: return "Trabzon Hasır 14 Ayar"
-        case .trabzonHasir24: return "Trabzon Hasır 24 Ayar"
         case .crypto: return "Kripto Para"
         case .bistStock: return "BIST Hisse"
         case .usStock: return "ABD Hisse"
@@ -283,7 +275,7 @@ enum AssetType: String, CaseIterable, Codable {
         if let fx = fxInfo { return fx.symbol }
         if manualInfo != nil { return "adet" }
         switch self {
-        case .gold, .silver, .trabzonHasir14, .trabzonHasir24: return "gram"
+        case .gold, .silver: return "gram"
         case .goldQuarter, .goldHalf, .goldFull, .goldRepublic, .goldAta, .goldResat, .goldHamit, .goldFive, .goldGremse, .goldFourteen, .goldEighteen, .goldTwoAndHalf, .goldTwentyTwoBracelet:
             return "adet"
         case .crypto: return "adet"
@@ -297,7 +289,7 @@ enum AssetType: String, CaseIterable, Codable {
         if let fx = fxInfo { return fx.flag }
         if let m = manualInfo { return m.icon }
         switch self {
-        case .gold, .goldQuarter, .goldHalf, .goldFull, .goldRepublic, .goldAta, .goldResat, .goldHamit, .goldFive, .goldGremse, .goldFourteen, .goldEighteen, .goldTwoAndHalf, .goldTwentyTwoBracelet, .trabzonHasir14, .trabzonHasir24:
+        case .gold, .goldQuarter, .goldHalf, .goldFull, .goldRepublic, .goldAta, .goldResat, .goldHamit, .goldFive, .goldGremse, .goldFourteen, .goldEighteen, .goldTwoAndHalf, .goldTwentyTwoBracelet:
             return "circle.hexagongrid.circle"
         case .silver:
             return "soccerball.circle"
@@ -361,8 +353,6 @@ enum AssetType: String, CaseIterable, Codable {
         case .goldEighteen: return "18_AYAR_ALTIN"
         case .goldTwoAndHalf: return "IKIBUCUK_ALTIN"
         case .goldTwentyTwoBracelet: return "22_AYAR_BILEZIK"
-        case .trabzonHasir14: return "14_AYAR_ALTIN"
-        case .trabzonHasir24: return "GRAM_ALTIN"
         case .silver: return "GRAM_GUMUS"
         // Dynamic types have no fixed symbol — `Asset.symbol` is the lookup key.
         case .crypto, .bistStock, .usStock, .usEtf, .fund: return ""

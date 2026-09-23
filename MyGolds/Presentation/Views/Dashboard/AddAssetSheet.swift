@@ -828,9 +828,7 @@ struct AddAssetSheet: View {
         // Elle girilenler hiç birleşmez: her ev/araba ayrı bir varlık.
         let place = LocationPicker.normalized(location)
         let existing = instrument.type.isManual ? nil : (portfolio.assets ?? []).first(where: {
-            // Tür de eşit olmalı: Trabzon hasır fiyat sembolünü 14 ayar /
-            // gram altınla paylaşıyor, onlarla birleşmemeli.
-            $0.symbol == instrument.symbol && $0.type == instrument.type && $0.location == place
+            $0.symbol == instrument.symbol && $0.location == place
         })
 
         if let existing {
