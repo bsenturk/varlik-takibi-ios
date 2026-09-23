@@ -195,12 +195,37 @@ final class MarketDataManager: ObservableObject {
         case "us_stock", "us_etf":
             return symbol
         case "crypto":
-            if let raw = rawName, !raw.isEmpty { return raw.capitalized }
-            return symbol
+            // `name` CoinGecko id'si ("avalanche-2", "binancecoin") — backend
+            // grafik/logo için onu id olarak kullanıyor, değiştirilemez.
+            guard let raw = rawName, !raw.isEmpty else { return symbol }
+            if let pretty = cryptoNames[raw] { return pretty }
+            // "shiba-inu" → "Shiba Inu"
+            return raw.replacingOccurrences(of: "-", with: " ").capitalized
         default:
             return rawName ?? symbol
         }
     }
+
+    /// Genel kuralın ("shiba-inu" → "Shiba Inu") yanlış sonuç verdiği id'ler.
+    private static let cryptoNames: [String: String] = [
+        "binancecoin": "BNB",
+        "ripple": "XRP",
+        "avalanche-2": "Avalanche",
+        "the-open-network": "Toncoin",
+        "usd-coin": "USD Coin",
+        "render-token": "Render",
+        "hedera-hashgraph": "Hedera",
+        "injective-protocol": "Injective",
+        "polygon-ecosystem-token": "Polygon",
+        "worldcoin-wld": "Worldcoin",
+        "jupiter-exchange-solana": "Jupiter",
+        "sei-network": "Sei",
+        "fetch-ai": "Fetch.ai",
+        "ondo-finance": "Ondo",
+        "vechain": "VeChain",
+        "near": "NEAR",
+        "tron": "TRON"
+    ]
 
     /// Live display instruments for a dynamic category (used by the add-asset catalog).
     func instruments(for category: AssetCategory) -> [AssetsPrice] {
