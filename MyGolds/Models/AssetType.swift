@@ -59,7 +59,7 @@ enum AssetCategory: String, CaseIterable, Identifiable {
     /// bunlar yalnızca en sık cevaplar.
     var locationSuggestions: [String] {
         switch self {
-        case .gold, .silver: return ["Ev", "Banka", "Kiralık Kasa", "Kuyumcu"]
+        case .gold, .silver: return ["Ev", "Banka", "Kiralık Kasa"]
         case .currency: return ["Banka", "Nakit / Ev", "Kiralık Kasa"]
         case .crypto: return ["Kripto Borsası", "Soğuk Cüzdan", "Sıcak Cüzdan"]
         case .bistStock, .usStock, .fund: return ["Banka", "Aracı Kurum"]
