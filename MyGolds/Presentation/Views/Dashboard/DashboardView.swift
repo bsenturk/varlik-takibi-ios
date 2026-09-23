@@ -548,7 +548,7 @@ struct DashboardView: View {
         withAnimation(.easeInOut(duration: 0.3)) {
             PortfolioManager.shared.removePurchasePrice(for: asset.id)
             AssetHistoryManager.shared.deleteAllHistory(for: asset.symbol, context: modelContext)
-            AssetHistoryManager.shared.deleteAllTransactionHistory(for: asset.symbol, context: modelContext)
+            AssetHistoryManager.shared.deleteAllTransactionHistory(for: asset, context: modelContext)
             modelContext.delete(asset)
             try? modelContext.save()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {

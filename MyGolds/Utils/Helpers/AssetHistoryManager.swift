@@ -159,10 +159,12 @@ class AssetHistoryManager {
         saveContext(context)
     }
 
-    func deleteAllTransactionHistory(for symbol: String, context: ModelContext) {
-        let allTransactions = getTransactionHistory(for: symbol, context: context)
+    /// Yalnızca bu varlığın işlemlerini siler — aynı sembol başka bir
+    /// portföyde tutuluyorsa onun geçmişi kalır.
+    func deleteAllTransactionHistory(for asset: Asset, context: ModelContext) {
+        let allTransactions = getTransactionHistory(for: asset, context: context)
         allTransactions.forEach { context.delete($0) }
-        Logger.log("🗑️ Deleted \(allTransactions.count) transaction records for \(symbol)")
+        Logger.log("🗑️ Deleted \(allTransactions.count) transaction records for \(asset.name)")
         saveContext(context)
     }
 
@@ -203,8 +205,7 @@ class AssetHistoryManager {
 
     /// Record a transaction (add / remove / edit / initial).
     func recordTransaction(
-        symbol: String,
-        assetType: AssetType,
+        for asset: Asset,
         transactionType: AssetTransactionHistory.TransactionType,
         amount: Double,
         totalAmount: Double,
@@ -213,8 +214,9 @@ class AssetHistoryManager {
         context: ModelContext
     ) {
         let transaction = AssetTransactionHistory(
-            assetType: assetType,
-            symbol: symbol,
+            assetType: asset.type,
+            symbol: asset.symbol,
+            assetID: asset.id,
             date: date ?? Date(),
             transactionType: transactionType,
             amount: amount,
@@ -223,17 +225,17 @@ class AssetHistoryManager {
         )
 
         context.insert(transaction)
-        Logger.log("📝 Created transaction: \(transactionType.displayName) - \(amount) of \(symbol) on \(date ?? Date())")
+        Logger.log("📝 Created transaction: \(transactionType.displayName) - \(amount) of \(asset.symbol) on \(date ?? Date())")
 
-        enforceTransactionHistoryLimit(for: symbol, context: context)
+        enforceTransactionHistoryLimit(for: asset, context: context)
         saveContext(context)
     }
 
-    private func enforceTransactionHistoryLimit(for symbol: String, context: ModelContext) {
-        let allTransactions = getTransactionHistory(for: symbol, context: context)
+    private func enforceTransactionHistoryLimit(for asset: Asset, context: ModelContext) {
+        let allTransactions = getTransactionHistory(for: asset, context: context)
 
         guard allTransactions.count > maxTransactionHistoryCount else {
-            Logger.log("📝 Transaction count (\(allTransactions.count)) within limit for \(symbol)")
+            Logger.log("📝 Transaction count (\(allTransactions.count)) within limit for \(asset.symbol)")
             return
         }
 
@@ -250,16 +252,39 @@ class AssetHistoryManager {
         }
 
         recordsToDelete.forEach { context.delete($0) }
-        Logger.log("📝 Deleted \(recordsToDelete.count) old transactions for \(symbol)")
+        Logger.log("📝 Deleted \(recordsToDelete.count) old transactions for \(asset.symbol)")
         saveContext(context)
     }
 
-    /// All transaction history for a symbol.
-    func getTransactionHistory(for symbol: String, context: ModelContext) -> [AssetTransactionHistory] {
+    /// Bir varlığın işlem geçmişi, eskiden yeniye. Sembolle ön-filtre
+    /// predicate'te; eski (assetID'siz) kayıtların eşleşmesi `belongs(to:)`'da.
+    func getTransactionHistory(for asset: Asset, context: ModelContext) -> [AssetTransactionHistory] {
+        let symbol = asset.symbol
         let descriptor = FetchDescriptor<AssetTransactionHistory>(
-            sortBy: [SortDescriptor(\.date, order: .forward)]
+            predicate: #Predicate { $0.symbol == symbol },
+            sortBy: [SortDescriptor(\.date, order: .forward), SortDescriptor(\.createdAt, order: .forward)]
         )
-        let allTransactions = (try? context.fetch(descriptor)) ?? []
-        return allTransactions.filter { $0.symbol == symbol }
+        return ((try? context.fetch(descriptor)) ?? []).filter { $0.belongs(to: asset) }
+    }
+
+    /// v3.2.0 öncesi kayıtlarda `assetID` yok. Sembolü tek bir varlıkta
+    /// duranlar o varlığa atanır; birden fazla portföyde tutulan sembollerin
+    /// eski kayıtları belirsiz olduğu için sembolle eşleşmeye devam eder.
+    /// Her açılışta çağrılması güvenli (atanacak kayıt kalmayınca no-op).
+    func backfillTransactionAssetIDs(context: ModelContext) {
+        let legacy = ((try? context.fetch(FetchDescriptor<AssetTransactionHistory>())) ?? [])
+            .filter { $0.assetID == nil }
+        guard !legacy.isEmpty else { return }
+        let bySymbol = Dictionary(grouping: (try? context.fetch(FetchDescriptor<Asset>())) ?? [], by: \.symbol)
+        var changed = 0
+        for row in legacy {
+            guard let owners = bySymbol[row.symbol], owners.count == 1 else { continue }
+            row.assetID = owners[0].id
+            changed += 1
+        }
+        if changed > 0 {
+            saveContext(context)
+            Logger.log("📝 Backfilled assetID on \(changed) legacy transactions")
+        }
     }
 }

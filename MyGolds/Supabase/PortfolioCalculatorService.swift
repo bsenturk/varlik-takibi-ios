@@ -146,7 +146,7 @@ final class PortfolioCalculatorService: PortfolioCalculatorServiceProtocol {
     /// history exists and the asset already existed on `day`.
     private func historicalAmount(of asset: Asset, on day: Date) -> Double {
         let transactions = history
-            .getTransactionHistory(for: asset.symbol, context: context)
+            .getTransactionHistory(for: asset, context: context)
             .filter { calendar.startOfDay(for: $0.date) <= day }
             .sorted { $0.date < $1.date }
 

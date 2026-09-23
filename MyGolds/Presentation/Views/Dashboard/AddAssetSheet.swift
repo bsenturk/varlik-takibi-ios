@@ -789,7 +789,7 @@ struct AddAssetSheet: View {
 
             AssetHistoryManager.shared.recordDailySnapshot(for: existing, modelContext: modelContext)
             AssetHistoryManager.shared.recordTransaction(
-                symbol: existing.symbol, assetType: existing.type, transactionType: .add,
+                for: existing, transactionType: .add,
                 amount: amountValue, totalAmount: existing.amount,
                 price: costBasis, context: modelContext
             )
@@ -806,7 +806,7 @@ struct AddAssetSheet: View {
 
             AssetHistoryManager.shared.createInitialSnapshot(for: newAsset, purchasePrice: costBasis, modelContext: modelContext)
             AssetHistoryManager.shared.recordTransaction(
-                symbol: newAsset.symbol, assetType: newAsset.type, transactionType: .initial,
+                for: newAsset, transactionType: .initial,
                 amount: amountValue, totalAmount: amountValue,
                 price: costBasis, context: modelContext
             )

@@ -300,6 +300,8 @@ struct VarlikDefterimApp: App {
 
         // Backfill `symbol` on legacy rows added before the symbol-based model.
         backfillSymbols()
+        // Eski işlemleri varlığa bağla (sembol dolu olmalı, o yüzden ondan sonra).
+        AssetHistoryManager.shared.backfillTransactionAssetIDs(context: sharedModelContainer.mainContext)
 
         // "Time Machine": rebuild any missing daily portfolio snapshots so charts
         // stay continuous. Best-effort & offline-safe (no-ops if prices unavailable).
@@ -410,7 +412,7 @@ struct VarlikDefterimApp: App {
             
             // 2. Transaction history kontrolü - Yoksa initial oluştur
             let transactions = AssetHistoryManager.shared.getTransactionHistory(
-                for: asset.symbol,
+                for: asset,
                 context: sharedModelContainer.mainContext
             )
             
@@ -424,6 +426,7 @@ struct VarlikDefterimApp: App {
                 let initialTransaction = AssetTransactionHistory(
                     assetType: asset.type,
                     symbol: asset.symbol,
+                    assetID: asset.id,
                     date: asset.dateAdded, // BURADA ORIGINAL DATE KULLANILIYOR
                     transactionType: .initial,
                     amount: asset.amount,
