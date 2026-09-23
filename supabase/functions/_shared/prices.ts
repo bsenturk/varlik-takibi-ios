@@ -8,6 +8,7 @@ export type AssetType =
   | "gold"
   | "bist"
   | "us_stock"
+  | "us_etf"
   | "fund";
 
 export interface AssetPrice {

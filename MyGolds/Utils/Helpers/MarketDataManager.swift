@@ -25,6 +25,7 @@ final class MarketDataManager: ObservableObject {
     @Published var cryptoPrices: [AssetsPrice] = []
     @Published var bistPrices: [AssetsPrice] = []
     @Published var usPrices: [AssetsPrice] = []
+    @Published var usEtfPrices: [AssetsPrice] = []  // ABD ETF'leri (premium)
     @Published var fundPrices: [AssetsPrice] = []   // TEFAS funds (premium)
 
     @Published var isLoading = false
@@ -88,6 +89,7 @@ final class MarketDataManager: ObservableObject {
             self.cryptoPrices = makeTRYInstruments(assetType: "crypto")
             self.bistPrices = makeTRYInstruments(assetType: "bist")
             self.usPrices = makeTRYInstruments(assetType: "us_stock")
+            self.usEtfPrices = makeTRYInstruments(assetType: "us_etf")
             self.fundPrices = makeTRYInstruments(assetType: "fund")
 
             self.lastUpdateTime = Date()
@@ -188,7 +190,9 @@ final class MarketDataManager: ObservableObject {
         switch assetType {
         case "bist":
             return symbol.replacingOccurrences(of: ".IS", with: "")
-        case "us_stock":
+        // ETF'lerde de sembol: kullanıcılar "SPY"/"QQQ" diye biliyor, uzun
+        // fon adları (ör. "Vanguard Total Stock Market") satıra sığmıyor.
+        case "us_stock", "us_etf":
             return symbol
         case "crypto":
             if let raw = rawName, !raw.isEmpty { return raw.capitalized }
@@ -204,6 +208,7 @@ final class MarketDataManager: ObservableObject {
         case .crypto: return cryptoPrices
         case .bistStock: return bistPrices
         case .usStock: return usPrices
+        case .usEtf: return usEtfPrices
         case .fund: return fundPrices
         default: return []
         }

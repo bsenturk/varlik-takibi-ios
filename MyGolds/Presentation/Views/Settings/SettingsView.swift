@@ -155,7 +155,7 @@ struct SettingsView: View {
                 // Dört rozet dar ekranda sığsın diye aralık 14 → 10.
                 HStack(spacing: 10) {
                     proPerk("Reklamsız")
-                    proPerk("TEFAS")
+                    proPerk("Fon & ETF")
                     proPerk("Sınırsız portföy")
                     proPerk("Widget")
                     Spacer(minLength: 0)

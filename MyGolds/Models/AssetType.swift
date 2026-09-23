@@ -15,6 +15,7 @@ enum AssetCategory: String, CaseIterable, Identifiable {
     case crypto = "Kripto"
     case bistStock = "Borsa İstanbul"
     case usStock = "ABD Borsası"
+    case usEtf = "ABD ETF"
     case fund = "Fon"
     case physical = "Fiziksel Varlık"
 
@@ -32,6 +33,7 @@ enum AssetCategory: String, CaseIterable, Identifiable {
         case .crypto: return "bitcoinsign.circle.fill"
         case .bistStock: return "chart.line.uptrend.xyaxis"
         case .usStock: return "building.columns.fill"
+        case .usEtf: return "square.stack.3d.up.fill"
         case .fund: return "chart.pie.fill"
         case .physical: return "house.fill"
         }
@@ -46,6 +48,7 @@ enum AssetCategory: String, CaseIterable, Identifiable {
         case .crypto: return "#F7931A"
         case .bistStock: return "#E63946"
         case .usStock: return "#2A9D8F"
+        case .usEtf: return "#0A84FF"
         case .fund: return "#5856D6"
         case .physical: return "#A2845E"
         }
@@ -55,7 +58,7 @@ enum AssetCategory: String, CaseIterable, Identifiable {
     /// (crypto / stocks / funds) instead of from fixed `AssetType` cases.
     var isDynamic: Bool {
         switch self {
-        case .crypto, .bistStock, .usStock, .fund: return true
+        case .crypto, .bistStock, .usStock, .usEtf, .fund: return true
         case .gold, .silver, .currency, .physical: return false
         }
     }
@@ -70,7 +73,7 @@ enum AssetCategory: String, CaseIterable, Identifiable {
         case .gold, .silver: return ["Ev", "Banka", "Kiralık Kasa"]
         case .currency: return ["Banka", "Nakit / Ev", "Kiralık Kasa"]
         case .crypto: return ["Kripto Borsası", "Soğuk Cüzdan", "Sıcak Cüzdan"]
-        case .bistStock, .usStock, .fund: return ["Banka", "Aracı Kurum"]
+        case .bistStock, .usStock, .usEtf, .fund: return ["Banka", "Aracı Kurum"]
         // Evin/arsanın kendisi zaten bir yer; bu soru orada anlamsız.
         case .physical: return []
         }
@@ -78,7 +81,7 @@ enum AssetCategory: String, CaseIterable, Identifiable {
 
     /// Categories that require an active "Varlık Pro" subscription to add from.
     var isPremium: Bool {
-        self == .fund
+        self == .fund || self == .usEtf
     }
 
     /// The backend `asset_type` value in `assets_prices` for dynamic categories.
@@ -87,6 +90,7 @@ enum AssetCategory: String, CaseIterable, Identifiable {
         case .crypto: return "crypto"
         case .bistStock: return "bist"
         case .usStock: return "us_stock"
+        case .usEtf: return "us_etf"
         case .fund: return "fund"
         case .gold, .silver, .currency, .physical: return nil
         }
@@ -98,6 +102,7 @@ enum AssetCategory: String, CaseIterable, Identifiable {
         case .crypto: return .crypto
         case .bistStock: return .bistStock
         case .usStock: return .usStock
+        case .usEtf: return .usEtf
         case .fund: return .fund
         case .gold, .silver, .currency, .physical: return nil
         }
@@ -147,6 +152,7 @@ enum AssetType: String, CaseIterable, Codable {
     case crypto = "crypto"
     case bistStock = "bist_stock"
     case usStock = "us_stock"
+    case usEtf = "us_etf"
     case fund = "fund"
     // Elle değer girilen varlıklar. Her biri kendine özel bir `Asset.symbol`
     // taşır (bkz. `manualSymbol`), piyasadan fiyat çekilmez.
@@ -158,7 +164,7 @@ enum AssetType: String, CaseIterable, Codable {
     /// Whether this is a generic, symbol-driven market type (crypto / stocks / funds).
     var isDynamic: Bool {
         switch self {
-        case .crypto, .bistStock, .usStock, .fund: return true
+        case .crypto, .bistStock, .usStock, .usEtf, .fund: return true
         default: return false
         }
     }
@@ -240,6 +246,7 @@ enum AssetType: String, CaseIterable, Codable {
         case .crypto: return "Kripto Para"
         case .bistStock: return "BIST Hisse"
         case .usStock: return "ABD Hisse"
+        case .usEtf: return "ABD ETF"
         case .fund: return "Yatırım Fonu"
         default: return rawValue   // fxInfo yukarıda döndü
         }
@@ -253,7 +260,7 @@ enum AssetType: String, CaseIterable, Codable {
         case .goldQuarter, .goldHalf, .goldFull, .goldRepublic, .goldAta, .goldResat, .goldHamit, .goldFive, .goldGremse, .goldFourteen, .goldEighteen, .goldTwoAndHalf, .goldTwentyTwoBracelet:
             return "adet"
         case .crypto: return "adet"
-        case .bistStock, .usStock: return "lot"
+        case .bistStock, .usStock, .usEtf: return "lot"
         case .fund: return "adet"
         default: return "adet"
         }
@@ -270,6 +277,7 @@ enum AssetType: String, CaseIterable, Codable {
         case .crypto: return "bitcoinsign.circle"
         case .bistStock: return "chart.line.uptrend.xyaxis"
         case .usStock: return "building.columns"
+        case .usEtf: return "square.stack.3d.up"
         case .fund: return "chart.pie"
         default: return "banknote"   // fxInfo yukarıda döndü
         }
@@ -284,6 +292,7 @@ enum AssetType: String, CaseIterable, Codable {
         case .crypto: return "bitcoinsign.circle.fill"
         case .bistStock: return "chart.line.uptrend.xyaxis"
         case .usStock: return "building.columns.fill"
+        case .usEtf: return "square.stack.3d.up.fill"
         case .fund: return "chart.pie.fill"
         default: return "circle.hexagongrid.fill"
         }
@@ -298,6 +307,7 @@ enum AssetType: String, CaseIterable, Codable {
         case .crypto: return "#F7931A"
         case .bistStock: return "#E63946"
         case .usStock: return "#2A9D8F"
+        case .usEtf: return "#0A84FF"
         case .fund: return "#5856D6"
         default: return "#FFB300"
         }
@@ -326,7 +336,7 @@ enum AssetType: String, CaseIterable, Codable {
         case .goldTwentyTwoBracelet: return "22_AYAR_BILEZIK"
         case .silver: return "GRAM_GUMUS"
         // Dynamic types have no fixed symbol — `Asset.symbol` is the lookup key.
-        case .crypto, .bistStock, .usStock, .fund: return ""
+        case .crypto, .bistStock, .usStock, .usEtf, .fund: return ""
         default: return rawValue.uppercased()
         }
     }
@@ -344,6 +354,8 @@ enum AssetType: String, CaseIterable, Codable {
             return .bistStock
         case .usStock:
             return .usStock
+        case .usEtf:
+            return .usEtf
         case .fund:
             return .fund
         default:

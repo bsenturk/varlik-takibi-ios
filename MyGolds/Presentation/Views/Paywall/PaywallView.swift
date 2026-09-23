@@ -160,7 +160,7 @@ enum PaywallContext: Identifiable {
 
     var headline: String {
         switch self {
-        case .fund:           return "Fonlarını da\nburada takip et."
+        case .fund:           return "Fon ve ETF'lerini de\nburada takip et."
         case .portfolioLimit: return "Her hedefe\nayrı portföy."
         case .ads:            return "Reklamlar olmadan\ndaha rahat."
         case .widget:         return "Portföyün\nana ekranında."
@@ -171,7 +171,7 @@ enum PaywallContext: Identifiable {
     var subtitle: String {
         switch self {
         case .fund:
-            return "TEFAS fonları Pro ile açılıyor — diğer üç özellikle birlikte."
+            return "TEFAS fonları ve ABD ETF'leri Pro ile açılıyor — diğer üç özellikle birlikte."
         case .portfolioLimit:
             return "Portföy sınırı Pro ile kalkıyor — diğer üç özellikle birlikte."
         case .ads:
@@ -307,7 +307,7 @@ struct PaywallView: View {
 
     private let features: [(icon: String, title: String, subtitle: String)] = [
         ("hand.thumbsup.fill", "Reklamsız Deneyim", "Kesintisiz, temiz bir arayüz"),
-        ("chart.pie.fill", "Fon Ekleme", "TEFAS yatırım fonlarını takip et"),
+        ("chart.pie.fill", "Fon ve ETF", "TEFAS fonları ve ABD ETF'lerini takip et"),
         ("infinity", "Sınırsız Portföy", "İstediğin kadar portföy oluştur"),
         ("square.grid.2x2.fill", "Ana Ekran Widget'ı", "Bakiyeni ana ekranından takip et")
     ]
