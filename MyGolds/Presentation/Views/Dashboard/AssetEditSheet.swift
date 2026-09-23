@@ -65,7 +65,7 @@ struct AssetEditSheet: View {
                 header
                 amountField
                 if isManual {
-                    ManualNameField(name: $nameText, typeName: asset.type.displayName)
+                    ManualNameField(name: $nameText, example: asset.type.manualNameExample)
                 }
                 if !isTRY { costField }
                 if !isManual {
@@ -158,7 +158,7 @@ struct AssetEditSheet: View {
 
     /// Label differs by asset class: stocks/crypto/funds = "cost", gold/FX = "rate".
     private var costLabel: String {
-        if isManual { return "Alış Fiyatı" }
+        if isManual { return asset.type.manualCostLabel }
         return asset.type.category.isDynamic ? "Ortalama Maliyet" : "Ortalama Alış Kuru"
     }
 

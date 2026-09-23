@@ -166,8 +166,32 @@ struct AddAssetSheet: View {
             lastCategory = name
             markStep("type_list")
             FirebaseAnalyticsHelper.shared.logAddAssetCategorySelected(category: name, source: flowSource)
-            withAnimation(.easeInOut(duration: 0.2)) { step = .typeList(category) }
+            // Tek seçenekli kategoride (BES) tek satırlık bir liste göstermenin
+            // anlamı yok: doğrudan değer ekranına.
+            if let only = Self.singleType(of: category) {
+                selectInstrument(.legacy(only))
+            } else {
+                withAnimation(.easeInOut(duration: 0.2)) { step = .typeList(category) }
+            }
         }
+    }
+
+    /// Kategorinin tek bir sabit türü varsa o tür (liste adımı atlanır).
+    private static func singleType(of category: AssetCategory) -> AssetType? {
+        guard !category.isDynamic, category.assetTypes.count == 1 else { return nil }
+        return category.assetTypes.first
+    }
+
+    private func selectInstrument(_ instrument: Instrument) {
+        amount = ""
+        purchasePrice = ""
+        markStep("amount")
+        FirebaseAnalyticsHelper.shared.logAddAssetInstrumentSelected(
+            category: String(describing: instrument.category),
+            symbol: instrument.symbol,
+            source: flowSource
+        )
+        withAnimation(.easeInOut(duration: 0.2)) { step = .amount(instrument) }
     }
 
     // MARK: - Nav bar
@@ -219,7 +243,7 @@ struct AddAssetSheet: View {
         withAnimation(.easeInOut(duration: 0.2)) {
             switch step {
             case .amount(let instrument):
-                step = .typeList(instrument.category)
+                step = Self.singleType(of: instrument.category) == nil ? .typeList(instrument.category) : .category
             case .typeList:
                 step = .category
             case .category:
@@ -320,15 +344,7 @@ struct AddAssetSheet: View {
                     }
                     ForEach(items, id: \.self) { instrument in
                         Button {
-                            amount = ""
-                            purchasePrice = ""
-                            markStep("amount")
-                            FirebaseAnalyticsHelper.shared.logAddAssetInstrumentSelected(
-                                category: String(describing: instrument.category),
-                                symbol: instrument.symbol,
-                                source: flowSource
-                            )
-                            withAnimation(.easeInOut(duration: 0.2)) { step = .amount(instrument) }
+                            selectInstrument(instrument)
                         } label: {
                             HStack(spacing: 12) {
                                 AssetIconTile(
@@ -530,7 +546,7 @@ struct AddAssetSheet: View {
                     portfolioPicker
 
                     if instrument.type.isManual {
-                        ManualNameField(name: $customName, typeName: instrument.name)
+                        ManualNameField(name: $customName, example: instrument.type.manualNameExample)
                         purchasePriceField(for: instrument)
                         profitLossPreview(for: instrument)
                     } else {
@@ -594,7 +610,7 @@ struct AddAssetSheet: View {
     // Optional cost-basis input. For stocks/crypto/funds it's the "average cost";
     // for gold/FX it's the "purchased rate". Left empty -> current price is used.
     private func purchasePriceField(for instrument: Instrument) -> some View {
-        let label = instrument.type.isManual ? "Alış Fiyatı"
+        let label = instrument.type.isManual ? instrument.type.manualCostLabel
             : (instrument.category.isDynamic ? "Ortalama Maliyet" : "Satın Alınan Kur")
         return VStack(alignment: .leading, spacing: 6) {
             HStack {
@@ -639,7 +655,7 @@ struct AddAssetSheet: View {
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
                 Text(instrument.type.isManual
-                     ? "Belirtmezseniz güncel değerden alınmış kabul edilir."
+                     ? "Belirtmezseniz kâr/zarar hesaplanmaz."
                      : "Belirtmezseniz güncel fiyattan alınmış kabul edilir.")
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)

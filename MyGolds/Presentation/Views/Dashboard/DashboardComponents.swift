@@ -529,19 +529,14 @@ struct LocationPicker: View {
 
 // MARK: - Elle girilen varlığın ismi
 
-/// Ev/araba gibi elle girilen varlıklara isim ("Kadıköy daire"): iki ev
+/// Ev/araba/BES gibi elle girilen varlıklara isim ("Kadıköy daire"): iki ev
 /// listede ikisi de "Ev" diye görünmesin. Boş bırakılırsa tür adı kullanılır.
 struct ManualNameField: View {
     @Binding var name: String
-    /// Tür adı ("Ev", "Araba") — örnek metni buna göre kuruluyor.
-    let typeName: String
+    /// Örnek metin — türe göre (`AssetType.manualNameExample`).
+    let example: String
 
     static let maxLength = 40
-
-    private var example: String {
-        typeName == "Araba" ? "Aile arabası"
-            : "Kadıköy'deki \(typeName.lowercased(with: Locale(identifier: "tr_TR")))"
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {

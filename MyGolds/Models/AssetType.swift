@@ -18,6 +18,7 @@ enum AssetCategory: String, CaseIterable, Identifiable {
     case usEtf = "ABD ETF"
     case fund = "Fon"
     case physical = "Fiziksel Varlık"
+    case bes = "BES"
 
     var id: String { rawValue }
 
@@ -36,6 +37,7 @@ enum AssetCategory: String, CaseIterable, Identifiable {
         case .usEtf: return "square.stack.3d.up.fill"
         case .fund: return "chart.pie.fill"
         case .physical: return "house.fill"
+        case .bes: return "beach.umbrella.fill"
         }
     }
 
@@ -51,6 +53,7 @@ enum AssetCategory: String, CaseIterable, Identifiable {
         case .usEtf: return "#0A84FF"
         case .fund: return "#5856D6"
         case .physical: return "#A2845E"
+        case .bes: return "#FF2D55"
         }
     }
 
@@ -59,12 +62,12 @@ enum AssetCategory: String, CaseIterable, Identifiable {
     var isDynamic: Bool {
         switch self {
         case .crypto, .bistStock, .usStock, .usEtf, .fund: return true
-        case .gold, .silver, .currency, .physical: return false
+        case .gold, .silver, .currency, .physical, .bes: return false
         }
     }
 
     /// Değeri piyasadan gelmeyen, kullanıcının TL olarak elle girdiği kategoriler.
-    var isManual: Bool { self == .physical }
+    var isManual: Bool { self == .physical || self == .bes }
 
     /// "Nerede tutuluyor?" alanının önerileri. Serbest metin de girilebiliyor;
     /// bunlar yalnızca en sık cevaplar.
@@ -74,8 +77,9 @@ enum AssetCategory: String, CaseIterable, Identifiable {
         case .currency: return ["Banka", "Nakit / Ev", "Kiralık Kasa"]
         case .crypto: return ["Kripto Borsası", "Soğuk Cüzdan", "Sıcak Cüzdan"]
         case .bistStock, .usStock, .usEtf, .fund: return ["Banka", "Aracı Kurum"]
-        // Evin/arsanın kendisi zaten bir yer; bu soru orada anlamsız.
-        case .physical: return []
+        // Evin/arsanın kendisi zaten bir yer, BES'in yeri de şirketi; bu soru
+        // orada anlamsız.
+        case .physical, .bes: return []
         }
     }
 
@@ -92,7 +96,7 @@ enum AssetCategory: String, CaseIterable, Identifiable {
         case .usStock: return "us_stock"
         case .usEtf: return "us_etf"
         case .fund: return "fund"
-        case .gold, .silver, .currency, .physical: return nil
+        case .gold, .silver, .currency, .physical, .bes: return nil
         }
     }
 
@@ -104,7 +108,7 @@ enum AssetCategory: String, CaseIterable, Identifiable {
         case .usStock: return .usStock
         case .usEtf: return .usEtf
         case .fund: return .fund
-        case .gold, .silver, .currency, .physical: return nil
+        case .gold, .silver, .currency, .physical, .bes: return nil
         }
     }
 
@@ -160,6 +164,7 @@ enum AssetType: String, CaseIterable, Codable {
     case car = "car"
     case land = "land"
     case shop = "shop"
+    case bes = "bes"
 
     /// Whether this is a generic, symbol-driven market type (crypto / stocks / funds).
     var isDynamic: Bool {
@@ -205,19 +210,33 @@ enum AssetType: String, CaseIterable, Codable {
         let icon: String        // SF Symbol
         let tintHex: String
         let category: AssetCategory
+        /// İsim alanının örnek metni.
+        let nameExample: String
+        /// Maliyet alanının etiketi — BES'te "alış" yok, yatırılan tutar var.
+        let costLabel: String
     }
 
     static let manual: [AssetType: ManualInfo] = [
-        .house: ManualInfo(name: "Ev",     icon: "house.fill",      tintHex: "#A2845E", category: .physical),
-        .car:   ManualInfo(name: "Araba",  icon: "car.fill",        tintHex: "#5E5CE6", category: .physical),
-        .land:  ManualInfo(name: "Arsa",   icon: "map.fill",        tintHex: "#34C759", category: .physical),
-        .shop:  ManualInfo(name: "Dükkan", icon: "storefront.fill", tintHex: "#FF9F0A", category: .physical)
+        .house: ManualInfo(name: "Ev",     icon: "house.fill",      tintHex: "#A2845E", category: .physical,
+                           nameExample: "Kadıköy'deki daire", costLabel: "Alış Fiyatı"),
+        .car:   ManualInfo(name: "Araba",  icon: "car.fill",        tintHex: "#5E5CE6", category: .physical,
+                           nameExample: "Aile arabası", costLabel: "Alış Fiyatı"),
+        .land:  ManualInfo(name: "Arsa",   icon: "map.fill",        tintHex: "#34C759", category: .physical,
+                           nameExample: "Çeşme'deki arsa", costLabel: "Alış Fiyatı"),
+        .shop:  ManualInfo(name: "Dükkan", icon: "storefront.fill", tintHex: "#FF9F0A", category: .physical,
+                           nameExample: "Çarşıdaki dükkan", costLabel: "Alış Fiyatı"),
+        .bes:   ManualInfo(name: "BES",    icon: "beach.umbrella.fill", tintHex: "#FF2D55", category: .bes,
+                           nameExample: "Şirketin ya da planın adı", costLabel: "Yatırdığın Tutar")
     ]
 
     private var manualInfo: ManualInfo? { Self.manual[self] }
 
     /// Değeri kullanıcının elle girdiği tür mü (piyasa fiyatı yok).
     var isManual: Bool { manualInfo != nil }
+
+    /// Elle girilen türün isim örneği ve maliyet etiketi (bkz. `ManualInfo`).
+    var manualNameExample: String { manualInfo?.nameExample ?? "" }
+    var manualCostLabel: String { manualInfo?.costLabel ?? "Alış Fiyatı" }
 
     /// Elle girilen her varlığın kendine özel sembolü. Tür başına tek sembol
     /// olsaydı iki ev tek varlıkta birleşir, fiyat geçmişleri (sembole göre
