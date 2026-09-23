@@ -364,8 +364,9 @@ struct DashboardView: View {
                     id: asset.id.uuidString,
                     title: asset.name,
                     // Elle girilende miktar hep 1; tür adı daha çok şey söylüyor.
+                    // İsim verilmemişse başlık zaten tür adı ("BES / BES" olmasın).
                     subtitle: asset.type.isManual
-                        ? asset.type.displayName
+                        ? (asset.name == asset.type.displayName ? "Elle girilen" : asset.type.displayName)
                         : "\(Self.formatAmount(asset.amount)) \(asset.unit)",
                     value: asset.totalValue,
                     changePercent: profitLossPercent(for: asset),
