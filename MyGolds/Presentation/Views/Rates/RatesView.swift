@@ -13,17 +13,45 @@ struct RatesView: View {
     @State private var searchText = ""
     @State private var tab: Tab = .gold
 
-    /// Kurlar shows only gold & currencies; crypto/stocks live in the portfolio flow.
+    /// ETF'ler bilerek yok: Pro özelliği, fiyatları da Pro'ya bağlı.
     private enum Tab: String, CaseIterable, Identifiable {
         case gold = "Altın"
         case currency = "Döviz"
+        case crypto = "Kripto"
+        case bist = "BIST"
+        case us = "ABD"
 
         var id: String { rawValue }
-        var tintHex: String { self == .gold ? AssetCategory.gold.tintHex : AssetCategory.currency.tintHex }
+
+        private var category: AssetCategory {
+            switch self {
+            case .gold: return .gold
+            case .currency: return .currency
+            case .crypto: return .crypto
+            case .bist: return .bistStock
+            case .us: return .usStock
+            }
+        }
+        var tintHex: String { category.tintHex }
+
+        var searchPlaceholder: String {
+            switch self {
+            case .gold: return "Altın ara"
+            case .currency: return "Döviz ara"
+            case .crypto: return "Kripto ara"
+            case .bist, .us: return "Hisse ara"
+            }
+        }
     }
 
     private var allRates: [RateDisplayModel] {
-        tab == .gold ? viewModel.goldRates : viewModel.currencyRates
+        switch tab {
+        case .gold: return viewModel.goldRates
+        case .currency: return viewModel.currencyRates
+        case .crypto: return viewModel.cryptoRates
+        case .bist: return viewModel.bistRates
+        case .us: return viewModel.usRates
+        }
     }
 
     private var filteredRates: [RateDisplayModel] {
@@ -49,7 +77,9 @@ struct RatesView: View {
             Color(.systemGroupedBackground).ignoresSafeArea()
 
             ScrollView {
-                VStack(spacing: 14) {
+                // Lazy: BIST ~640 satır; hepsini bir anda kurmak sekmeyi
+                // açarken takılıyordu.
+                LazyVStack(spacing: 14) {
                     header
                     tabChips
                     searchBar
@@ -65,7 +95,9 @@ struct RatesView: View {
                                 buyRate: rate.buyRate,
                                 sellRate: rate.sellRate,
                                 change: rate.change,
-                                isChangeRatePositive: rate.isChangeRatePositive
+                                isChangeRatePositive: rate.isChangeRatePositive,
+                                logoURL: rate.logoURL,
+                                tintHex: rate.tintHex
                             )
                         }
                     }
@@ -119,24 +151,32 @@ struct RatesView: View {
 
     // MARK: - Chips
 
+    /// Beş çip dar ekrana sığmıyor: kendi içinde yatay kayıyor. Sabit HStack
+    /// olsaydı sayfayı taşırıp Ayarlar'daki yana kaymanın aynısını yapardı.
+    /// Negatif padding kaydırmanın ekran kenarına kadar uzanmasını sağlıyor.
     private var tabChips: some View {
-        HStack(spacing: 8) {
-            ForEach(Tab.allCases) { option in
-                let isSelected = tab == option
-                Text(option.rawValue)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(isSelected ? .white : .primary)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 9)
-                    .background(isSelected ? AnyShapeStyle(Color(hex: option.tintHex)) : AnyShapeStyle(Color(.systemGray5)))
-                    .clipShape(Capsule())
-                    .contentShape(Capsule())
-                    .onTapGesture {
-                        withAnimation(.easeInOut(duration: 0.2)) { tab = option }
-                    }
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(Tab.allCases) { option in
+                    let isSelected = tab == option
+                    Text(option.rawValue)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(isSelected ? .white : .primary)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 9)
+                        .background(isSelected ? AnyShapeStyle(Color(hex: option.tintHex)) : AnyShapeStyle(Color(.systemGray5)))
+                        .clipShape(Capsule())
+                        .contentShape(Capsule())
+                        .onTapGesture {
+                            // Arama sekmeye ait: "THY" yazıp Kripto'ya geçen boş liste görmesin.
+                            searchText = ""
+                            withAnimation(.easeInOut(duration: 0.2)) { tab = option }
+                        }
+                }
             }
-            Spacer(minLength: 0)
+            .padding(.horizontal, 18)
         }
+        .padding(.horizontal, -18)
     }
 
     // MARK: - Search
@@ -146,7 +186,7 @@ struct RatesView: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundColor(.secondary)
-            TextField("Döviz veya altın ara", text: $searchText)
+            TextField(tab.searchPlaceholder, text: $searchText)
                 .font(.system(size: 16))
                 .autocorrectionDisabled()
             if !searchText.isEmpty {
@@ -168,7 +208,7 @@ struct RatesView: View {
             if allRates.isEmpty {
                 ProgressView()
                     .padding(.top, 60)
-                Text("Kurlar yükleniyor...")
+                Text("Fiyatlar yükleniyor...")
                     .font(.system(size: 14))
                     .foregroundColor(.secondary)
             } else {
