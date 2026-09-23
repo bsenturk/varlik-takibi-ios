@@ -26,6 +26,7 @@ struct AssetEditSheet: View {
 
     @State private var amountText: String = ""
     @State private var costText: String = ""
+    @State private var locationText: String = ""
     @State private var showDeleteConfirm = false
     @State private var showingHistory = false
 
@@ -55,6 +56,7 @@ struct AssetEditSheet: View {
                 header
                 amountField
                 if !isTRY { costField }
+                LocationPicker(location: $locationText, suggestions: asset.type.category.locationSuggestions)
                 valuePreview
                 historyButton
                 deleteButton
@@ -74,6 +76,7 @@ struct AssetEditSheet: View {
         .onAppear {
             amountText = Self.format(asset.amount)
             costText = averageCost.map { Self.formatPrice($0) } ?? ""
+            locationText = asset.location
         }
         .fullScreenCover(isPresented: $showingHistory) { AssetHistoryView(asset: asset) }
         .alert("Varlığı Sil", isPresented: $showDeleteConfirm) {
@@ -259,6 +262,7 @@ struct AssetEditSheet: View {
         let delta = newAmount - oldAmount
 
         asset.amount = newAmount
+        asset.location = LocationPicker.normalized(locationText)
         asset.currentPrice = price
         asset.lastUpdated = Date()
 

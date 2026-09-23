@@ -371,7 +371,8 @@ struct DashboardView: View {
                     tintHex: asset.type.tileTintHex,
                     logoURL: marketDataManager.logoURL(forSymbol: asset.symbol),
                     assetID: asset.id,
-                    isLocked: ProLock.isLocked(asset, lockedIDs: lockedIDs)
+                    isLocked: ProLock.isLocked(asset, lockedIDs: lockedIDs),
+                    location: asset.location.isEmpty ? nil : asset.location
                 )
             }
     }

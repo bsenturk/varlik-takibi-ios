@@ -27,6 +27,9 @@ struct DashboardRowItem: Identifiable {
     let assetID: UUID?
     /// Pro bitince erişimi kapanan satır: tutarı gizlenir, dokunulunca paywall açılır.
     var isLocked: Bool = false
+    /// Nerede tutulduğu. Alt başlığa eklenmiyor: sol sütun dar, "10 gram · Ba…"
+    /// diye kırpılıyordu — varsa ayrı küçük bir satır.
+    var location: String? = nil
 }
 
 // MARK: - Icon tile
@@ -118,6 +121,13 @@ struct DashboardRowView: View {
                     .font(.system(size: 13))
                     .foregroundColor(.secondary)
                     .lineLimit(1)
+                if let location = item.location {
+                    Label(location, systemImage: "mappin")
+                        .labelStyle(.titleAndIcon)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
             }
 
             Spacer(minLength: 8)
@@ -438,5 +448,79 @@ struct PortfolioChip: View {
         } else {
             Color(.systemGray5)
         }
+    }
+}
+
+// MARK: - Tutulduğu yer
+
+/// "Nerede tutuluyor?" — serbest metin + kategoriye göre öneri çipleri.
+/// Çipe dokunmak alanı doldurur, seçili çipe tekrar dokunmak temizler.
+/// Varlık ekleme ve düzenleme ekranları ortak kullanıyor.
+struct LocationPicker: View {
+    @Binding var location: String
+    let suggestions: [String]
+
+    /// Karşılaştırma ve kayıt aynı temizlenmiş biçimi kullanıyor.
+    static func normalized(_ raw: String) -> String {
+        String(raw.trimmingCharacters(in: .whitespacesAndNewlines).prefix(30))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 4) {
+                Text("Nerede tutuluyor?")
+                    .font(.system(size: 15, weight: .medium))
+                Text("(Opsiyonel)")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+            }
+
+            HStack(spacing: 8) {
+                Image(systemName: "mappin.and.ellipse")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.secondary)
+                TextField("Örn. \(suggestions.prefix(2).joined(separator: ", "))", text: $location)
+                    .font(.system(size: 16))
+                    .submitLabel(.done)
+                    .onChange(of: location) { _, new in
+                        if new.count > 30 { location = String(new.prefix(30)) }
+                    }
+                if !location.isEmpty {
+                    Button { location = "" } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(.secondary.opacity(0.6))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 13)
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(suggestions, id: \.self) { chip($0) }
+                }
+            }
+        }
+    }
+
+    private func chip(_ title: String) -> some View {
+        let selected = Self.normalized(location) == title
+        return Button {
+            location = selected ? "" : title
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        } label: {
+            Text(title)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(selected ? .white : .primary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(selected ? Color.accentColor : Color(.secondarySystemGroupedBackground))
+                .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
     }
 }

@@ -67,6 +67,8 @@ struct AddAssetSheet: View {
     @State private var searchText = ""
     @State private var amount = ""
     @State private var purchasePrice = ""
+    /// Nerede tutulduğu. Kategori değişince sıfırlanır (öneriler kategoriye özel).
+    @State private var location = ""
     @FocusState private var focusedField: InputField?
     @State private var selectedPortfolio: Portfolio?
     @State private var showAlert = false
@@ -128,6 +130,7 @@ struct AddAssetSheet: View {
         .onChange(of: step) { previous, current in
             guard previous.category != current.category else { return }
             searchText = ""
+            location = ""
         }
         .onAppear {
             selectedPortfolio = targetPortfolio ?? realPortfolios.first
@@ -513,6 +516,8 @@ struct AddAssetSheet: View {
 
                     portfolioPicker
 
+                    LocationPicker(location: $location, suggestions: instrument.category.locationSuggestions)
+
                     // Türk Lirası has no purchase rate (it's the base currency).
                     if instrument.symbol != "TRY" {
                         purchasePriceField(for: instrument)
@@ -771,8 +776,12 @@ struct AddAssetSheet: View {
         let enteredPurchase = Double(purchasePrice.replacingOccurrences(of: ",", with: "."))
         let costBasis = (enteredPurchase != nil && enteredPurchase! > 0) ? enteredPurchase! : currentPrice
 
-        // Merge into an existing holding of the same instrument (by symbol) in this portfolio.
-        let existing = (portfolio.assets ?? []).first(where: { $0.symbol == instrument.symbol })
+        // Merge into an existing holding of the same instrument *at the same place*
+        // in this portfolio — "evde 10 gram" ile "bankada 20 gram" ayrı varlıklar.
+        let place = LocationPicker.normalized(location)
+        let existing = (portfolio.assets ?? []).first(where: {
+            $0.symbol == instrument.symbol && $0.location == place
+        })
 
         if let existing {
             let oldAmount = existing.amount
@@ -800,6 +809,7 @@ struct AddAssetSheet: View {
                 amount: amountValue, currentRate: 0.0, currentPrice: currentPrice
             )
             newAsset.portfolio = portfolio
+            newAsset.location = place
             PortfolioManager.shared.storePurchasePrice(for: newAsset.id, price: costBasis)
             modelContext.insert(newAsset)
             try? modelContext.save()

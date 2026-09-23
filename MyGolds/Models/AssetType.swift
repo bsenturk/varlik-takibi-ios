@@ -55,6 +55,17 @@ enum AssetCategory: String, CaseIterable, Identifiable {
         }
     }
 
+    /// "Nerede tutuluyor?" alanının önerileri. Serbest metin de girilebiliyor;
+    /// bunlar yalnızca en sık cevaplar.
+    var locationSuggestions: [String] {
+        switch self {
+        case .gold, .silver: return ["Ev", "Banka", "Kiralık Kasa", "Kuyumcu"]
+        case .currency: return ["Banka", "Nakit / Ev", "Kiralık Kasa"]
+        case .crypto: return ["Kripto Borsası", "Soğuk Cüzdan", "Sıcak Cüzdan"]
+        case .bistStock, .usStock, .fund: return ["Banka", "Aracı Kurum"]
+        }
+    }
+
     /// Categories that require an active "Varlık Pro" subscription to add from.
     var isPremium: Bool {
         self == .fund

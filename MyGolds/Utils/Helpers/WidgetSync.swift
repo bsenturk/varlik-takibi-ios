@@ -46,7 +46,9 @@ enum WidgetSync {
                 .map { asset in
                     WidgetPortfolio.Holding(
                         symbol: asset.symbol,
-                        name: asset.name,
+                        // Aynı enstrüman farklı yerlerde tutulabiliyor; widget'ta
+                        // iki özdeş "Gram Altın" satırı olmasın.
+                        name: asset.location.isEmpty ? asset.name : "\(asset.name) · \(asset.location)",
                         amount: asset.amount,
                         // Maliyeti kayıtlı değilse güncel fiyat: kâr/zarara 0 katkı
                         // verir (PortfolioMetrics ile aynı kural).

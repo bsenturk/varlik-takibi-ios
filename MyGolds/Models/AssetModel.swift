@@ -24,6 +24,10 @@ final class Asset {
     var lastUpdated: Date
     var currentRate: Double
     var currentPrice: Double
+    /// Nerede tutulduğu ("Ev", "Banka"…). Boş = belirtilmemiş. Aynı enstrüman
+    /// bir portföyde farklı yerlerde ayrı varlıklar olarak tutulabiliyor.
+    /// Defaulted for SwiftData lightweight migration.
+    var location: String = ""
 
     /// The portfolio this asset belongs to. Optional for backward compatibility with
     /// pre-v3.0.0 data; the launch migration assigns every orphan asset to "Portföyüm".

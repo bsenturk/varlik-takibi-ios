@@ -82,7 +82,8 @@ struct AssetHistoryView: View {
                     Text(asset.name)
                         .font(.system(size: 17, weight: .bold))
                         .lineLimit(2)
-                    Text("\(Self.format(asset.amount)) \(asset.unit)")
+                    Text("\(Self.format(asset.amount)) \(asset.unit)"
+                         + (asset.location.isEmpty ? "" : " · \(asset.location)"))
                         .font(.system(size: 13)).foregroundColor(.secondary)
                 }
                 Spacer(minLength: 0)
