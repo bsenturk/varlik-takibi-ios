@@ -36,6 +36,7 @@
 		6F4E75E51BBB8982F4D41EEC /* PortfolioWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E02E731FE2D5F47FCC09401 /* PortfolioWidgetView.swift */; };
 		784E882F7EB72F8A2FBC170A /* RatesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5EECA123D70F085F351AB88 /* RatesViewModel.swift */; };
 		7BCA4ACFCDF2CEE4FB7FC320 /* RateDisplayModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C3F48DF406AEFA3D9127B4 /* RateDisplayModel.swift */; };
+		7E06A37D9FE3BD8280A8F0B9 /* AssetHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B04997A8F54AEA13213B2D91 /* AssetHistoryView.swift */; };
 		9B0F50432B7FFCB300A03018 /* MyGoldsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B0F50422B7FFCB300A03018 /* MyGoldsApp.swift */; };
 		9B0F50472B7FFCB400A03018 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9B0F50462B7FFCB400A03018 /* Assets.xcassets */; };
 		9B0F504A2B7FFCB400A03018 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9B0F50492B7FFCB400A03018 /* Preview Assets.xcassets */; };
@@ -192,6 +193,7 @@
 		9BC2B6C22EA56B21009C4B5F /* Currency.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Currency.swift; sourceTree = "<group>"; };
 		A386B28F85AE7E1CFC49959A /* AddAssetSheet.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AddAssetSheet.swift; sourceTree = "<group>"; };
 		AEEE7E05AED8594E7C7A8CFB /* MyGoldsWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MyGoldsWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		B04997A8F54AEA13213B2D91 /* AssetHistoryView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AssetHistoryView.swift; sourceTree = "<group>"; };
 		B2336E9BF9A91CB6708CC173 /* CurrencySelectionView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CurrencySelectionView.swift; sourceTree = "<group>"; };
 		B7E50DD4E3D3B4F3BAC569F8 /* AppError.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppError.swift; sourceTree = "<group>"; };
 		BD256FBA733EBE4803F3F420 /* SupabaseModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SupabaseModels.swift; sourceTree = "<group>"; };
@@ -331,6 +333,7 @@
 				7BF667F5C586B464A6A9DF44 /* PortfolioEditorView.swift */,
 				BD57CBF5F13AB266CF39E404 /* AssetEditSheet.swift */,
 				18CFD416652C895A8EB79337 /* InstrumentChartCard.swift */,
+				B04997A8F54AEA13213B2D91 /* AssetHistoryView.swift */,
 			);
 			path = Dashboard;
 			sourceTree = "<group>";
@@ -912,6 +915,7 @@
 				0E3699DB6CF8105101818F76 /* CurrencySelectionView.swift in Sources */,
 				3899213248887ED43B3AB42A /* SelectionScreenHeader.swift in Sources */,
 				34580A39895C8787B5FEE9FA /* InstrumentChartCard.swift in Sources */,
+				7E06A37D9FE3BD8280A8F0B9 /* AssetHistoryView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

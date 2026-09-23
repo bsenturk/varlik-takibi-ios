@@ -27,9 +27,7 @@ struct AssetEditSheet: View {
     @State private var amountText: String = ""
     @State private var costText: String = ""
     @State private var showDeleteConfirm = false
-    /// Yeniden eskiye. Açılışta bir kez okunur; "bugünkü" değerler canlı
-    /// fiyattan her çizimde yeniden hesaplandığı için ayrıca yenilemeye gerek yok.
-    @State private var transactions: [AssetTransactionHistory] = []
+    @State private var showingHistory = false
 
     private var parsedAmount: Double? {
         Double(amountText.replacingOccurrences(of: ",", with: "."))
@@ -58,13 +56,13 @@ struct AssetEditSheet: View {
                 amountField
                 if !isTRY { costField }
                 valuePreview
-                if !transactions.isEmpty { historySection }
+                historyButton
                 deleteButton
             }
             .padding(20)
         }
         .scrollDismissesKeyboard(.interactively)
-        // Geçmiş uzayınca Kaydet kaydırmanın dibinde kaybolmasın.
+        // Küçük ekranda / klavye açıkken Kaydet kaydırmanın dibinde kaybolmasın.
         .safeAreaInset(edge: .bottom) {
             saveButton
                 .padding(.horizontal, 20)
@@ -76,10 +74,8 @@ struct AssetEditSheet: View {
         .onAppear {
             amountText = Self.format(asset.amount)
             costText = averageCost.map { Self.formatPrice($0) } ?? ""
-            transactions = AssetHistoryManager.shared
-                .getTransactionHistory(for: asset, context: modelContext)
-                .reversed()
         }
+        .fullScreenCover(isPresented: $showingHistory) { AssetHistoryView(asset: asset) }
         .alert("Varlığı Sil", isPresented: $showDeleteConfirm) {
             Button("Sil", role: .destructive) {
                 onDeleted(asset)
@@ -209,104 +205,28 @@ struct AssetEditSheet: View {
 
     // MARK: - History
 
-    /// Her işlem: ne zaman, ne kadar, o gün kaça alındı, bugün kaç ediyor.
-    private var historySection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Geçmiş").font(.system(size: 17, weight: .bold))
+    private var historyButton: some View {
+        Button { showingHistory = true } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "clock.arrow.circlepath")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.accentColor)
+                Text("İşlem Geçmişi")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.primary)
                 Spacer()
-                Text("\(transactions.count) işlem")
-                    .font(.system(size: 13)).foregroundColor(.secondary)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.secondary.opacity(0.6))
             }
-            if !isTRY {
-                Text("Bugünkü değerler güncel fiyattan hesaplanır: \(currentPrice.formatAsCurrency()) / \(asset.unit)")
-                    .font(.system(size: 12)).foregroundColor(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            VStack(spacing: 0) {
-                ForEach(Array(transactions.enumerated()), id: \.element.id) { index, txn in
-                    if index > 0 { Divider().padding(.leading, 60) }
-                    historyRow(txn)
-                }
-            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(Color(.secondarySystemGroupedBackground))
             )
         }
-    }
-
-    private func historyRow(_ txn: AssetTransactionHistory) -> some View {
-        let tint = Self.tint(for: txn.transactionType)
-        let isBuy = txn.transactionType == .initial || txn.transactionType == .add
-        let amountLine: String = {
-            // Sadece maliyet düzeltmesi: miktar değişmedi, toplamı göster.
-            if txn.transactionType == .edit && txn.amount == 0 {
-                return "Toplam \(Self.format(txn.totalAmount)) \(asset.unit)"
-            }
-            let sign = isBuy ? "+" : (txn.transactionType == .remove ? "−" : "")
-            return "\(sign)\(Self.format(txn.amount)) \(asset.unit)"
-        }()
-
-        return HStack(alignment: .top, spacing: 12) {
-            Circle()
-                .fill(tint.opacity(0.15))
-                .frame(width: 34, height: 34)
-                .overlay(
-                    Image(systemName: txn.transactionType.icon)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(tint)
-                )
-            VStack(alignment: .leading, spacing: 3) {
-                Text(txn.transactionType.displayName)
-                    .font(.system(size: 15, weight: .semibold))
-                Text(txn.formattedDate)
-                    .font(.system(size: 12)).foregroundColor(.secondary)
-            }
-            Spacer(minLength: 8)
-            VStack(alignment: .trailing, spacing: 3) {
-                Text(amountLine)
-                    .font(.system(size: 15, weight: .semibold))
-                    .lineLimit(1).minimumScaleFactor(0.7)
-                if isBuy, txn.amount > 0 { buyValueLine(txn) }
-                else if txn.transactionType == .remove, txn.amount > 0, !isTRY {
-                    Text("\(txn.price.formatAsCurrency()) / \(asset.unit)")
-                        .font(.system(size: 12)).foregroundColor(.secondary)
-                }
-            }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-    }
-
-    /// "₺1.000 → ₺1.250  +%25" — alındığı gün ne kadardı, bugün ne kadar.
-    @ViewBuilder
-    private func buyValueLine(_ txn: AssetTransactionHistory) -> some View {
-        let then = txn.amount * txn.price
-        let now = txn.amount * currentPrice
-        if isTRY || txn.price <= 0 {
-            Text(then.formatAsCurrency().maskedIfNeeded(valuesMasked))
-                .font(.system(size: 12)).foregroundColor(.secondary)
-        } else {
-            let pct = (currentPrice - txn.price) / txn.price * 100
-            VStack(alignment: .trailing, spacing: 1) {
-                Text("\(then.formatAsCurrency().maskedIfNeeded(valuesMasked)) → \(now.formatAsCurrency().maskedIfNeeded(valuesMasked))")
-                    .font(.system(size: 12)).foregroundColor(.secondary)
-                    .lineLimit(1).minimumScaleFactor(0.7)
-                Text("\(pct >= 0 ? "+" : "−")%\(String(format: "%.2f", abs(pct)).replacingOccurrences(of: ".", with: ","))")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(pct >= 0 ? .green : .red)
-            }
-        }
-    }
-
-    private static func tint(for type: AssetTransactionHistory.TransactionType) -> Color {
-        switch type {
-        case .initial: return .blue
-        case .add: return .green
-        case .remove: return .red
-        case .edit: return .orange
-        }
+        .buttonStyle(.plain)
     }
 
     private var saveButton: some View {

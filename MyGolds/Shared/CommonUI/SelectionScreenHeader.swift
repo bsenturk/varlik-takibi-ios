@@ -2,7 +2,7 @@
 //  SelectionScreenHeader.swift
 //  MyGolds
 //
-//  Tam ekran seçim ekranlarının ortak başlığı (Para Birimi, Görünüm).
+//  Tam ekran ekranların ortak başlığı (Para Birimi, Görünüm, İşlem Geçmişi).
 //
 //  İki ekranda birebir aynı olduğu için tek yerde duruyor: "uygulama standardı"
 //  kopyalanarak değil paylaşılarak korunur. Satır düzenleri paylaşılmıyor —
