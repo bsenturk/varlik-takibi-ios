@@ -50,7 +50,8 @@ export async function upsertPrices(
   supabase: SupabaseClient,
   rows: AssetPrice[],
 ): Promise<AssetPrice[]> {
-  const clean = rows.filter((r) => Number.isFinite(r.price));
+  const finite = rows.filter((r) => Number.isFinite(r.price));
+  const clean = await dropTypeCollisions(supabase, finite);
   if (clean.length === 0) return [];
 
   const now = new Date().toISOString();
@@ -72,6 +73,48 @@ export async function upsertPrices(
 
   if (error) throw new Error("DB upsert error: " + error.message);
   return clean;
+}
+
+/**
+ * Tablonun anahtarı (symbol, currency) — asset_type anahtarın parçası değil.
+ * 3 harfli TEFAS fon kodları kripto sembolleriyle çakışabiliyor (ADA, SOL,
+ * DOT…): çakışan upsert öbür türün satırını ezer, uygulama da fiyatı yalnızca
+ * sembolle aradığı için Cardano tutanın değeri fon fiyatıyla hesaplanır (ya
+ * da tersi) ve her cron'da el değiştirir.
+ *
+ * Kural: satır zaten BAŞKA bir türe aitse yazılmaz — ilk gelen kazanır.
+ * Bilinçli bir tür değişikliği (ör. bir sembolü us_stock'tan us_etf'e taşımak)
+ * da bu yüzden engellenir; önce eski satır silinmeli.
+ *
+ * ponytail: sembol düzeyinde bir bekçi; kalıcı çözüm anahtara asset_type'ı
+ * eklemek (istemcideki sembol aramaları da türe bakacak şekilde).
+ */
+async function dropTypeCollisions(
+  supabase: SupabaseClient,
+  rows: AssetPrice[],
+): Promise<AssetPrice[]> {
+  if (rows.length === 0) return rows;
+  const symbols = [...new Set(rows.map((r) => r.symbol))];
+  const owner = new Map<string, string>(); // "symbol|currency" -> asset_type
+  // `in.(…)` URL'de gidiyor; ~700 sembollük fetch-yahoo için parçalı.
+  for (let i = 0; i < symbols.length; i += 150) {
+    const { data, error } = await supabase
+      .from("assets_prices")
+      .select("symbol,currency,asset_type")
+      .in("symbol", symbols.slice(i, i + 150));
+    if (error) throw new Error("DB read error: " + error.message);
+    for (const r of data ?? []) owner.set(`${r.symbol}|${r.currency}`, r.asset_type);
+  }
+  const kept = rows.filter((r) => {
+    const existing = owner.get(`${r.symbol}|${r.currency}`);
+    return existing === undefined || existing === r.asset_type;
+  });
+  if (kept.length < rows.length) {
+    const skipped = rows.filter((r) => !kept.includes(r))
+      .map((r) => `${r.symbol}/${r.currency}(${r.asset_type})`);
+    console.warn("assets_prices: tür çakışması, yazılmadı:", skipped.join(", "));
+  }
+  return kept;
 }
 
 /**
