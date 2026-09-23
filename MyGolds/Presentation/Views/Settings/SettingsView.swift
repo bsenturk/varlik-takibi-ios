@@ -152,13 +152,28 @@ struct SettingsView: View {
                         .foregroundColor(.secondary.opacity(0.6))
                 }
 
-                // Dört rozet dar ekranda sığsın diye aralık 14 → 10.
-                HStack(spacing: 10) {
-                    proPerk("Reklamsız")
-                    proPerk("Fon & ETF")
-                    proPerk("Sınırsız portföy")
-                    proPerk("Widget")
-                    Spacer(minLength: 0)
+                // Rozetler `fixedSize` — doğal genişliklerinde çiziliyorlar. Tek
+                // satıra sığmadıklarında banner'ı ekrandan taşırıyor, ScrollView
+                // içeriği de ekrandan geniş olunca sayfa yana kayıyordu. Sığmazsa
+                // 2×2'ye düşüyor.
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 10) {
+                        proPerk("Reklamsız")
+                        proPerk("Fon & ETF")
+                        proPerk("Sınırsız portföy")
+                        proPerk("Widget")
+                        Spacer(minLength: 0)
+                    }
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 10) {
+                            proPerk("Reklamsız")
+                            proPerk("Fon & ETF")
+                        }
+                        HStack(spacing: 10) {
+                            proPerk("Sınırsız portföy")
+                            proPerk("Widget")
+                        }
+                    }
                 }
             }
             .padding(16)
@@ -182,8 +197,6 @@ struct SettingsView: View {
             Text(title)
                 .font(.system(size: 13))
                 .foregroundColor(.primary.opacity(0.75))
-                .lineLimit(1)
-                .minimumScaleFactor(0.85)
                 .lineLimit(1)
         }
         .fixedSize()
