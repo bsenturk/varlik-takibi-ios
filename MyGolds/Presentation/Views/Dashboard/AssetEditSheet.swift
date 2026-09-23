@@ -27,6 +27,7 @@ struct AssetEditSheet: View {
     @State private var amountText: String = ""
     @State private var costText: String = ""
     @State private var locationText: String = ""
+    @State private var nameText: String = ""
     @State private var showDeleteConfirm = false
     @State private var showingHistory = false
 
@@ -41,10 +42,18 @@ struct AssetEditSheet: View {
     /// Türk Lirası is the base currency — it has no editable cost.
     private var isTRY: Bool { asset.symbol == "TRY" }
 
+    /// Ev/araba gibi elle girilen varlık: "Miktar" alanı TL değeri tutuyor,
+    /// miktar hep 1.
+    private var isManual: Bool { asset.type.isManual }
+
     private var currentPrice: Double {
         if asset.symbol == "TRY" { return 1 }
+        if isManual { return parsedAmount ?? asset.currentPrice }
         return marketData.tryPrice(forSymbol: asset.symbol) ?? asset.currentPrice
     }
+
+    /// Kaydedilecek miktar — elle girilenlerde hep 1.
+    private var editedQuantity: Double { isManual ? 1 : (parsedAmount ?? 0) }
 
     var body: some View {
         ScrollView {
@@ -55,8 +64,13 @@ struct AssetEditSheet: View {
                     .padding(.top, 12)
                 header
                 amountField
+                if isManual {
+                    ManualNameField(name: $nameText, typeName: asset.type.displayName)
+                }
                 if !isTRY { costField }
-                LocationPicker(location: $locationText, suggestions: asset.type.category.locationSuggestions)
+                if !isManual {
+                    LocationPicker(location: $locationText, suggestions: asset.type.category.locationSuggestions)
+                }
                 valuePreview
                 historyButton
                 deleteButton
@@ -74,9 +88,11 @@ struct AssetEditSheet: View {
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .onAppear {
-            amountText = Self.format(asset.amount)
+            amountText = isManual ? Self.formatPrice(asset.currentPrice) : Self.format(asset.amount)
             costText = averageCost.map { Self.formatPrice($0) } ?? ""
             locationText = asset.location
+            // Tür adıyla aynıysa isim verilmemiş demektir; alan boş açılsın.
+            nameText = asset.name == asset.type.displayName ? "" : asset.name
         }
         .fullScreenCover(isPresented: $showingHistory) { AssetHistoryView(asset: asset) }
         .alert("Varlığı Sil", isPresented: $showDeleteConfirm) {
@@ -108,7 +124,7 @@ struct AssetEditSheet: View {
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
-                Text("Güncel: \(Self.format(asset.amount)) \(asset.unit)")
+                Text(isManual ? asset.type.displayName : "Güncel: \(Self.format(asset.amount)) \(asset.unit)")
                     .font(.system(size: 13)).foregroundColor(.secondary)
             }
             Spacer(minLength: 0)
@@ -118,16 +134,16 @@ struct AssetEditSheet: View {
 
     private var amountField: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Miktar").font(.system(size: 14)).foregroundColor(.secondary)
+            Text(isManual ? "Güncel Değer" : "Miktar").font(.system(size: 14)).foregroundColor(.secondary)
             HStack {
                 TextField("0", text: $amountText)
                     .keyboardType(.decimalPad)
                     .font(.system(size: 28, weight: .bold))
                     .onChange(of: amountText) { _, new in
-                        let clean = new.sanitizedDecimal(maxDecimals: 8)
+                        let clean = new.sanitizedDecimal(maxDecimals: isManual ? 2 : 8)
                         if clean != new { amountText = clean }
                     }
-                Text(asset.unit).foregroundColor(.secondary)
+                Text(isManual ? "₺" : asset.unit).foregroundColor(.secondary)
             }
             .padding(.horizontal, 14).padding(.vertical, 12)
             .background(Color(.secondarySystemGroupedBackground))
@@ -142,7 +158,8 @@ struct AssetEditSheet: View {
 
     /// Label differs by asset class: stocks/crypto/funds = "cost", gold/FX = "rate".
     private var costLabel: String {
-        asset.type.category.isDynamic ? "Ortalama Maliyet" : "Ortalama Alış Kuru"
+        if isManual { return "Alış Fiyatı" }
+        return asset.type.category.isDynamic ? "Ortalama Maliyet" : "Ortalama Alış Kuru"
     }
 
     /// Editable weighted-average cost / buy rate per unit.
@@ -166,7 +183,7 @@ struct AssetEditSheet: View {
     }
 
     private var valuePreview: some View {
-        let amount = parsedAmount ?? 0
+        let amount = editedQuantity
         let value = amount * currentPrice
         // Profit/loss vs the (edited) average cost.
         let cost = parsedCost ?? averageCost
@@ -256,13 +273,19 @@ struct AssetEditSheet: View {
     // MARK: - Actions
 
     private func save() {
-        guard let newAmount = parsedAmount, newAmount > 0 else { return }
+        guard (parsedAmount ?? 0) > 0 else { return }
+        let newAmount = editedQuantity
         let oldAmount = asset.amount
         let price = currentPrice
         let delta = newAmount - oldAmount
 
         asset.amount = newAmount
-        asset.location = LocationPicker.normalized(locationText)
+        if isManual {
+            let name = nameText.trimmingCharacters(in: .whitespacesAndNewlines)
+            asset.name = name.isEmpty ? asset.type.displayName : String(name.prefix(ManualNameField.maxLength))
+        } else {
+            asset.location = LocationPicker.normalized(locationText)
+        }
         asset.currentPrice = price
         asset.lastUpdated = Date()
 

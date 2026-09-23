@@ -161,6 +161,8 @@ struct DashboardRowView: View {
                         .font(.system(size: 15, weight: .bold))
                         .foregroundColor(.primary)
                         .lineLimit(1)
+                        // "₺5.000.00…" gibi kırpılmasın; ev/arsa tutarları uzun.
+                        .minimumScaleFactor(0.7)
                     Text(changeText)
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(isPositive ? .green : .red)
@@ -522,5 +524,46 @@ struct LocationPicker: View {
                 .clipShape(Capsule())
         }
         .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Elle girilen varlığın ismi
+
+/// Ev/araba gibi elle girilen varlıklara isim ("Kadıköy daire"): iki ev
+/// listede ikisi de "Ev" diye görünmesin. Boş bırakılırsa tür adı kullanılır.
+struct ManualNameField: View {
+    @Binding var name: String
+    /// Tür adı ("Ev", "Araba") — örnek metni buna göre kuruluyor.
+    let typeName: String
+
+    static let maxLength = 40
+
+    private var example: String {
+        typeName == "Araba" ? "Aile arabası"
+            : "Kadıköy'deki \(typeName.lowercased(with: Locale(identifier: "tr_TR")))"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 4) {
+                Text("İsim")
+                    .font(.system(size: 15, weight: .medium))
+                Text("(Opsiyonel)")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+            }
+            TextField("Örn. \(example)", text: $name)
+                .font(.system(size: 16))
+                // Yer/özel isimleri ("Kadıköy") otomatik düzeltme bozuyor.
+                .autocorrectionDisabled()
+                .submitLabel(.done)
+                .onChange(of: name) { _, new in
+                    if new.count > Self.maxLength { name = String(new.prefix(Self.maxLength)) }
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 13)
+                .background(Color(.secondarySystemGroupedBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
     }
 }

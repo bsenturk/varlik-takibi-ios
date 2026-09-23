@@ -71,13 +71,24 @@ final class PortfolioCalculatorService: PortfolioCalculatorServiceProtocol {
         guard !missingDates.isEmpty else { return }
 
         // ── Step 3: Fetch historical prices (once, for the whole range) ───────
-        let symbols = Array(Set(assets.map { $0.symbol }))
-        let priceRows = try await marketData.fetchHistoricalPrices(
+        // Elle girilen varlıkların (ev, araba…) piyasa fiyatı yok: sunucuya
+        // sorulmaz, değerleri kendi yerel günlük geçmişlerinden taşınır. Yoksa
+        // o günlerde 0 değerlenip Analiz grafiğini çökertirlerdi.
+        let symbols = Array(Set(assets.filter { !$0.type.isManual }.map { $0.symbol }))
+        let priceRows = symbols.isEmpty ? [] : try await marketData.fetchHistoricalPrices(
             symbols: symbols,
             from: missingDates.first!,
             to: missingDates.last!
         )
-        let priceSeries = makePriceSeries(from: priceRows)
+        var priceSeries = makePriceSeries(from: priceRows)
+        for asset in assets where asset.type.isManual {
+            let local = history.getHistory(for: asset.symbol, context: context)
+                .map { (day: calendar.startOfDay(for: $0.date), price: $0.price) }
+            // Hiç geçmiş yoksa (yeni eklendi) bugünkü değer.
+            priceSeries[asset.symbol] = local.isEmpty
+                ? [(day: calendar.startOfDay(for: asset.dateAdded), price: asset.currentPrice)]
+                : local
+        }
 
         // ── Steps 2 + 4 + 5: replay, value and persist each missing day ──────
         var persisted = 0

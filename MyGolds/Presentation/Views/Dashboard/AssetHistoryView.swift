@@ -30,6 +30,9 @@ struct AssetHistoryView: View {
     /// Türk Lirası'nın fiyatı hep 1 — değişim göstermenin anlamı yok.
     private var isTRY: Bool { asset.symbol == "TRY" }
 
+    /// Ev/araba gibi elle girilen varlık: miktar hep 1, anlamlı olan değer.
+    private var isManual: Bool { asset.type.isManual }
+
     private var currentPrice: Double {
         if isTRY { return 1 }
         return marketData.tryPrice(forSymbol: asset.symbol) ?? asset.currentPrice
@@ -82,8 +85,9 @@ struct AssetHistoryView: View {
                     Text(asset.name)
                         .font(.system(size: 17, weight: .bold))
                         .lineLimit(2)
-                    Text("\(Self.format(asset.amount)) \(asset.unit)"
-                         + (asset.location.isEmpty ? "" : " · \(asset.location)"))
+                    Text(isManual ? asset.type.displayName
+                         : "\(Self.format(asset.amount)) \(asset.unit)"
+                           + (asset.location.isEmpty ? "" : " · \(asset.location)"))
                         .font(.system(size: 13)).foregroundColor(.secondary)
                 }
                 Spacer(minLength: 0)
@@ -94,7 +98,8 @@ struct AssetHistoryView: View {
             HStack(alignment: .top) {
                 stat("Güncel Değer", (asset.amount * currentPrice).formatAsCurrency().maskedIfNeeded(valuesMasked))
                 Spacer(minLength: 8)
-                if !isTRY {
+                // Elle girilende fiyat = değer; aynı sayıyı iki kez yazmayalım.
+                if !isTRY && !isManual {
                     stat("Güncel Fiyat", currentPrice.formatAsCurrency(), alignment: .center)
                     Spacer(minLength: 8)
                 }
@@ -127,7 +132,10 @@ struct AssetHistoryView: View {
                 Text("\(transactions.count) işlem")
                     .font(.system(size: 13)).foregroundColor(.secondary)
             }
-            if !isTRY {
+            if isManual {
+                Text("Bugünkü değer, en son girdiğin değerdir.")
+                    .font(.system(size: 12)).foregroundColor(.secondary)
+            } else if !isTRY {
                 Text("Bugünkü değerler güncel fiyattan hesaplanır.")
                     .font(.system(size: 12)).foregroundColor(.secondary)
             }
@@ -148,6 +156,9 @@ struct AssetHistoryView: View {
         let tint = Self.tint(for: txn.transactionType)
         let isBuy = txn.transactionType == .initial || txn.transactionType == .add
         let amountLine: String = {
+            // Elle girilende "+1 adet" anlamsız: alımda değer satırı yeterli,
+            // güncellemede o gün girilen değer gösterilir.
+            if isManual { return isBuy ? "" : txn.price.formatAsCurrency().maskedIfNeeded(valuesMasked) }
             // Sadece maliyet düzeltmesi: miktar değişmedi, toplamı göster.
             if txn.transactionType == .edit && txn.amount == 0 {
                 return "Toplam \(Self.format(txn.totalAmount)) \(asset.unit)"
@@ -173,9 +184,11 @@ struct AssetHistoryView: View {
             }
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 3) {
-                Text(amountLine)
-                    .font(.system(size: 15, weight: .semibold))
-                    .lineLimit(1).minimumScaleFactor(0.7)
+                if !amountLine.isEmpty {
+                    Text(amountLine)
+                        .font(.system(size: 15, weight: .semibold))
+                        .lineLimit(1).minimumScaleFactor(0.7)
+                }
                 if isBuy, txn.amount > 0 {
                     buyValueLine(txn)
                 } else if txn.transactionType == .remove, txn.amount > 0, !isTRY {

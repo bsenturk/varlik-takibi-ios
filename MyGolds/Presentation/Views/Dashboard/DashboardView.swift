@@ -363,7 +363,10 @@ struct DashboardView: View {
                 return DashboardRowItem(
                     id: asset.id.uuidString,
                     title: asset.name,
-                    subtitle: "\(Self.formatAmount(asset.amount)) \(asset.unit)",
+                    // Elle girilende miktar hep 1; tür adı daha çok şey söylüyor.
+                    subtitle: asset.type.isManual
+                        ? asset.type.displayName
+                        : "\(Self.formatAmount(asset.amount)) \(asset.unit)",
                     value: asset.totalValue,
                     changePercent: profitLossPercent(for: asset),
                     sparkline: spark,
