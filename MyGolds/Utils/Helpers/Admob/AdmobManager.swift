@@ -5,6 +5,7 @@
 //  Created by Burak Şentürk on 28.06.2025.
 //
 import GoogleMobileAds
+import UserMessagingPlatform
 import SwiftUI
 import UIKit
 
@@ -41,7 +42,7 @@ class AdMobManager: ObservableObject {
     @Published var adError = false
     @Published var isAppOpenAdShowing = false
     
-    /// GADMobileAds.start() tamamlandı mı — SDK hazır olmadan reklam isteği atılmamalı.
+    /// MobileAds.start() tamamlandı mı — SDK hazır olmadan reklam isteği atılmamalı.
     private(set) var initializationComplete = false
     
     private init() {
@@ -50,12 +51,46 @@ class AdMobManager: ObservableObject {
     
     // MARK: - Initialization
     
+    /// UMP onayı SDK başlamadan alınmalı: AEA/İngiltere'de onay yoksa AdMob
+    /// yalnızca sınırlı reklam veriyor, mediation ağları (AppLovin) hiç teklif
+    /// vermiyor. Türkiye'de form hiç çıkmaz (`notRequired`).
     private func initializeAdMob() {
         guard !initializationComplete else { return }
-        
+
         Logger.log("🔧 AdMob: Initializing...")
-        
-        GADMobileAds.sharedInstance().start { [weak self] status in
+
+        let consent = UMPConsentInformation.sharedInstance
+        consent.requestConsentInfoUpdate(with: nil) { [weak self] error in
+            // Güncelleme hatasında `canRequestAds` false kalıyor ve SDK hiç
+            // başlamıyordu — AdMob'da GDPR mesajı yayınlanmamışsa herkes için.
+            // Hata = UMP öncesi davranış (Google AEA'da sınırlı reklam verir).
+            if let error {
+                Logger.log("🔧 UMP: Consent update failed - \(error.localizedDescription)")
+                self?.startSDKIfAllowed(ignoringConsent: true)
+                return
+            }
+            // ponytail: pencere henüz yoksa form bu açılışta atlanır, bir sonrakinde çıkar.
+            guard let top = InterstitialAdManager.topPresentedController() else {
+                self?.startSDKIfAllowed()
+                return
+            }
+            UMPConsentForm.loadAndPresentIfRequired(from: top) { [weak self] error in
+                if let error { Logger.log("🔧 UMP: Consent form failed - \(error.localizedDescription)") }
+                self?.startSDKIfAllowed()
+            }
+        }
+        // Önceki oturumda onay alınmışsa ağ yanıtını beklemeden başla.
+        startSDKIfAllowed()
+    }
+
+    private var startRequested = false
+
+    private func startSDKIfAllowed(ignoringConsent: Bool = false) {
+        guard ignoringConsent || UMPConsentInformation.sharedInstance.canRequestAds,
+              !startRequested else { return }
+        startRequested = true
+
+        MobileAds.shared.start { [weak self] status in
             DispatchQueue.main.async {
                 self?.initializationComplete = true
                 Logger.log("🔧 AdMob: Initialization completed")
@@ -69,6 +104,21 @@ class AdMobManager: ObservableObject {
         }
     }
     
+    // MARK: - Privacy options (UMP)
+
+    /// AEA/İngiltere kullanıcısı onayını sonradan değiştirebilmeli (Google politikası).
+    var privacyOptionsRequired: Bool {
+        UMPConsentInformation.sharedInstance.privacyOptionsRequirementStatus == .required
+    }
+
+    func presentPrivacyOptions() {
+        guard let top = InterstitialAdManager.topPresentedController() else { return }
+        UMPConsentForm.presentPrivacyOptionsForm(from: top) { [weak self] error in
+            if let error { Logger.log("🔧 UMP: Privacy options failed - \(error.localizedDescription)") }
+            self?.startSDKIfAllowed()
+        }
+    }
+
     // MARK: - Banner Management
     
     func hideBanner() {
@@ -127,10 +177,10 @@ extension EnvironmentValues {
 
 // MARK: - Interstitial Ad Manager
 
-class InterstitialAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate {
+class InterstitialAdManager: NSObject, ObservableObject, FullScreenContentDelegate {
     static let shared = InterstitialAdManager()
 
-    private var interstitialAd: GADInterstitialAd?
+    private var interstitialAd: InterstitialAd?
     /// Sabit 30 sn'lik yeniden deneme, dolum olmayan bir oturumda sonsuza kadar
     /// dönüyordu; app-open tarafındaki ile aynı geri çekilme uygulanıyor.
     private var consecutiveLoadFailures = 0
@@ -203,7 +253,7 @@ class InterstitialAdManager: NSObject, ObservableObject, GADFullScreenContentDel
         isLoadingAd = true
         Logger.log("📱 Interstitial: Loading ad...")
 
-        let request = GADRequest()
+        let request = Request()
 
         // Use test ID in debug, production ID in release (prevents accidental
         // clicks on our own live ads during development → AdMob policy violation).
@@ -215,7 +265,7 @@ class InterstitialAdManager: NSObject, ObservableObject, GADFullScreenContentDel
         Logger.log("📱 Interstitial: Using production ad unit ID")
         #endif
 
-        GADInterstitialAd.load(withAdUnitID: adID, request: request) { [weak self] ad, error in
+        InterstitialAd.load(with: adID, request: request) { [weak self] ad, error in
             guard let self = self else { return }
 
             DispatchQueue.main.async {
@@ -303,10 +353,10 @@ class InterstitialAdManager: NSObject, ObservableObject, GADFullScreenContentDel
         Logger.log("📱 Interstitial: Showing ad from topmost controller")
         // Side effects (isAdShowing, banner hide, timing) happen in
         // `adWillPresentFullScreenContent` — only once the ad actually presents.
-        interstitialAd?.present(fromRootViewController: top)
+        interstitialAd?.present(from: top)
     }
 
-    private static func topPresentedController() -> UIViewController? {
+    static func topPresentedController() -> UIViewController? {
         guard let root = UIApplication.shared.connectedScenes
             .compactMap({ $0 as? UIWindowScene }).first?
             .windows.first(where: { $0.isKeyWindow })?
@@ -331,17 +381,17 @@ class InterstitialAdManager: NSObject, ObservableObject, GADFullScreenContentDel
         loadAd()
     }
 
-    // MARK: - GADFullScreenContentDelegate
+    // MARK: - FullScreenContentDelegate
 
-    func adDidRecordImpression(_ ad: GADFullScreenPresentingAd) {
+    func adDidRecordImpression(_ ad: FullScreenPresentingAd) {
         Logger.log("📱 Interstitial: Did record impression")
     }
 
-    func adDidRecordClick(_ ad: GADFullScreenPresentingAd) {
+    func adDidRecordClick(_ ad: FullScreenPresentingAd) {
         Logger.log("📱 Interstitial: Did record click")
     }
 
-    func ad(_ ad: GADFullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
+    func ad(_ ad: FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
         Logger.log("❌ Interstitial: Failed to present - \(error.localizedDescription)")
         FirebaseAnalyticsHelper.shared.logInterstitialAdPresentFailed(error: error.localizedDescription)
 
@@ -359,7 +409,7 @@ class InterstitialAdManager: NSObject, ObservableObject, GADFullScreenContentDel
         }
     }
 
-    func adWillPresentFullScreenContent(_ ad: GADFullScreenPresentingAd) {
+    func adWillPresentFullScreenContent(_ ad: FullScreenPresentingAd) {
         Logger.log("📱 Interstitial: Will present")
         FirebaseAnalyticsHelper.shared.logInterstitialAdWillPresent()
 
@@ -372,7 +422,7 @@ class InterstitialAdManager: NSObject, ObservableObject, GADFullScreenContentDel
         }
     }
 
-    func adDidDismissFullScreenContent(_ ad: GADFullScreenPresentingAd) {
+    func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
         Logger.log("📱 Interstitial: Did dismiss")
         FirebaseAnalyticsHelper.shared.logInterstitialAdDismissed()
 

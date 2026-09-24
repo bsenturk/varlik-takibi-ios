@@ -301,6 +301,16 @@ struct SettingsView: View {
 
             divider
 
+            if AdMobManager.shared.privacyOptionsRequired {
+                Button(action: { AdMobManager.shared.presentPrivacyOptions() }) {
+                    settingsRow(icon: "hand.raised.fill", color: Color(hex: "#8E8E93"),
+                                title: "Reklam Gizlilik Tercihleri", trailing: .chevron)
+                }
+                .buttonStyle(.plain)
+
+                divider
+            }
+
             Button(action: { openURL(LegalLinks.terms) }) {
                 settingsRow(icon: "doc.text.fill", color: Color(hex: "#8E8E93"),
                             title: "Kullanım Koşulları", trailing: .chevron)
