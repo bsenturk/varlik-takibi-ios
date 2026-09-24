@@ -323,16 +323,10 @@ struct PaywallView: View {
                     headline
                     featureList
                         .padding(.top, 28)
-                    planPicker
-                        .padding(.top, 28)
-                    selectionSummary
-                        .padding(.top, 12)
-                    ctaButton
-                        .padding(.top, 32)
                     trustRow
-                        .padding(.top, 16)
+                        .padding(.top, 20)
                     finePrint
-                        .padding(.top, 12)
+                        .padding(.top, 20)
                     legalLinks
                         .padding(.top, 16)
                 }
@@ -340,6 +334,9 @@ struct PaywallView: View {
                 .padding(.bottom, 24)
             }
             .scrollIndicators(.hidden)
+            // Planlar ve CTA altta sabit: eskiden CTA 16e'de ekranın en dibinde,
+            // SE'de hiç görünmüyordu — kaydırmadan satın alma yolu yoktu.
+            .safeAreaInset(edge: .bottom, spacing: 0) { purchaseBar }
 
             if purchases.purchaseInProgress {
                 Color.black.opacity(0.15).ignoresSafeArea()
@@ -456,10 +453,11 @@ struct PaywallView: View {
                         Text(feature.subtitle).font(.system(size: 14)).foregroundColor(.secondary)
                     }
                     Spacer(minLength: 8)
-                    // Kilit: bu özelliklerin şu an kapalı olduğunu tek bakışta anlatır.
-                    Image(systemName: "lock.open")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(ProStyle.accent.opacity(0.7))
+                    // Kazanılanı anlatır; eski `lock.open` "kapalı mı açık mı"
+                    // diye karışık okunuyordu. Ayarlar'daki Pro kartıyla aynı dil.
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(ProStyle.accent)
                 }
                 .padding(.vertical, 14)
             }
@@ -467,6 +465,21 @@ struct PaywallView: View {
     }
 
     // MARK: - Plans
+
+    private var purchaseBar: some View {
+        VStack(spacing: 16) {
+            planPicker
+            ctaButton
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 8)
+        .padding(.bottom, 8)
+        .background(
+            Color(.systemBackground)
+                .shadow(color: .black.opacity(0.06), radius: 12, y: -4)
+                .ignoresSafeArea(edges: .bottom)
+        )
+    }
 
     private var planPicker: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -533,51 +546,36 @@ struct PaywallView: View {
         .buttonStyle(.plain)
     }
 
-    /// Seçili planı ve gerçek maliyetini tek satırda özetler.
-    private var selectionSummary: some View {
-        Text(summaryText)
-            .font(.system(size: 13))
-            .foregroundColor(.secondary)
-            .frame(maxWidth: .infinity)
-            .multilineTextAlignment(.center)
-    }
-
-    private var summaryText: String {
-        let base = "\(selectedPlan.title) plan seçildi · \(selectedPlan.price)/\(selectedPlan.periodWord)"
-        guard let trial = selectedPlan.freeTrial else { return base }
-        return "\(base) · ilk \(trial) ücretsiz"
-    }
-
     // MARK: - CTA
 
     private var ctaButton: some View {
         // Offerings must be loaded before a purchase can start.
         let ready = selectedPlan.package != nil
         return Button(action: startPurchase) {
-            HStack(spacing: 8) {
-                Text(ctaTitle)
-                Image(systemName: "arrow.right")
-                    .font(.system(size: 15, weight: .bold))
-            }
-            .font(.system(size: 17, weight: .bold))
-            .foregroundColor(ProStyle.accent)
-            .frame(maxWidth: .infinity)
-            .frame(height: 56)
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(ProStyle.accent.opacity(0.10))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(ProStyle.accent, lineWidth: 1.5)
-            )
-            .opacity(ready ? 1 : 0.5)
+            // Dolu vurgu: eskiden açık zeminli çerçeveli butondu, ekranın en
+            // zayıf elemanı oydu; başlık ondan ağır duruyordu.
+            Text(ctaTitle)
+                .font(.system(size: 17, weight: .bold))
+                .foregroundColor(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .padding(.horizontal, 16)
+                .frame(maxWidth: .infinity)
+                .frame(height: 56)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(ProStyle.accent)
+                )
+                .opacity(ready ? 1 : 0.5)
         }
         .disabled(purchases.purchaseInProgress || !ready)
     }
 
     private var ctaTitle: String {
-        selectedPlan.freeTrial != nil ? "Ücretsiz Dene" : "Pro'ya Geç"
+        // Seçili plan ve fiyat butonun içinde; ayrı "… plan seçildi" satırı
+        // CTA'yı aşağı itiyordu.
+        if let trial = selectedPlan.freeTrial { return "\(trial) ücretsiz dene" }
+        return "Tüm özellikleri aç · \(selectedPlan.price)/\(selectedPlan.periodWord)"
     }
 
     /// CTA'nın hemen altındaki itiraz karşılama satırı.
