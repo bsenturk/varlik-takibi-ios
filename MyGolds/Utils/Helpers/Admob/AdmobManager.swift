@@ -55,6 +55,14 @@ class AdMobManager: ObservableObject {
     /// yalnızca sınırlı reklam veriyor. Türkiye'de form hiç çıkmaz (`notRequired`).
     private func initializeAdMob() {
         guard !initializationComplete else { return }
+        // Pro reklam görmüyor; AEA'daki Pro kullanıcıya hiç görmeyeceği reklamlar
+        // için onay formu çıkıyordu. SDK de başlamaz, reklam isteği atılmaz.
+        // ponytail: açılıştaki isPro'ya bakılır; abonelik oturum içinde biterse
+        // reklamlar bir sonraki açılışta başlar.
+        guard !UserDefaultsManager.shared.isPro else {
+            Logger.log("🔧 AdMob: Pro — SDK ve onay akışı atlandı")
+            return
+        }
 
         Logger.log("🔧 AdMob: Initializing...")
 
@@ -99,10 +107,37 @@ class AdMobManager: ObservableObject {
                 // için bu çağrı gösterimi `pendingShowTrigger`a yazıp yüklemeyi
                 // başlatır, yükleme bitince reklam bir kez gösterilir.
                 AppOpenAdManager.shared.showAdIfAvailable(trigger: .coldStart)
+                // Interstitial artık SDK'yı bekliyor; açılıştaki erken preload
+                // atlandıysa burada telafi edilir.
+                InterstitialAdManager.shared.preloadAd()
             }
         }
     }
-    
+
+    #if DEBUG
+    /// Türkiye'den AEA'daymış gibi onay formunu açar (Ayarlar → DEBUG).
+    /// Simülatör otomatik test cihazı; gerçek cihazda UMP'nin konsola yazdığı
+    /// hash'li cihaz ID'si `testDeviceIdentifiers`'a eklenmeli.
+    func debugPresentEEAConsent() {
+        let consent = UMPConsentInformation.sharedInstance
+        consent.reset()
+        let debug = UMPDebugSettings()
+        debug.geography = .EEA
+        let params = UMPRequestParameters()
+        params.debugSettings = debug
+        consent.requestConsentInfoUpdate(with: params) { error in
+            if let error {
+                Logger.log("🔧 UMP debug: update failed - \(error.localizedDescription)")
+                return
+            }
+            guard let top = InterstitialAdManager.topPresentedController() else { return }
+            UMPConsentForm.loadAndPresentIfRequired(from: top) { error in
+                if let error { Logger.log("🔧 UMP debug: form failed - \(error.localizedDescription)") }
+            }
+        }
+    }
+    #endif
+
     // MARK: - Privacy options (UMP)
 
     /// AEA/İngiltere kullanıcısı onayını sonradan değiştirebilmeli (Google politikası).
@@ -239,6 +274,13 @@ class InterstitialAdManager: NSObject, ObservableObject, FullScreenContentDelega
     // MARK: - Ad Loading
 
     func loadAd() {
+        // App-open ile aynı kural: SDK (ve onay) hazır olmadan istek yok. Pro'da
+        // SDK hiç başlamıyor; abonelik oturumda biterse onaysız istek atılmasın.
+        guard AdMobManager.shared.initializationComplete else {
+            Logger.log("📱 Interstitial: SDK not ready — deferring load")
+            return
+        }
+
         guard !isLoadingAd else {
             Logger.log("📱 Interstitial: Already loading")
             return

@@ -425,6 +425,10 @@ struct SettingsView: View {
             Button("Reset Onboarding") {
                 UserDefaultsManager.shared.setValue(value: false, key: .hasSeenOnboarding)
             }.buttonStyle(.bordered)
+            // Türkiye'de form hiç çıkmıyor; AEA'daymış gibi dener.
+            Button("🇪🇺 GDPR Formu (AB testi)") {
+                AdMobManager.shared.debugPresentEEAConsent()
+            }.buttonStyle(.bordered)
             // Screenshot çekerken Pro ekranlarını görmek için.
             Button(userDefaults.isPro ? "Pro: AÇIK ✅" : "Pro: KAPALI") {
                 PurchaseManager.debugForcePro.toggle()
