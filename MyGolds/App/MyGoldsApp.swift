@@ -79,31 +79,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
         configuration.delegateClass = SceneDelegate.self
         return configuration
     }
-}
 
-/// Yalnızca ana ekran kısayolunu karşılar — pencereyi SwiftUI kuruyor, burada
-/// ona dokunulmuyor.
-final class SceneDelegate: NSObject, UIWindowSceneDelegate {
-    /// Uygulama kapalıyken kısayola basıldığında.
-    func scene(
-        _ scene: UIScene,
-        willConnectTo session: UISceneSession,
-        options connectionOptions: UIScene.ConnectionOptions
-    ) {
-        if let shortcut = connectionOptions.shortcutItem {
-            OfferCode.handle(shortcut)
-        }
-    }
-
-    /// Uygulama arka plandayken kısayola basıldığında.
-    func windowScene(
-        _ windowScene: UIWindowScene,
-        performActionFor shortcutItem: UIApplicationShortcutItem,
-        completionHandler: @escaping (Bool) -> Void
-    ) {
-        completionHandler(OfferCode.handle(shortcutItem))
-    }
-
+    // Bu üç metot b8a199d'de yanlışlıkla SceneDelegate'in içine kaymıştı.
+    // UIKit ve Firebase onları yalnızca AppDelegate'te çağırıyor; orada ölü
+    // kaldıkları için yeni kurulumların FCM token'ı sunucuya hiç yazılmıyordu.
     // Firebase forwards the APNs token here automatically (method swizzling)
     // and issues/refreshes the FCM token, which we then push to Supabase so
     // a backend job can target this device.
@@ -131,6 +110,30 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
         Logger.log("📱 APNs registration FAILED: \(error)")
+    }
+}
+
+/// Yalnızca ana ekran kısayolunu karşılar — pencereyi SwiftUI kuruyor, burada
+/// ona dokunulmuyor.
+final class SceneDelegate: NSObject, UIWindowSceneDelegate {
+    /// Uygulama kapalıyken kısayola basıldığında.
+    func scene(
+        _ scene: UIScene,
+        willConnectTo session: UISceneSession,
+        options connectionOptions: UIScene.ConnectionOptions
+    ) {
+        if let shortcut = connectionOptions.shortcutItem {
+            OfferCode.handle(shortcut)
+        }
+    }
+
+    /// Uygulama arka plandayken kısayola basıldığında.
+    func windowScene(
+        _ windowScene: UIWindowScene,
+        performActionFor shortcutItem: UIApplicationShortcutItem,
+        completionHandler: @escaping (Bool) -> Void
+    ) {
+        completionHandler(OfferCode.handle(shortcutItem))
     }
 }
 
