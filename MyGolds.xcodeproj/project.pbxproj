@@ -90,7 +90,6 @@
 		D8581F252E0ED6DC00E48444 /* NotificationPermissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F242E0ED6DB00E48444 /* NotificationPermissionView.swift */; };
 		D8581F302E0EDB0000E48444 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F2F2E0EDAFC00E48444 /* SettingsView.swift */; };
 		D8581F322E0EDB1300E48444 /* SettingsItemView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F312E0EDB0F00E48444 /* SettingsItemView.swift */; };
-		D8581F342E0EDB3700E48444 /* RateAppView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F332E0EDB3300E48444 /* RateAppView.swift */; };
 		D8581F362E0EDB4C00E48444 /* FeedbackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F352E0EDB4900E48444 /* FeedbackView.swift */; };
 		D8581F382E0EDB6800E48444 /* ShareView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F372E0EDB6700E48444 /* ShareView.swift */; };
 		D8581F3E2E0EDBD600E48444 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8581F3D2E0EDBD100E48444 /* MainTabView.swift */; };
@@ -206,7 +205,6 @@
 		D8581F242E0ED6DB00E48444 /* NotificationPermissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationPermissionView.swift; sourceTree = "<group>"; };
 		D8581F2F2E0EDAFC00E48444 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		D8581F312E0EDB0F00E48444 /* SettingsItemView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsItemView.swift; sourceTree = "<group>"; };
-		D8581F332E0EDB3300E48444 /* RateAppView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RateAppView.swift; sourceTree = "<group>"; };
 		D8581F352E0EDB4900E48444 /* FeedbackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackView.swift; sourceTree = "<group>"; };
 		D8581F372E0EDB6700E48444 /* ShareView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareView.swift; sourceTree = "<group>"; };
 		D8581F3D2E0EDBD100E48444 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
@@ -535,7 +533,6 @@
 				D8581F8F2E133B6F00E48444 /* DarkModeSettingsView.swift */,
 				D8581F372E0EDB6700E48444 /* ShareView.swift */,
 				D8581F352E0EDB4900E48444 /* FeedbackView.swift */,
-				D8581F332E0EDB3300E48444 /* RateAppView.swift */,
 				D8581F312E0EDB0F00E48444 /* SettingsItemView.swift */,
 				D8581F2F2E0EDAFC00E48444 /* SettingsView.swift */,
 				9729B2A951EE89080AD8D9CA /* LegalLinks.swift */,
@@ -857,7 +854,6 @@
 				D8581F832E1004D000E48444 /* StringExtension.swift in Sources */,
 				D8581F8D2E1183B700E48444 /* ActivityViewController.swift in Sources */,
 				D8581F462E0EDCAB00E48444 /* AssetType.swift in Sources */,
-				D8581F342E0EDB3700E48444 /* RateAppView.swift in Sources */,
 				D8581F322E0EDB1300E48444 /* SettingsItemView.swift in Sources */,
 				D8581F622E0EEDAA00E48444 /* NotificationMessage.swift in Sources */,
 				D8581F852E11522A00E48444 /* AppOpenAdManager.swift in Sources */,

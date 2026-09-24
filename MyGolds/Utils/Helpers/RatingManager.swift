@@ -29,6 +29,7 @@ final class RatingManager {
         static let distinctOpenDays = "rating_distinct_open_days"   // [String] "yyyy-MM-dd"
         static let lastPromptVersion = "rating_last_prompt_version"
         static let lastPromptDate    = "rating_last_prompt_date"
+        static let nativePromptDates = "rating_native_prompt_dates" // [Date]
     }
 
     // MARK: - Engagement tracking
@@ -76,10 +77,36 @@ final class RatingManager {
             return
         }
 
-        SKStoreReviewController.requestReview(in: scene)
+        requestNativeReview(in: scene)
         ud.set(version, forKey: Key.lastPromptVersion)
         ud.set(Date(), forKey: Key.lastPromptDate)
         Logger.log("⭐️ Rating: requested review (version \(version), days \(distinctDays), assets \(assetCount))")
+    }
+
+    /// Ayarlar'daki "Uygulamayı Puanla". iOS sistem penceresini yılda en fazla 3
+    /// kez gösterir ve gösterip göstermediğini uygulamaya bildirmez (pencere
+    /// süreç dışı çizilir). Bu yüzden kendi isteklerimizi sayıyoruz: kota
+    /// dolduysa doğrudan App Store'daki yorum sayfasını açıyoruz ki buton boşa
+    /// basılmasın.
+    // ponytail: sayaç tahmini — kullanıcı zaten puan verdiyse ya da iOS
+    // Ayarlar'da istekleri kapattıysa ilk 3 basış sessiz kalabilir.
+    func userRequestedReview() {
+        let yearAgo = Date().addingTimeInterval(-365 * 86_400)
+        let recent = (ud.array(forKey: Key.nativePromptDates) as? [Date] ?? []).filter { $0 > yearAgo }
+        if recent.count < 3,
+           let scene = UIApplication.shared.connectedScenes
+               .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene {
+            requestNativeReview(in: scene)
+        } else if let url = URL(string: "https://apps.apple.com/app/id6479618311?action=write-review") {
+            UIApplication.shared.open(url)
+        }
+    }
+
+    private func requestNativeReview(in scene: UIWindowScene) {
+        SKStoreReviewController.requestReview(in: scene)
+        let yearAgo = Date().addingTimeInterval(-365 * 86_400)
+        let dates = (ud.array(forKey: Key.nativePromptDates) as? [Date] ?? []).filter { $0 > yearAgo }
+        ud.set(dates + [Date()], forKey: Key.nativePromptDates)
     }
 
     // MARK: - Helpers

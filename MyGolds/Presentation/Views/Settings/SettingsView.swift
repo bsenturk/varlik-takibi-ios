@@ -15,7 +15,6 @@ struct SettingsView: View {
     #if DEBUG
     @State private var marketsAllUp = RatesViewModel.demoAllUp
     #endif
-    @State private var showingRateApp = false
     @State private var showingFeedback = false
     @State private var showingDarkModeSettings = false
     @State private var showingCurrencyPicker = false
@@ -67,13 +66,7 @@ struct SettingsView: View {
             }
             .scrollIndicators(.hidden)
         }
-        .sheet(isPresented: $showingRateApp) {
-            RateAppView()
-                .presentationDetents([.height(460)])
-                .presentationDragIndicator(.visible)
-                .presentationCornerRadius(28)
-        }
-        .sheet(isPresented: $showingFeedback) { FeedbackView() }
+        .fullScreenCover(isPresented: $showingFeedback) { FeedbackView() }
         .fullScreenCover(isPresented: $showingDarkModeSettings) { DarkModeSettingsView() }
         .fullScreenCover(isPresented: $showingCurrencyPicker) { CurrencySelectionView() }
         .fullScreenCover(item: $paywallContext) { context in
@@ -292,7 +285,7 @@ struct SettingsView: View {
 
             divider
 
-            Button(action: { showingRateApp = true }) {
+            Button(action: { RatingManager.shared.userRequestedReview() }) {
                 settingsRow(icon: "star.fill", color: Color(hex: "#FF9F0A"),
                             title: "Uygulamayı Puanla", trailing: .chevron)
             }
