@@ -44,13 +44,27 @@ final class MarketDataService: MarketDataServiceProtocol {
 
     private let table = "assets_prices"
 
+    /// PostgREST tek yanıtta en fazla `max-rows` (Supabase: 1000) satır veriyor.
+    /// Tablo 1046 satıra çıkınca sırasız sorgunun kuyruğu sessizce düşüyordu:
+    /// ABD ETF'lerinin tamamı, 13 ABD ve 6 BIST hissesi hiç gelmiyordu. Sayfalı
+    /// okunuyor; (symbol, currency) tekil anahtar, sıra sayfalar arasında kararlı.
+    private static let pageSize = 1000  // ponytail: sunucunun max-rows'undan büyük olmamalı
+
     func fetchLivePrices() async throws -> [AssetPrice] {
+        var all: [AssetPrice] = []
         do {
-            return try await client
-                .from(table)
-                .select()
-                .execute()
-                .value
+            while true {
+                let page: [AssetPrice] = try await client
+                    .from(table)
+                    .select()
+                    .order("symbol")
+                    .order("currency")
+                    .range(from: all.count, to: all.count + Self.pageSize - 1)
+                    .execute()
+                    .value
+                all += page
+                if page.count < Self.pageSize { return all }
+            }
         } catch {
             throw AppError.map(error)
         }
