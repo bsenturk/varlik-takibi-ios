@@ -52,8 +52,7 @@ class AdMobManager: ObservableObject {
     // MARK: - Initialization
     
     /// UMP onayı SDK başlamadan alınmalı: AEA/İngiltere'de onay yoksa AdMob
-    /// yalnızca sınırlı reklam veriyor, mediation ağları (AppLovin) hiç teklif
-    /// vermiyor. Türkiye'de form hiç çıkmaz (`notRequired`).
+    /// yalnızca sınırlı reklam veriyor. Türkiye'de form hiç çıkmaz (`notRequired`).
     private func initializeAdMob() {
         guard !initializationComplete else { return }
 

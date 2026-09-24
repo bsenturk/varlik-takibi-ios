@@ -42,7 +42,6 @@
 		9B0F504A2B7FFCB400A03018 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9B0F50492B7FFCB400A03018 /* Preview Assets.xcassets */; };
 		9B4772432BA8F3FA00B13CCC /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 9B4772422BA8F3FA00B13CCC /* GoogleService-Info.plist */; };
 		9B6F05CF2EA7FD110097ED33 /* AssetTransactionHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B6F05CE2EA7FD040097ED33 /* AssetTransactionHistory.swift */; };
-		A1B2C3D40000000000000A01 /* AppLovinAdapterTarget in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D40000000000000A02 /* AppLovinAdapterTarget */; };
 		9B81D6C92BA4DCB400C8E9D2 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = 9B81D6C82BA4DCB400C8E9D2 /* GoogleMobileAds */; };
 		9B83C0242B87E3E70028CF6E /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 9B83C0232B87E3E70028CF6E /* FirebaseAnalytics */; };
 		9B83C0262B87E3E70028CF6E /* FirebaseAnalyticsOnDeviceConversion in Frameworks */ = {isa = PBXBuildFile; productRef = 9B83C0252B87E3E70028CF6E /* FirebaseAnalyticsOnDeviceConversion */; };
@@ -257,7 +256,6 @@
 			files = (
 				D8B22AAF2E0DF74F0058B883 /* SDWebImageSwiftUI in Frameworks */,
 				9B81D6C92BA4DCB400C8E9D2 /* GoogleMobileAds in Frameworks */,
-				A1B2C3D40000000000000A01 /* AppLovinAdapterTarget in Frameworks */,
 				9B83C0422B87E3E70028CF6E /* FirebaseFunctions in Frameworks */,
 				9B83C0382B87E3E70028CF6E /* FirebaseDatabaseSwift in Frameworks */,
 				9B83C0482B87E3E70028CF6E /* FirebaseInAppMessagingSwift-Beta in Frameworks */,
@@ -718,7 +716,6 @@
 				9B83C0552B87E3E70028CF6E /* FirebaseStorage */,
 				9B83C0572B87E3E70028CF6E /* FirebaseStorageCombine-Community */,
 				9B81D6C82BA4DCB400C8E9D2 /* GoogleMobileAds */,
-				A1B2C3D40000000000000A02 /* AppLovinAdapterTarget */,
 				D8B22AAE2E0DF74F0058B883 /* SDWebImageSwiftUI */,
 				C1961964D2580EE33B8B1AE3 /* Supabase */,
 				F9CEB7A7386B60B483DDD43D /* RevenueCat */,
@@ -772,7 +769,6 @@
 			packageReferences = (
 				9B83C0222B87E3E70028CF6E /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 				9B81D6C72BA4DCB400C8E9D2 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
-				A1B2C3D40000000000000A03 /* XCRemoteSwiftPackageReference "googleads-mobile-ios-mediation-applovin" */,
 				D8B22AAA2E0DF6640058B883 /* XCRemoteSwiftPackageReference "SDWebImageSwiftUI" */,
 				F362FCD570315F4DDA5C2B34 /* XCRemoteSwiftPackageReference "supabase-swift" */,
 				BCDFB19454BB76379B2312C0 /* XCRemoteSwiftPackageReference "purchases-ios" */,
@@ -1250,14 +1246,6 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		A1B2C3D40000000000000A03 /* XCRemoteSwiftPackageReference "googleads-mobile-ios-mediation-applovin" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/googleads/googleads-mobile-ios-mediation-applovin.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 13.6.400;
-			};
-		};
 		9B81D6C72BA4DCB400C8E9D2 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/googleads/swift-package-manager-google-mobile-ads.git";
@@ -1301,11 +1289,6 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		A1B2C3D40000000000000A02 /* AppLovinAdapterTarget */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A1B2C3D40000000000000A03 /* XCRemoteSwiftPackageReference "googleads-mobile-ios-mediation-applovin" */;
-			productName = AppLovinAdapterTarget;
-		};
 		9B81D6C82BA4DCB400C8E9D2 /* GoogleMobileAds */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 9B81D6C72BA4DCB400C8E9D2 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
