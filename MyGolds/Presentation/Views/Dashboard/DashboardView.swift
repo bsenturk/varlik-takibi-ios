@@ -221,9 +221,8 @@ struct DashboardView: View {
     private func handleChipTap(_ portfolio: Portfolio) {
         // Kilitli portföy seçilemez; veri duruyor, erişim Pro'ya bağlı.
         guard !lockedPortfolioIDs.contains(portfolio.id) else {
-            // Haptic her dokunuşta; paywall frekans tavanına tabi.
             UINotificationFeedbackGenerator().notificationOccurred(.warning)
-            if FeatureGatePaywall.shouldShow() { paywallContext = .portfolioLimit }
+            paywallContext = .locked
             return
         }
         if portfolio.id == selectedPortfolio?.id, !portfolio.isGeneral {
@@ -283,10 +282,9 @@ struct DashboardView: View {
                 Group {
                     if item.isLocked {
                         Button {
-                            // Niyet sinyali her zaman loglanır; paywall tavana tabi.
                             FirebaseAnalyticsHelper.shared.logPremiumCategoryLocked(category: item.title)
                             UINotificationFeedbackGenerator().notificationOccurred(.warning)
-                            if FeatureGatePaywall.shouldShow() { paywallContext = .fund }
+                            paywallContext = .locked
                         } label: {
                             DashboardRowView(item: item, valuesMasked: valuesMasked)
                         }

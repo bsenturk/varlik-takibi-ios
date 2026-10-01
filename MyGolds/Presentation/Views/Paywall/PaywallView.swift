@@ -137,6 +137,8 @@ enum ProPlan: String, CaseIterable, Identifiable {
 /// feature-gate prompt leads with the benefit the user was just reaching for.
 enum PaywallContext: Identifiable {
     case general, onboarding, fund, portfolioLimit, ads, widget
+    /// Pro bitince kilitlenen portföy/fona dokunuldu (bkz. `ProLock`).
+    case locked
     /// Ayarlardaki "Pro'ya geç" banner'ı.
     case settings
     /// Üyelik sayfasındaki "Pro'ya Geç" butonu.
@@ -155,6 +157,7 @@ enum PaywallContext: Identifiable {
         case .widget:         return "widget"
         case .settings:       return "settings"
         case .membership:     return "membership"
+        case .locked:         return "locked_content"
         }
     }
 
@@ -164,6 +167,7 @@ enum PaywallContext: Identifiable {
         case .portfolioLimit: return "Her hedefe\nayrı portföy."
         case .ads:            return "Reklamlar olmadan\ndaha rahat."
         case .widget:         return "Portföyün\nana ekranında."
+        case .locked:         return "Bu içerik\nPro ile açılır."
         case .onboarding, .general, .settings, .membership: return "Portföyünün\ntamamını gör."
         }
     }
@@ -178,6 +182,8 @@ enum PaywallContext: Identifiable {
             return "Reklamlar Pro ile kapanıyor — diğer üç özellikle birlikte."
         case .widget:
             return "Ana ekran widget'ı Pro ile açılıyor — diğer üç özellikle birlikte."
+        case .locked:
+            return "Pro üyeliğin bittiği için Pro'yken eklediğin portföy ve fonlar kilitlendi. Verilerin silinmedi — Pro'ya dönünce hepsi olduğu gibi açılır."
         case .onboarding, .general, .settings, .membership:
             return "Dört özellik şu an kilitli. Pro ile dördü birden açılıyor."
         }
@@ -234,48 +240,6 @@ enum AdPaywallGate {
         suite.set(Date().addingTimeInterval(-8 * 24 * 60 * 60), forKey: lastShownKey)
         let third = (7...9).map { _ in shouldShowPaywall(suite) }
         assert(third == [false, false, true], "Tavan dolduktan sonra açılmalı: \(third)")
-    }
-    #endif
-}
-
-/// Kilitli satır/çip dokunuşlarıyla açılan paywall'ın frekans tavanı.
-///
-/// `AdPaywallGate` reklam tarafını dizginliyordu ama özellik kapılarının hiç
-/// kapısı yoktu: üç kilitli fonu olan kullanıcı listede gezinirken art arda üç
-/// tam ekran paywall görüyordu. Tavan yalnızca *gezinme* tetikleyicilerine
-/// uygulanır — "+ portföy ekle" gibi açık niyet beyanlarında paywall her zaman
-/// açılır, yoksa kullanıcı sessiz bir çıkmazda kalır.
-///
-/// ponytail: bellekte tek tarih, UserDefaults yok. Soğuk açılış sayacı sıfırlar
-/// ve bu doğru davranış — yeni oturum, yeni bir gösterim hakkı.
-@MainActor
-enum FeatureGatePaywall {
-    private static let cooldown: TimeInterval = 15 * 60
-    private static var lastShown: Date?
-
-    /// `true` dönerse paywall açılır. `false` ise çağıran taraf yalnızca
-    /// haptic ile "burası kilitli" geri bildirimini verir.
-    static func shouldShow() -> Bool {
-        if let last = lastShown, Date().timeIntervalSince(last) < cooldown { return false }
-        lastShown = Date()
-        return true
-    }
-
-    #if DEBUG
-    /// Tek çalıştırılabilir kontrol: ilk dokunuş açar, soğuma içindekiler yutulur,
-    /// soğuma dolunca yeniden açılır. Test target'ı yok, bu yüzden launch'ta
-    /// assert olarak koşuyor (AdPaywallGate.selfCheck ile aynı kalıp).
-    static func selfCheck() {
-        let saved = lastShown
-        defer { lastShown = saved }
-
-        lastShown = nil
-        assert(shouldShow(), "İlk dokunuş paywall'ı açmalı")
-        assert(!shouldShow(), "Soğuma içindeki dokunuş yutulmalı")
-        assert(!shouldShow(), "Soğuma içindeki üçüncü dokunuş da yutulmalı")
-
-        lastShown = Date().addingTimeInterval(-cooldown - 1)
-        assert(shouldShow(), "Soğuma dolduktan sonra yeniden açılmalı")
     }
     #endif
 }
