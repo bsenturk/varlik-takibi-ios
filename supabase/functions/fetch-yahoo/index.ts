@@ -163,8 +163,20 @@ Deno.serve(async (req: Request) => {
   if (preflight) return preflight;
 
   try {
+    const supabase = createServiceClient();
     const bistCodes = await fetchBistCodes();
-    const bistSymbols = bistCodes.map((c) => `${c}.IS`);
+    // bigpara düşünce (2026-09 itibarıyla 403) yedek listede olmayan ama
+    // daha önce kaydedilmiş hisseler donuyordu (SARAE 36→51 gösterimi).
+    // DB'deki her BIST sembolü her çalışmada yenilenir.
+    // ponytail: yeni halka arzlar yine canlı listeye bağlı; bigpara kalıcı
+    // ölürse başka bir liste kaynağı gerekir.
+    const { data: known, error: knownError } = await supabase
+      .from("assets_prices").select("symbol").eq("asset_type", "bist");
+    if (knownError) throw new Error("DB read error: " + knownError.message);
+    const bistSymbols = [...new Set([
+      ...bistCodes.map((c) => `${c}.IS`),
+      ...(known ?? []).map((r: { symbol: string }) => r.symbol),
+    ])];
     const etfSymbols = Object.keys(US_ETFS);
     const etfSet = new Set(etfSymbols);
     const allSymbols = [...bistSymbols, ...US_SYMBOLS, ...etfSymbols];
@@ -195,7 +207,6 @@ Deno.serve(async (req: Request) => {
       });
     });
 
-    const supabase = createServiceClient();
     // ETF'ler ayrı bir upsert'te: yeni bir asset_type'ın reddi (ör. sütunda
     // bir kısıt) tüm toplu yazmayı düşürüp BIST/ABD fiyatlarını dondurmasın.
     const saved = await upsertPrices(supabase, rows.filter((r) => r.asset_type !== "us_etf"));
