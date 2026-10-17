@@ -5,6 +5,8 @@
 //  Created by Burak Şentürk on 27.06.2025.
 //
 
+import Foundation
+
 /// High-level grouping used by the "Genel" aggregate portfolio.
 enum AssetCategory: String, CaseIterable, Identifiable {
     case gold = "Altın"
@@ -13,7 +15,10 @@ enum AssetCategory: String, CaseIterable, Identifiable {
     case crypto = "Kripto"
     case bistStock = "Borsa İstanbul"
     case usStock = "ABD Borsası"
+    case usEtf = "ABD ETF"
     case fund = "Fon"
+    case physical = "Fiziksel Varlık"
+    case bes = "BES"
 
     var id: String { rawValue }
 
@@ -29,7 +34,10 @@ enum AssetCategory: String, CaseIterable, Identifiable {
         case .crypto: return "bitcoinsign.circle.fill"
         case .bistStock: return "chart.line.uptrend.xyaxis"
         case .usStock: return "building.columns.fill"
+        case .usEtf: return "square.stack.3d.up.fill"
         case .fund: return "chart.pie.fill"
+        case .physical: return "house.fill"
+        case .bes: return "beach.umbrella.fill"
         }
     }
 
@@ -42,7 +50,10 @@ enum AssetCategory: String, CaseIterable, Identifiable {
         case .crypto: return "#F7931A"
         case .bistStock: return "#E63946"
         case .usStock: return "#2A9D8F"
+        case .usEtf: return "#0A84FF"
         case .fund: return "#5856D6"
+        case .physical: return "#A2845E"
+        case .bes: return "#FF2D55"
         }
     }
 
@@ -50,14 +61,31 @@ enum AssetCategory: String, CaseIterable, Identifiable {
     /// (crypto / stocks / funds) instead of from fixed `AssetType` cases.
     var isDynamic: Bool {
         switch self {
-        case .crypto, .bistStock, .usStock, .fund: return true
-        case .gold, .silver, .currency: return false
+        case .crypto, .bistStock, .usStock, .usEtf, .fund: return true
+        case .gold, .silver, .currency, .physical, .bes: return false
+        }
+    }
+
+    /// Değeri piyasadan gelmeyen, kullanıcının TL olarak elle girdiği kategoriler.
+    var isManual: Bool { self == .physical || self == .bes }
+
+    /// "Nerede tutuluyor?" alanının önerileri. Serbest metin de girilebiliyor;
+    /// bunlar yalnızca en sık cevaplar.
+    var locationSuggestions: [String] {
+        switch self {
+        case .gold, .silver: return ["Ev", "Banka", "Kiralık Kasa"]
+        case .currency: return ["Banka", "Nakit / Ev", "Kiralık Kasa"]
+        case .crypto: return ["Kripto Borsası", "Soğuk Cüzdan", "Sıcak Cüzdan"]
+        case .bistStock, .usStock, .usEtf, .fund: return ["Banka", "Aracı Kurum"]
+        // Evin/arsanın kendisi zaten bir yer, BES'in yeri de şirketi; bu soru
+        // orada anlamsız.
+        case .physical, .bes: return []
         }
     }
 
     /// Categories that require an active "Varlık Pro" subscription to add from.
     var isPremium: Bool {
-        self == .fund
+        self == .fund || self == .usEtf
     }
 
     /// The backend `asset_type` value in `assets_prices` for dynamic categories.
@@ -66,8 +94,9 @@ enum AssetCategory: String, CaseIterable, Identifiable {
         case .crypto: return "crypto"
         case .bistStock: return "bist"
         case .usStock: return "us_stock"
+        case .usEtf: return "us_etf"
         case .fund: return "fund"
-        case .gold, .silver, .currency: return nil
+        case .gold, .silver, .currency, .physical, .bes: return nil
         }
     }
 
@@ -77,8 +106,9 @@ enum AssetCategory: String, CaseIterable, Identifiable {
         case .crypto: return .crypto
         case .bistStock: return .bistStock
         case .usStock: return .usStock
+        case .usEtf: return .usEtf
         case .fund: return .fund
-        case .gold, .silver, .currency: return nil
+        case .gold, .silver, .currency, .physical, .bes: return nil
         }
     }
 
@@ -126,12 +156,20 @@ enum AssetType: String, CaseIterable, Codable {
     case crypto = "crypto"
     case bistStock = "bist_stock"
     case usStock = "us_stock"
+    case usEtf = "us_etf"
     case fund = "fund"
+    // Elle değer girilen varlıklar. Her biri kendine özel bir `Asset.symbol`
+    // taşır (bkz. `manualSymbol`), piyasadan fiyat çekilmez.
+    case house = "house"
+    case car = "car"
+    case land = "land"
+    case shop = "shop"
+    case bes = "bes"
 
     /// Whether this is a generic, symbol-driven market type (crypto / stocks / funds).
     var isDynamic: Bool {
         switch self {
-        case .crypto, .bistStock, .usStock, .fund: return true
+        case .crypto, .bistStock, .usStock, .usEtf, .fund: return true
         default: return false
         }
     }
@@ -166,8 +204,48 @@ enum AssetType: String, CaseIterable, Codable {
 
     private var fxInfo: FXInfo? { Self.fx[self] }
 
+    /// Elle değer girilen türler de saf veri — döviz tablosuyla aynı desen.
+    struct ManualInfo {
+        let name: String
+        let icon: String        // SF Symbol
+        let tintHex: String
+        let category: AssetCategory
+        /// İsim alanının örnek metni.
+        let nameExample: String
+        /// Maliyet alanının etiketi — BES'te "alış" yok, yatırılan tutar var.
+        let costLabel: String
+    }
+
+    static let manual: [AssetType: ManualInfo] = [
+        .house: ManualInfo(name: "Ev",     icon: "house.fill",      tintHex: "#A2845E", category: .physical,
+                           nameExample: "Kadıköy'deki daire", costLabel: "Alış Fiyatı"),
+        .car:   ManualInfo(name: "Araba",  icon: "car.fill",        tintHex: "#5E5CE6", category: .physical,
+                           nameExample: "Aile arabası", costLabel: "Alış Fiyatı"),
+        .land:  ManualInfo(name: "Arsa",   icon: "map.fill",        tintHex: "#34C759", category: .physical,
+                           nameExample: "Çeşme'deki arsa", costLabel: "Alış Fiyatı"),
+        .shop:  ManualInfo(name: "Dükkan", icon: "storefront.fill", tintHex: "#FF9F0A", category: .physical,
+                           nameExample: "Çarşıdaki dükkan", costLabel: "Alış Fiyatı"),
+        .bes:   ManualInfo(name: "BES",    icon: "beach.umbrella.fill", tintHex: "#FF2D55", category: .bes,
+                           nameExample: "Şirketin ya da planın adı", costLabel: "Yatırdığın Tutar")
+    ]
+
+    private var manualInfo: ManualInfo? { Self.manual[self] }
+
+    /// Değeri kullanıcının elle girdiği tür mü (piyasa fiyatı yok).
+    var isManual: Bool { manualInfo != nil }
+
+    /// Elle girilen türün isim örneği ve maliyet etiketi (bkz. `ManualInfo`).
+    var manualNameExample: String { manualInfo?.nameExample ?? "" }
+    var manualCostLabel: String { manualInfo?.costLabel ?? "Alış Fiyatı" }
+
+    /// Elle girilen her varlığın kendine özel sembolü. Tür başına tek sembol
+    /// olsaydı iki ev tek varlıkta birleşir, fiyat geçmişleri (sembole göre
+    /// tutuluyor) birbirine karışırdı.
+    static func manualSymbol(for id: UUID) -> String { "MANUAL-\(id.uuidString)" }
+
     var displayName: String {
         if let fx = fxInfo { return fx.name }
+        if let m = manualInfo { return m.name }
         switch self {
         case .gold: return "Gram Altın"
         case .goldQuarter: return "Çeyrek Altın"
@@ -187,6 +265,7 @@ enum AssetType: String, CaseIterable, Codable {
         case .crypto: return "Kripto Para"
         case .bistStock: return "BIST Hisse"
         case .usStock: return "ABD Hisse"
+        case .usEtf: return "ABD ETF"
         case .fund: return "Yatırım Fonu"
         default: return rawValue   // fxInfo yukarıda döndü
         }
@@ -194,12 +273,13 @@ enum AssetType: String, CaseIterable, Codable {
 
     var unit: String {
         if let fx = fxInfo { return fx.symbol }
+        if manualInfo != nil { return "adet" }
         switch self {
         case .gold, .silver: return "gram"
         case .goldQuarter, .goldHalf, .goldFull, .goldRepublic, .goldAta, .goldResat, .goldHamit, .goldFive, .goldGremse, .goldFourteen, .goldEighteen, .goldTwoAndHalf, .goldTwentyTwoBracelet:
             return "adet"
         case .crypto: return "adet"
-        case .bistStock, .usStock: return "lot"
+        case .bistStock, .usStock, .usEtf: return "lot"
         case .fund: return "adet"
         default: return "adet"
         }
@@ -207,6 +287,7 @@ enum AssetType: String, CaseIterable, Codable {
 
     var iconName: String {
         if let fx = fxInfo { return fx.flag }
+        if let m = manualInfo { return m.icon }
         switch self {
         case .gold, .goldQuarter, .goldHalf, .goldFull, .goldRepublic, .goldAta, .goldResat, .goldHamit, .goldFive, .goldGremse, .goldFourteen, .goldEighteen, .goldTwoAndHalf, .goldTwentyTwoBracelet:
             return "circle.hexagongrid.circle"
@@ -215,6 +296,7 @@ enum AssetType: String, CaseIterable, Codable {
         case .crypto: return "bitcoinsign.circle"
         case .bistStock: return "chart.line.uptrend.xyaxis"
         case .usStock: return "building.columns"
+        case .usEtf: return "square.stack.3d.up"
         case .fund: return "chart.pie"
         default: return "banknote"   // fxInfo yukarıda döndü
         }
@@ -223,11 +305,13 @@ enum AssetType: String, CaseIterable, Codable {
     /// Filled SF Symbol used on the redesigned asset/category tile.
     var tileIcon: String {
         if let fx = fxInfo { return fx.flag }
+        if let m = manualInfo { return m.icon }
         switch self {
         case .silver: return "circle.grid.2x2.fill"
         case .crypto: return "bitcoinsign.circle.fill"
         case .bistStock: return "chart.line.uptrend.xyaxis"
         case .usStock: return "building.columns.fill"
+        case .usEtf: return "square.stack.3d.up.fill"
         case .fund: return "chart.pie.fill"
         default: return "circle.hexagongrid.fill"
         }
@@ -236,11 +320,13 @@ enum AssetType: String, CaseIterable, Codable {
     /// Accent color (hex) for the asset tile glyph.
     var tileTintHex: String {
         if let fx = fxInfo { return fx.tintHex }
+        if let m = manualInfo { return m.tintHex }
         switch self {
         case .silver: return "#9E9E9E"
         case .crypto: return "#F7931A"
         case .bistStock: return "#E63946"
         case .usStock: return "#2A9D8F"
+        case .usEtf: return "#0A84FF"
         case .fund: return "#5856D6"
         default: return "#FFB300"
         }
@@ -250,6 +336,8 @@ enum AssetType: String, CaseIterable, Codable {
     /// NOTE: these must match the symbols the backend Edge Functions write.
     var supabaseSymbol: String {
         if let fx = fxInfo { return fx.symbol }
+        // Elle girilenlerin sabit sembolü yok — `Asset.symbol` varlığa özel.
+        if manualInfo != nil { return "" }
         switch self {
         case .gold: return "GRAM_ALTIN"
         case .goldQuarter: return "CEYREK_ALTIN"
@@ -267,7 +355,7 @@ enum AssetType: String, CaseIterable, Codable {
         case .goldTwentyTwoBracelet: return "22_AYAR_BILEZIK"
         case .silver: return "GRAM_GUMUS"
         // Dynamic types have no fixed symbol — `Asset.symbol` is the lookup key.
-        case .crypto, .bistStock, .usStock, .fund: return ""
+        case .crypto, .bistStock, .usStock, .usEtf, .fund: return ""
         default: return rawValue.uppercased()
         }
     }
@@ -275,6 +363,7 @@ enum AssetType: String, CaseIterable, Codable {
     /// The high-level category this type rolls up into for the "Genel" portfolio.
     var category: AssetCategory {
         if fxInfo != nil { return .currency }
+        if let m = manualInfo { return m.category }
         switch self {
         case .silver:
             return .silver
@@ -284,6 +373,8 @@ enum AssetType: String, CaseIterable, Codable {
             return .bistStock
         case .usStock:
             return .usStock
+        case .usEtf:
+            return .usEtf
         case .fund:
             return .fund
         default:

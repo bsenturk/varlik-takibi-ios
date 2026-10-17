@@ -14,6 +14,11 @@ final class AssetTransactionHistory {
     var assetType: AssetType
     /// Canonical key matching `Asset.symbol`. Defaulted for migration.
     var symbol: String = ""
+    /// Kaydın ait olduğu varlık. Sembol tek başına yetmiyor: aynı enstrüman iki
+    /// portföyde tutulabiliyor ve geçmişleri karışıyordu. nil = v3.2.0 öncesi
+    /// kayıt; açılışta sembolü tek bir varlıkta olanlar o varlığa atanıyor,
+    /// belirsiz kalanlar sembolle eşleşmeye devam ediyor.
+    var assetID: UUID?
     var date: Date
     var transactionType: TransactionType
     var amount: Double
@@ -59,6 +64,7 @@ final class AssetTransactionHistory {
     init(
         assetType: AssetType,
         symbol: String? = nil,
+        assetID: UUID? = nil,
         date: Date,
         transactionType: TransactionType,
         amount: Double,
@@ -68,6 +74,7 @@ final class AssetTransactionHistory {
         self.id = UUID()
         self.assetType = assetType
         self.symbol = symbol ?? assetType.supabaseSymbol
+        self.assetID = assetID
         self.date = Calendar.current.startOfDay(for: date)
         self.transactionType = transactionType
         self.amount = amount
@@ -77,6 +84,12 @@ final class AssetTransactionHistory {
         self.createdAt = Date()
     }
     
+    /// Bu kayıt verilen varlığa mı ait. Eski (assetID'siz) kayıtlar sembolle eşleşir.
+    func belongs(to asset: Asset) -> Bool {
+        if let assetID { return assetID == asset.id }
+        return symbol == asset.symbol
+    }
+
     // Formatting helpers
     var formattedDate: String {
         let formatter = DateFormatter()

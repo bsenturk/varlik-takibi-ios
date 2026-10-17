@@ -72,8 +72,8 @@ final class FirebaseAnalyticsHelper {
     /// Firebase'in standart `ad_impression` olayı olarak yazılır; GA4 bunu
     /// gelir olarak sayar, yani AdMob↔GA4 hesap bağlantısı olmadan da reklam
     /// geliri raporlarda görünür.
-    func logAdRevenue(_ value: GADAdValue, format: String, adUnitID: String, source: String?) {
-        // GADAdValue mikro cinsindendir (1.000.000 mikro = 1 birim).
+    func logAdRevenue(_ value: AdValue, format: String, adUnitID: String, source: String?) {
+        // AdValue mikro cinsindendir (1.000.000 mikro = 1 birim).
         let amount = value.value.dividing(by: 1_000_000).doubleValue
         var params: [String: Any] = [
             AnalyticsParameterAdPlatform: "AdMob",

@@ -221,9 +221,8 @@ struct DashboardView: View {
     private func handleChipTap(_ portfolio: Portfolio) {
         // Kilitli portföy seçilemez; veri duruyor, erişim Pro'ya bağlı.
         guard !lockedPortfolioIDs.contains(portfolio.id) else {
-            // Haptic her dokunuşta; paywall frekans tavanına tabi.
             UINotificationFeedbackGenerator().notificationOccurred(.warning)
-            if FeatureGatePaywall.shouldShow() { paywallContext = .portfolioLimit }
+            paywallContext = .locked
             return
         }
         if portfolio.id == selectedPortfolio?.id, !portfolio.isGeneral {
@@ -244,8 +243,25 @@ struct DashboardView: View {
             portfolioColor: selectedPortfolio?.color ?? .blue,
             metrics: PortfolioMetrics.compute(for: valuedAssets, context: modelContext),
             portfolioID: selectedPortfolio?.id,
+            targetValue: displayedTarget,
+            // "Genel" hedefi kendi tutmaz, türetir — orada düzenleme yok.
+            onSetTarget: isGeneralSelected
+                ? nil
+                : { if let p = selectedPortfolio { editorMode = .edit(p) } },
             selectedCurrency: $selectedCurrency
         )
+    }
+
+    /// Kartta gösterilecek hedef. "Genel" kendi hedefini tutmaz: diğer
+    /// portföylerin hedeflerinin toplamını gösterir. Kilitli portföyler
+    /// toplamdan düşer — varlıkları da toplam bakiyeye girmiyor, yoksa oran
+    /// olduğundan düşük çıkardı (bkz. `valuedAssets`).
+    private var displayedTarget: Double {
+        guard isGeneralSelected else { return selectedPortfolio?.targetValue ?? 0 }
+        let locked = lockedPortfolioIDs
+        return portfolios
+            .filter { !$0.isGeneral && !locked.contains($0.id) }
+            .reduce(0) { $0 + $1.targetValue }
     }
 
     // MARK: - Assets
@@ -266,10 +282,9 @@ struct DashboardView: View {
                 Group {
                     if item.isLocked {
                         Button {
-                            // Niyet sinyali her zaman loglanır; paywall tavana tabi.
                             FirebaseAnalyticsHelper.shared.logPremiumCategoryLocked(category: item.title)
                             UINotificationFeedbackGenerator().notificationOccurred(.warning)
-                            if FeatureGatePaywall.shouldShow() { paywallContext = .fund }
+                            paywallContext = .locked
                         } label: {
                             DashboardRowView(item: item, valuesMasked: valuesMasked)
                         }
@@ -346,7 +361,11 @@ struct DashboardView: View {
                 return DashboardRowItem(
                     id: asset.id.uuidString,
                     title: asset.name,
-                    subtitle: "\(Self.formatAmount(asset.amount)) \(asset.unit)",
+                    // Elle girilende miktar hep 1; tür adı daha çok şey söylüyor.
+                    // İsim verilmemişse başlık zaten tür adı ("BES / BES" olmasın).
+                    subtitle: asset.type.isManual
+                        ? (asset.name == asset.type.displayName ? "Elle girilen" : asset.type.displayName)
+                        : "\(Self.formatAmount(asset.amount)) \(asset.unit)",
                     value: asset.totalValue,
                     changePercent: profitLossPercent(for: asset),
                     sparkline: spark,
@@ -354,7 +373,8 @@ struct DashboardView: View {
                     tintHex: asset.type.tileTintHex,
                     logoURL: marketDataManager.logoURL(forSymbol: asset.symbol),
                     assetID: asset.id,
-                    isLocked: ProLock.isLocked(asset, lockedIDs: lockedIDs)
+                    isLocked: ProLock.isLocked(asset, lockedIDs: lockedIDs),
+                    location: asset.location.isEmpty ? nil : asset.location
                 )
             }
     }
@@ -439,8 +459,8 @@ struct DashboardView: View {
         case .create:
             PortfolioEditorView(
                 portfolio: nil,
-                onSave: { name, color in
-                    let new = PortfolioStore.create(name: name, color: color, context: modelContext)
+                onSave: { name, color, target in
+                    let new = PortfolioStore.create(name: name, color: color, target: target, context: modelContext)
                     selectedPortfolioIDString = new.id.uuidString
                     editorMode = nil
                 },
@@ -450,8 +470,8 @@ struct DashboardView: View {
         case .edit(let portfolio):
             PortfolioEditorView(
                 portfolio: portfolio,
-                onSave: { name, color in
-                    PortfolioStore.update(portfolio, name: name, color: color, context: modelContext)
+                onSave: { name, color, target in
+                    PortfolioStore.update(portfolio, name: name, color: color, target: target, context: modelContext)
                     editorMode = nil
                 },
                 onDelete: {
@@ -531,7 +551,7 @@ struct DashboardView: View {
         withAnimation(.easeInOut(duration: 0.3)) {
             PortfolioManager.shared.removePurchasePrice(for: asset.id)
             AssetHistoryManager.shared.deleteAllHistory(for: asset.symbol, context: modelContext)
-            AssetHistoryManager.shared.deleteAllTransactionHistory(for: asset.symbol, context: modelContext)
+            AssetHistoryManager.shared.deleteAllTransactionHistory(for: asset, context: modelContext)
             modelContext.delete(asset)
             try? modelContext.save()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {

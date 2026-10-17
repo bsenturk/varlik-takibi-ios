@@ -15,7 +15,6 @@ struct SettingsView: View {
     #if DEBUG
     @State private var marketsAllUp = RatesViewModel.demoAllUp
     #endif
-    @State private var showingRateApp = false
     @State private var showingFeedback = false
     @State private var showingDarkModeSettings = false
     @State private var showingCurrencyPicker = false
@@ -67,13 +66,7 @@ struct SettingsView: View {
             }
             .scrollIndicators(.hidden)
         }
-        .sheet(isPresented: $showingRateApp) {
-            RateAppView()
-                .presentationDetents([.height(460)])
-                .presentationDragIndicator(.visible)
-                .presentationCornerRadius(28)
-        }
-        .sheet(isPresented: $showingFeedback) { FeedbackView() }
+        .fullScreenCover(isPresented: $showingFeedback) { FeedbackView() }
         .fullScreenCover(isPresented: $showingDarkModeSettings) { DarkModeSettingsView() }
         .fullScreenCover(isPresented: $showingCurrencyPicker) { CurrencySelectionView() }
         .fullScreenCover(item: $paywallContext) { context in
@@ -152,13 +145,28 @@ struct SettingsView: View {
                         .foregroundColor(.secondary.opacity(0.6))
                 }
 
-                // Dört rozet dar ekranda sığsın diye aralık 14 → 10.
-                HStack(spacing: 10) {
-                    proPerk("Reklamsız")
-                    proPerk("TEFAS")
-                    proPerk("Sınırsız portföy")
-                    proPerk("Widget")
-                    Spacer(minLength: 0)
+                // Rozetler `fixedSize` — doğal genişliklerinde çiziliyorlar. Tek
+                // satıra sığmadıklarında banner'ı ekrandan taşırıyor, ScrollView
+                // içeriği de ekrandan geniş olunca sayfa yana kayıyordu. Sığmazsa
+                // 2×2'ye düşüyor.
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 10) {
+                        proPerk("Reklamsız")
+                        proPerk("Fon & ETF")
+                        proPerk("Sınırsız portföy")
+                        proPerk("Widget")
+                        Spacer(minLength: 0)
+                    }
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 10) {
+                            proPerk("Reklamsız")
+                            proPerk("Fon & ETF")
+                        }
+                        HStack(spacing: 10) {
+                            proPerk("Sınırsız portföy")
+                            proPerk("Widget")
+                        }
+                    }
                 }
             }
             .padding(16)
@@ -182,8 +190,6 @@ struct SettingsView: View {
             Text(title)
                 .font(.system(size: 13))
                 .foregroundColor(.primary.opacity(0.75))
-                .lineLimit(1)
-                .minimumScaleFactor(0.85)
                 .lineLimit(1)
         }
         .fixedSize()
@@ -279,7 +285,7 @@ struct SettingsView: View {
 
             divider
 
-            Button(action: { showingRateApp = true }) {
+            Button(action: { RatingManager.shared.userRequestedReview() }) {
                 settingsRow(icon: "star.fill", color: Color(hex: "#FF9F0A"),
                             title: "Uygulamayı Puanla", trailing: .chevron)
             }
@@ -294,6 +300,16 @@ struct SettingsView: View {
             .buttonStyle(.plain)
 
             divider
+
+            if AdMobManager.shared.privacyOptionsRequired {
+                Button(action: { AdMobManager.shared.presentPrivacyOptions() }) {
+                    settingsRow(icon: "hand.raised.fill", color: Color(hex: "#8E8E93"),
+                                title: "Reklam Gizlilik Tercihleri", trailing: .chevron)
+                }
+                .buttonStyle(.plain)
+
+                divider
+            }
 
             Button(action: { openURL(LegalLinks.terms) }) {
                 settingsRow(icon: "doc.text.fill", color: Color(hex: "#8E8E93"),
@@ -408,6 +424,10 @@ struct SettingsView: View {
             }
             Button("Reset Onboarding") {
                 UserDefaultsManager.shared.setValue(value: false, key: .hasSeenOnboarding)
+            }.buttonStyle(.bordered)
+            // Türkiye'de form hiç çıkmıyor; AEA'daymış gibi dener.
+            Button("🇪🇺 GDPR Formu (AB testi)") {
+                AdMobManager.shared.debugPresentEEAConsent()
             }.buttonStyle(.bordered)
             // Screenshot çekerken Pro ekranlarını görmek için.
             Button(userDefaults.isPro ? "Pro: AÇIK ✅" : "Pro: KAPALI") {

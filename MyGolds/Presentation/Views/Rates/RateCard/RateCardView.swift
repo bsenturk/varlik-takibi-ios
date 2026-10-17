@@ -15,16 +15,22 @@ struct RateCardView: View {
     let sellRate: String
     let change: String
     let isChangeRatePositive: Bool
+    var logoURL: URL? = nil
+    var tintHex: String = "#8E8E93"
 
     private var changeColor: Color { isChangeRatePositive ? Color(hex: "#34C759") : Color(hex: "#FF3B30") }
 
     var body: some View {
         HStack(spacing: 12) {
-            // Icon tile
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(iconColor.opacity(0.16))
-                .frame(width: 52, height: 52)
-                .overlay(AssetGlyph(icon: iconName, color: iconColor, size: 24))
+            // Icon tile — kripto/hissede enstrümanın kendi logosu.
+            if let logoURL {
+                AssetIconTile(icon: iconName, tintHex: tintHex, size: 52, logoURL: logoURL)
+            } else {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(iconColor.opacity(0.16))
+                    .frame(width: 52, height: 52)
+                    .overlay(AssetGlyph(icon: iconName, color: iconColor, size: 24))
+            }
 
             // Name + buy/sell
             VStack(alignment: .leading, spacing: 6) {

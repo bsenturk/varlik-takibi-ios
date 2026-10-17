@@ -15,8 +15,8 @@ struct SmartAdBannerView: View {
     @StateObject private var adManager = AdMobManager.shared
 
     /// Banner tab bar'ın üstünde tam genişlikte durduğu için ölçü ekran genişliği.
-    private var adSize: GADAdSize {
-        GADCurrentOrientationAnchoredAdaptiveBannerAdSizeWithWidth(UIScreen.main.bounds.width)
+    private var adSize: AdSize {
+        currentOrientationAnchoredAdaptiveBanner(width: UIScreen.main.bounds.width)
     }
 
     var body: some View {

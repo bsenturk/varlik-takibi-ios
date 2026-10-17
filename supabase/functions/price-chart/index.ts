@@ -116,7 +116,8 @@ Deno.serve(async (req: Request) => {
         currency = "TRY";
         break;
       case "us_stock":
-        // ABD hisseleri kendi para biriminde (USD) çiziliyor: TRY'ye çevirmek
+      case "us_etf":
+        // ABD hisseleri/ETF'leri kendi para biriminde (USD) çiziliyor: TRY'ye çevirmek
         // için tarihsel USDTRY serisi de gerekirdi, grafiğe değmez.
         points = await yahooSeries(symbol, range);
         currency = "USD";

@@ -18,10 +18,10 @@ struct AdMobBannerView: UIViewRepresentable {
         #endif
     }
     /// Anchored adaptive boyut; SmartAdBannerView ölçtüğü genişliğe göre verir.
-    let adSize: GADAdSize
+    let adSize: AdSize
     
-    func makeUIView(context: Context) -> GADBannerView {
-        let bannerView = GADBannerView(adSize: adSize)
+    func makeUIView(context: Context) -> BannerView {
+        let bannerView = BannerView(adSize: adSize)
         bannerView.adUnitID = adUnitID
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
            let rootViewController = windowScene.windows.first?.rootViewController {
@@ -38,13 +38,13 @@ struct AdMobBannerView: UIViewRepresentable {
             )
         }
 
-        let request = GADRequest()
+        let request = Request()
         bannerView.load(request)
         
         return bannerView
     }
     
-    func updateUIView(_ uiView: GADBannerView, context: Context) {
+    func updateUIView(_ uiView: BannerView, context: Context) {
         // Banner güncellemeleri burada yapılabilir
     }
     
@@ -52,39 +52,39 @@ struct AdMobBannerView: UIViewRepresentable {
         Coordinator(self)
     }
     
-    class Coordinator: NSObject, GADBannerViewDelegate {
+    class Coordinator: NSObject, BannerViewDelegate {
         let parent: AdMobBannerView
         
         init(_ parent: AdMobBannerView) {
             self.parent = parent
         }
         
-        func bannerViewDidReceiveAd(_ bannerView: GADBannerView) {
+        func bannerViewDidReceiveAd(_ bannerView: BannerView) {
             FirebaseAnalyticsHelper.shared.logBannerAdLoaded()
         }
         
-        func bannerView(_ bannerView: GADBannerView, didFailToReceiveAdWithError error: Error) {
+        func bannerView(_ bannerView: BannerView, didFailToReceiveAdWithError error: Error) {
             FirebaseAnalyticsHelper.shared.logBannerAdLoadFailed(error: error.localizedDescription)
             parent.adManager.adError = true
         }
         
-        func bannerViewDidRecordImpression(_ bannerView: GADBannerView) {
+        func bannerViewDidRecordImpression(_ bannerView: BannerView) {
             FirebaseAnalyticsHelper.shared.logBannerAdImpression()
         }
         
-        func bannerViewWillPresentScreen(_ bannerView: GADBannerView) {
+        func bannerViewWillPresentScreen(_ bannerView: BannerView) {
             FirebaseAnalyticsHelper.shared.logBannerAdWillPresentScreen()
         }
         
-        func bannerViewWillDismissScreen(_ bannerView: GADBannerView) {
+        func bannerViewWillDismissScreen(_ bannerView: BannerView) {
             FirebaseAnalyticsHelper.shared.logBannerAdWillDismissScreen()
         }
         
-        func bannerViewDidDismissScreen(_ bannerView: GADBannerView) {
+        func bannerViewDidDismissScreen(_ bannerView: BannerView) {
             FirebaseAnalyticsHelper.shared.logBannerAdDidDismissScreen()
         }
         
-        func bannerViewDidRecordClick(_ bannerView: GADBannerView) {
+        func bannerViewDidRecordClick(_ bannerView: BannerView) {
             FirebaseAnalyticsHelper.shared.logBannerAdClicked()
         }
     }

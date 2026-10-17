@@ -15,4 +15,8 @@ struct RateDisplayModel: Identifiable {
     let sellRate: String
     let change: String
     let isChangeRatePositive: Bool
+    /// Enstrümanın logosu (kripto/hisse). nil ise kategori ikonu.
+    var logoURL: URL? = nil
+    /// Logo yüklenemezse düşülen ikonun zemin tonu.
+    var tintHex: String = "#8E8E93"
 }

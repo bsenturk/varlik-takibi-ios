@@ -137,6 +137,8 @@ enum ProPlan: String, CaseIterable, Identifiable {
 /// feature-gate prompt leads with the benefit the user was just reaching for.
 enum PaywallContext: Identifiable {
     case general, onboarding, fund, portfolioLimit, ads, widget
+    /// Pro bitince kilitlenen portföy/fona dokunuldu (bkz. `ProLock`).
+    case locked
     /// Ayarlardaki "Pro'ya geç" banner'ı.
     case settings
     /// Üyelik sayfasındaki "Pro'ya Geç" butonu.
@@ -155,15 +157,17 @@ enum PaywallContext: Identifiable {
         case .widget:         return "widget"
         case .settings:       return "settings"
         case .membership:     return "membership"
+        case .locked:         return "locked_content"
         }
     }
 
     var headline: String {
         switch self {
-        case .fund:           return "Fonlarını da\nburada takip et."
+        case .fund:           return "Fon ve ETF'lerini de\nburada takip et."
         case .portfolioLimit: return "Her hedefe\nayrı portföy."
         case .ads:            return "Reklamlar olmadan\ndaha rahat."
         case .widget:         return "Portföyün\nana ekranında."
+        case .locked:         return "Bu içerik\nPro ile açılır."
         case .onboarding, .general, .settings, .membership: return "Portföyünün\ntamamını gör."
         }
     }
@@ -171,13 +175,15 @@ enum PaywallContext: Identifiable {
     var subtitle: String {
         switch self {
         case .fund:
-            return "TEFAS fonları Pro ile açılıyor — diğer üç özellikle birlikte."
+            return "TEFAS fonları ve ABD ETF'leri Pro ile açılıyor — diğer üç özellikle birlikte."
         case .portfolioLimit:
             return "Portföy sınırı Pro ile kalkıyor — diğer üç özellikle birlikte."
         case .ads:
             return "Reklamlar Pro ile kapanıyor — diğer üç özellikle birlikte."
         case .widget:
             return "Ana ekran widget'ı Pro ile açılıyor — diğer üç özellikle birlikte."
+        case .locked:
+            return "Pro üyeliğin bittiği için Pro'yken eklediğin portföy ve fonlar kilitlendi. Verilerin silinmedi — Pro'ya dönünce hepsi olduğu gibi açılır."
         case .onboarding, .general, .settings, .membership:
             return "Dört özellik şu an kilitli. Pro ile dördü birden açılıyor."
         }
@@ -238,48 +244,6 @@ enum AdPaywallGate {
     #endif
 }
 
-/// Kilitli satır/çip dokunuşlarıyla açılan paywall'ın frekans tavanı.
-///
-/// `AdPaywallGate` reklam tarafını dizginliyordu ama özellik kapılarının hiç
-/// kapısı yoktu: üç kilitli fonu olan kullanıcı listede gezinirken art arda üç
-/// tam ekran paywall görüyordu. Tavan yalnızca *gezinme* tetikleyicilerine
-/// uygulanır — "+ portföy ekle" gibi açık niyet beyanlarında paywall her zaman
-/// açılır, yoksa kullanıcı sessiz bir çıkmazda kalır.
-///
-/// ponytail: bellekte tek tarih, UserDefaults yok. Soğuk açılış sayacı sıfırlar
-/// ve bu doğru davranış — yeni oturum, yeni bir gösterim hakkı.
-@MainActor
-enum FeatureGatePaywall {
-    private static let cooldown: TimeInterval = 15 * 60
-    private static var lastShown: Date?
-
-    /// `true` dönerse paywall açılır. `false` ise çağıran taraf yalnızca
-    /// haptic ile "burası kilitli" geri bildirimini verir.
-    static func shouldShow() -> Bool {
-        if let last = lastShown, Date().timeIntervalSince(last) < cooldown { return false }
-        lastShown = Date()
-        return true
-    }
-
-    #if DEBUG
-    /// Tek çalıştırılabilir kontrol: ilk dokunuş açar, soğuma içindekiler yutulur,
-    /// soğuma dolunca yeniden açılır. Test target'ı yok, bu yüzden launch'ta
-    /// assert olarak koşuyor (AdPaywallGate.selfCheck ile aynı kalıp).
-    static func selfCheck() {
-        let saved = lastShown
-        defer { lastShown = saved }
-
-        lastShown = nil
-        assert(shouldShow(), "İlk dokunuş paywall'ı açmalı")
-        assert(!shouldShow(), "Soğuma içindeki dokunuş yutulmalı")
-        assert(!shouldShow(), "Soğuma içindeki üçüncü dokunuş da yutulmalı")
-
-        lastShown = Date().addingTimeInterval(-cooldown - 1)
-        assert(shouldShow(), "Soğuma dolduktan sonra yeniden açılmalı")
-    }
-    #endif
-}
-
 struct PaywallView: View {
     /// Called when the sheet should close (purchase completed or dismissed).
     var onClose: () -> Void
@@ -307,7 +271,7 @@ struct PaywallView: View {
 
     private let features: [(icon: String, title: String, subtitle: String)] = [
         ("hand.thumbsup.fill", "Reklamsız Deneyim", "Kesintisiz, temiz bir arayüz"),
-        ("chart.pie.fill", "Fon Ekleme", "TEFAS yatırım fonlarını takip et"),
+        ("chart.pie.fill", "Fon ve ETF", "TEFAS fonları ve ABD ETF'lerini takip et"),
         ("infinity", "Sınırsız Portföy", "İstediğin kadar portföy oluştur"),
         ("square.grid.2x2.fill", "Ana Ekran Widget'ı", "Bakiyeni ana ekranından takip et")
     ]
@@ -323,16 +287,10 @@ struct PaywallView: View {
                     headline
                     featureList
                         .padding(.top, 28)
-                    planPicker
-                        .padding(.top, 28)
-                    selectionSummary
-                        .padding(.top, 12)
-                    ctaButton
-                        .padding(.top, 32)
                     trustRow
-                        .padding(.top, 16)
+                        .padding(.top, 20)
                     finePrint
-                        .padding(.top, 12)
+                        .padding(.top, 20)
                     legalLinks
                         .padding(.top, 16)
                 }
@@ -340,6 +298,9 @@ struct PaywallView: View {
                 .padding(.bottom, 24)
             }
             .scrollIndicators(.hidden)
+            // Planlar ve CTA altta sabit: eskiden CTA 16e'de ekranın en dibinde,
+            // SE'de hiç görünmüyordu — kaydırmadan satın alma yolu yoktu.
+            .safeAreaInset(edge: .bottom, spacing: 0) { purchaseBar }
 
             if purchases.purchaseInProgress {
                 Color.black.opacity(0.15).ignoresSafeArea()
@@ -456,10 +417,11 @@ struct PaywallView: View {
                         Text(feature.subtitle).font(.system(size: 14)).foregroundColor(.secondary)
                     }
                     Spacer(minLength: 8)
-                    // Kilit: bu özelliklerin şu an kapalı olduğunu tek bakışta anlatır.
-                    Image(systemName: "lock.open")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(ProStyle.accent.opacity(0.7))
+                    // Kazanılanı anlatır; eski `lock.open` "kapalı mı açık mı"
+                    // diye karışık okunuyordu. Ayarlar'daki Pro kartıyla aynı dil.
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(ProStyle.accent)
                 }
                 .padding(.vertical, 14)
             }
@@ -467,6 +429,21 @@ struct PaywallView: View {
     }
 
     // MARK: - Plans
+
+    private var purchaseBar: some View {
+        VStack(spacing: 16) {
+            planPicker
+            ctaButton
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 8)
+        .padding(.bottom, 8)
+        .background(
+            Color(.systemBackground)
+                .shadow(color: .black.opacity(0.06), radius: 12, y: -4)
+                .ignoresSafeArea(edges: .bottom)
+        )
+    }
 
     private var planPicker: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -533,51 +510,36 @@ struct PaywallView: View {
         .buttonStyle(.plain)
     }
 
-    /// Seçili planı ve gerçek maliyetini tek satırda özetler.
-    private var selectionSummary: some View {
-        Text(summaryText)
-            .font(.system(size: 13))
-            .foregroundColor(.secondary)
-            .frame(maxWidth: .infinity)
-            .multilineTextAlignment(.center)
-    }
-
-    private var summaryText: String {
-        let base = "\(selectedPlan.title) plan seçildi · \(selectedPlan.price)/\(selectedPlan.periodWord)"
-        guard let trial = selectedPlan.freeTrial else { return base }
-        return "\(base) · ilk \(trial) ücretsiz"
-    }
-
     // MARK: - CTA
 
     private var ctaButton: some View {
         // Offerings must be loaded before a purchase can start.
         let ready = selectedPlan.package != nil
         return Button(action: startPurchase) {
-            HStack(spacing: 8) {
-                Text(ctaTitle)
-                Image(systemName: "arrow.right")
-                    .font(.system(size: 15, weight: .bold))
-            }
-            .font(.system(size: 17, weight: .bold))
-            .foregroundColor(ProStyle.accent)
-            .frame(maxWidth: .infinity)
-            .frame(height: 56)
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(ProStyle.accent.opacity(0.10))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(ProStyle.accent, lineWidth: 1.5)
-            )
-            .opacity(ready ? 1 : 0.5)
+            // Dolu vurgu: eskiden açık zeminli çerçeveli butondu, ekranın en
+            // zayıf elemanı oydu; başlık ondan ağır duruyordu.
+            Text(ctaTitle)
+                .font(.system(size: 17, weight: .bold))
+                .foregroundColor(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .padding(.horizontal, 16)
+                .frame(maxWidth: .infinity)
+                .frame(height: 56)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(ProStyle.accent)
+                )
+                .opacity(ready ? 1 : 0.5)
         }
         .disabled(purchases.purchaseInProgress || !ready)
     }
 
     private var ctaTitle: String {
-        selectedPlan.freeTrial != nil ? "Ücretsiz Dene" : "Pro'ya Geç"
+        // Seçili plan ve fiyat butonun içinde; ayrı "… plan seçildi" satırı
+        // CTA'yı aşağı itiyordu.
+        if let trial = selectedPlan.freeTrial { return "\(trial) ücretsiz dene" }
+        return "Tüm özellikleri aç · \(selectedPlan.price)/\(selectedPlan.periodWord)"
     }
 
     /// CTA'nın hemen altındaki itiraz karşılama satırı.

@@ -133,15 +133,22 @@ class RatesViewModel: ObservableObject {
     
     /// Maps live crypto / stock instruments (already TRY-priced) to display rows.
     func mapMarketRates(_ rate: [AssetsPrice], icon: String, hex: String) -> [RateDisplayModel] {
-        rate.map { price in
-            RateDisplayModel(
-                title: "\(price.name) (\(price.code ?? ""))",
+        let market = MarketDataManager.shared
+        return rate.map { price in
+            let code = price.code ?? ""
+            let shortCode = code.replacingOccurrences(of: ".IS", with: "")
+            return RateDisplayModel(
+                // Hisselerde ad zaten sembol: "THYAO (THYAO.IS)" / "AAPL (AAPL)"
+                // yazmayalım. Kriptoda "Bitcoin (BTC)".
+                title: price.name == shortCode || shortCode.isEmpty ? price.name : "\(price.name) (\(shortCode))",
                 iconName: icon,
                 iconColor: Color(hex: hex),
                 buyRate: price.buyPrice,
                 sellRate: price.sellPrice,
                 change: price.changePercent,
-                isChangeRatePositive: isRateChangePercentagePositive(from: price.changePercent)
+                isChangeRatePositive: isRateChangePercentagePositive(from: price.changePercent),
+                logoURL: market.logoURL(forSymbol: code),
+                tintHex: hex
             )
         }
     }

@@ -18,6 +18,10 @@ final class Portfolio {
     var sortOrder: Int = 0
     /// The special, non-deletable "Genel" portfolio that aggregates every asset by category.
     var isGeneral: Bool = false
+    /// Değer hedefi (TRY). 0 = hedef yok. "Genel"de kullanılmaz — oranın hedefi
+    /// alt portföylerin toplamından türetilir. Defaulted for SwiftData
+    /// lightweight migration.
+    var targetValue: Double = 0
     var createdAt: Date = Date()
 
     /// Assets that belong directly to this portfolio. `Genel` keeps this empty and

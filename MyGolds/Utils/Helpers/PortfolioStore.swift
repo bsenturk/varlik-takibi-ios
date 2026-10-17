@@ -78,7 +78,7 @@ enum PortfolioStore {
 
     @MainActor
     @discardableResult
-    static func create(name: String, color: PortfolioColor, context: ModelContext) -> Portfolio {
+    static func create(name: String, color: PortfolioColor, target: Double = 0, context: ModelContext) -> Portfolio {
         let maxOrder = allPortfolios(context: context).map(\.sortOrder).max() ?? 0
         let portfolio = Portfolio(
             name: name,
@@ -86,15 +86,20 @@ enum PortfolioStore {
             sortOrder: maxOrder + 1,
             isGeneral: false
         )
+        portfolio.targetValue = max(0, target)
         context.insert(portfolio)
         try? context.save()
         return portfolio
     }
 
     @MainActor
-    static func update(_ portfolio: Portfolio, name: String, color: PortfolioColor, context: ModelContext) {
+    static func update(_ portfolio: Portfolio, name: String, color: PortfolioColor, target: Double, context: ModelContext) {
+        // "Genel" editöre hiç girmiyor: adı/rengi sabit, hedefi de alt
+        // portföylerin toplamından türetiliyor (bkz. DashboardView.displayedTarget).
+        guard !portfolio.isGeneral else { return }
         portfolio.name = name
         portfolio.colorHex = color.rawValue
+        portfolio.targetValue = max(0, target)
         try? context.save()
     }
 
@@ -106,7 +111,7 @@ enum PortfolioStore {
         for asset in portfolio.assets ?? [] {
             PortfolioManager.shared.removePurchasePrice(for: asset.id)
             AssetHistoryManager.shared.deleteAllHistory(for: asset.symbol, context: context)
-            AssetHistoryManager.shared.deleteAllTransactionHistory(for: asset.symbol, context: context)
+            AssetHistoryManager.shared.deleteAllTransactionHistory(for: asset, context: context)
             context.delete(asset)
         }
         context.delete(portfolio)

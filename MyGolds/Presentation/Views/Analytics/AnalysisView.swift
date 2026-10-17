@@ -104,7 +104,7 @@ struct AnalysisView: View {
             portfolioManager.updatePortfolio(with: ProLock.unlocked(assets, portfolios: portfolios))
         }
         .fullScreenCover(isPresented: $showingPaywall) {
-            PaywallView(onClose: { showingPaywall = false }, context: .portfolioLimit)
+            PaywallView(onClose: { showingPaywall = false }, context: .locked)
         }
     }
 
@@ -128,10 +128,8 @@ struct AnalysisView: View {
                         isLocked: lockedPortfolioIDs.contains(portfolio.id),
                         onTap: {
                             guard !lockedPortfolioIDs.contains(portfolio.id) else {
-                                // Haptic her dokunuşta; paywall frekans tavanına
-                                // tabi (dashboard'daki kilitli çiple aynı kural).
                                 UINotificationFeedbackGenerator().notificationOccurred(.warning)
-                                if FeatureGatePaywall.shouldShow() { showingPaywall = true }
+                                showingPaywall = true
                                 return
                             }
                             withAnimation(.easeInOut(duration: 0.2)) {

@@ -27,6 +27,9 @@ struct DashboardRowItem: Identifiable {
     let assetID: UUID?
     /// Pro bitince erişimi kapanan satır: tutarı gizlenir, dokunulunca paywall açılır.
     var isLocked: Bool = false
+    /// Nerede tutulduğu. Alt başlığa eklenmiyor: sol sütun dar, "10 gram · Ba…"
+    /// diye kırpılıyordu — varsa ayrı küçük bir satır.
+    var location: String? = nil
 }
 
 // MARK: - Icon tile
@@ -118,6 +121,13 @@ struct DashboardRowView: View {
                     .font(.system(size: 13))
                     .foregroundColor(.secondary)
                     .lineLimit(1)
+                if let location = item.location {
+                    Label(location, systemImage: "mappin")
+                        .labelStyle(.titleAndIcon)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
             }
 
             Spacer(minLength: 8)
@@ -151,6 +161,8 @@ struct DashboardRowView: View {
                         .font(.system(size: 15, weight: .bold))
                         .foregroundColor(.primary)
                         .lineLimit(1)
+                        // "₺5.000.00…" gibi kırpılmasın; ev/arsa tutarları uzun.
+                        .minimumScaleFactor(0.7)
                     Text(changeText)
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(isPositive ? .green : .red)
@@ -183,6 +195,11 @@ struct BalanceCardView: View {
     let metrics: PortfolioMetrics
     /// Göz ikonunun hangi portföyü gizleyeceği. nil ise ikon gösterilmez (onboarding mock'ları).
     var portfolioID: UUID? = nil
+    /// Portföyün değer hedefi (TRY). 0 → çubuk yerine "Hedef belirle" kısayolu.
+    var targetValue: Double = 0
+    /// Hedef düzenleyiciyi açar. nil ise hedef salt okunur: "Genel"de hedef
+    /// alt portföylerden türetilir, onboarding mock'larında hiç yoktur.
+    var onSetTarget: (() -> Void)? = nil
     @Binding var selectedCurrency: Currency
     @StateObject private var portfolioManager = PortfolioManager.shared
     @AppStorage(UserDefaultsManager.maskedPortfoliosKey) private var maskedPortfolios = ""
@@ -240,6 +257,10 @@ struct BalanceCardView: View {
                         .foregroundColor(.white.opacity(0.8))
                 }
             }
+
+            // Düzenlenebiliyorsa her zaman (boşken "Hedef belirle" kısayolu),
+            // salt okunur hâlde yalnızca gerçekten bir hedef varsa.
+            if onSetTarget != nil || targetValue > 0 { targetSection }
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -259,6 +280,79 @@ struct BalanceCardView: View {
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .shadow(color: portfolioColor.color.opacity(0.35), radius: 18, x: 0, y: 10)
         .fullScreenCover(isPresented: $showingCurrencyPicker) { CurrencySelectionView() }
+    }
+
+    // MARK: - Hedef
+
+    private var targetProgress: Double {
+        guard targetValue > 0 else { return 0 }
+        return max(0, metrics.totalValue / targetValue)
+    }
+
+    @ViewBuilder
+    private var targetSection: some View {
+        if targetValue > 0 {
+            VStack(spacing: 7) {
+                HStack(spacing: 6) {
+                    Image(systemName: targetProgress >= 1 ? "checkmark.seal.fill" : "target")
+                        .font(.system(size: 11, weight: .bold))
+                    // "Genel"de etiket her hâlükârda "Toplam hedef" kalıyor:
+                    // oranın türetilmiş bir toplamdan geldiği kaybolmasın.
+                    Text(onSetTarget == nil
+                         ? "Toplam hedef"
+                         : (targetProgress >= 1 ? "Hedefe ulaşıldı" : "Hedef"))
+                        .font(.system(size: 13))
+                    Spacer(minLength: 4)
+                    Text("%\(Self.percentText(targetProgress))")
+                        .font(.system(size: 13, weight: .heavy))
+                    Text("·")
+                        .font(.system(size: 13))
+                        .foregroundColor(.white.opacity(0.6))
+                    Text(portfolioManager
+                            .convertToTargetCurrency(targetValue, targetCurrency: selectedCurrency)
+                            .formatAsCurrency(currency: selectedCurrency)
+                            .maskedIfNeeded(valuesMasked))
+                        .font(.system(size: 13, weight: .semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
+                .foregroundColor(.white.opacity(0.9))
+
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color.white.opacity(0.22))
+                        Capsule()
+                            .fill(Color.white)
+                            .frame(width: max(0, min(1, targetProgress)) * geo.size.width)
+                    }
+                }
+                .frame(height: 6)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { onSetTarget?() }
+            .allowsHitTesting(onSetTarget != nil)
+        } else {
+            Button { onSetTarget?() } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "target")
+                        .font(.system(size: 11, weight: .bold))
+                    Text("Hedef belirle")
+                        .font(.system(size: 13, weight: .semibold))
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Color.white.opacity(0.18))
+                .clipShape(Capsule())
+            }
+        }
+    }
+
+    /// %0,4 gibi küçük oranlar 0 görünmesin diye iki basamağa kadar iniyor.
+    private static func percentText(_ ratio: Double) -> String {
+        let pct = ratio * 100
+        let decimals = pct >= 10 ? 0 : (pct >= 1 ? 1 : 2)
+        return String(format: "%.\(decimals)f", pct).replacingOccurrences(of: ".", with: ",")
     }
 
     /// Göz ikonu: yalnızca bu portföyün tutarlarını gizler/gösterir (tercih kalıcı).
@@ -355,6 +449,116 @@ struct PortfolioChip: View {
             )
         } else {
             Color(.systemGray5)
+        }
+    }
+}
+
+// MARK: - Tutulduğu yer
+
+/// "Nerede tutuluyor?" — serbest metin + kategoriye göre öneri çipleri.
+/// Çipe dokunmak alanı doldurur, seçili çipe tekrar dokunmak temizler.
+/// Varlık ekleme ve düzenleme ekranları ortak kullanıyor.
+struct LocationPicker: View {
+    @Binding var location: String
+    let suggestions: [String]
+
+    /// Karşılaştırma ve kayıt aynı temizlenmiş biçimi kullanıyor.
+    static func normalized(_ raw: String) -> String {
+        String(raw.trimmingCharacters(in: .whitespacesAndNewlines).prefix(30))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 4) {
+                Text("Nerede tutuluyor?")
+                    .font(.system(size: 15, weight: .medium))
+                Text("(Opsiyonel)")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+            }
+
+            HStack(spacing: 8) {
+                Image(systemName: "mappin.and.ellipse")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.secondary)
+                TextField("Örn. \(suggestions.prefix(2).joined(separator: ", "))", text: $location)
+                    .font(.system(size: 16))
+                    .submitLabel(.done)
+                    .onChange(of: location) { _, new in
+                        if new.count > 30 { location = String(new.prefix(30)) }
+                    }
+                if !location.isEmpty {
+                    Button { location = "" } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(.secondary.opacity(0.6))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 13)
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(suggestions, id: \.self) { chip($0) }
+                }
+            }
+        }
+    }
+
+    private func chip(_ title: String) -> some View {
+        let selected = Self.normalized(location) == title
+        return Button {
+            location = selected ? "" : title
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        } label: {
+            Text(title)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(selected ? .white : .primary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(selected ? Color.accentColor : Color(.secondarySystemGroupedBackground))
+                .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Elle girilen varlığın ismi
+
+/// Ev/araba/BES gibi elle girilen varlıklara isim ("Kadıköy daire"): iki ev
+/// listede ikisi de "Ev" diye görünmesin. Boş bırakılırsa tür adı kullanılır.
+struct ManualNameField: View {
+    @Binding var name: String
+    /// Örnek metin — türe göre (`AssetType.manualNameExample`).
+    let example: String
+
+    static let maxLength = 40
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 4) {
+                Text("İsim")
+                    .font(.system(size: 15, weight: .medium))
+                Text("(Opsiyonel)")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+            }
+            TextField("Örn. \(example)", text: $name)
+                .font(.system(size: 16))
+                // Yer/özel isimleri ("Kadıköy") otomatik düzeltme bozuyor.
+                .autocorrectionDisabled()
+                .submitLabel(.done)
+                .onChange(of: name) { _, new in
+                    if new.count > Self.maxLength { name = String(new.prefix(Self.maxLength)) }
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 13)
+                .background(Color(.secondarySystemGroupedBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
     }
 }

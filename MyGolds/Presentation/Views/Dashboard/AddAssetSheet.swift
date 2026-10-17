@@ -67,6 +67,10 @@ struct AddAssetSheet: View {
     @State private var searchText = ""
     @State private var amount = ""
     @State private var purchasePrice = ""
+    /// Nerede tutulduğu. Kategori değişince sıfırlanır (öneriler kategoriye özel).
+    @State private var location = ""
+    /// Elle girilen varlıklara verilen isim ("Kadıköy daire"). Boşsa tür adı.
+    @State private var customName = ""
     @FocusState private var focusedField: InputField?
     @State private var selectedPortfolio: Portfolio?
     @State private var showAlert = false
@@ -128,6 +132,8 @@ struct AddAssetSheet: View {
         .onChange(of: step) { previous, current in
             guard previous.category != current.category else { return }
             searchText = ""
+            location = ""
+            customName = ""
         }
         .onAppear {
             selectedPortfolio = targetPortfolio ?? realPortfolios.first
@@ -160,8 +166,32 @@ struct AddAssetSheet: View {
             lastCategory = name
             markStep("type_list")
             FirebaseAnalyticsHelper.shared.logAddAssetCategorySelected(category: name, source: flowSource)
-            withAnimation(.easeInOut(duration: 0.2)) { step = .typeList(category) }
+            // Tek seçenekli kategoride (BES) tek satırlık bir liste göstermenin
+            // anlamı yok: doğrudan değer ekranına.
+            if let only = Self.singleType(of: category) {
+                selectInstrument(.legacy(only))
+            } else {
+                withAnimation(.easeInOut(duration: 0.2)) { step = .typeList(category) }
+            }
         }
+    }
+
+    /// Kategorinin tek bir sabit türü varsa o tür (liste adımı atlanır).
+    private static func singleType(of category: AssetCategory) -> AssetType? {
+        guard !category.isDynamic, category.assetTypes.count == 1 else { return nil }
+        return category.assetTypes.first
+    }
+
+    private func selectInstrument(_ instrument: Instrument) {
+        amount = ""
+        purchasePrice = ""
+        markStep("amount")
+        FirebaseAnalyticsHelper.shared.logAddAssetInstrumentSelected(
+            category: String(describing: instrument.category),
+            symbol: instrument.symbol,
+            source: flowSource
+        )
+        withAnimation(.easeInOut(duration: 0.2)) { step = .amount(instrument) }
     }
 
     // MARK: - Nav bar
@@ -213,7 +243,7 @@ struct AddAssetSheet: View {
         withAnimation(.easeInOut(duration: 0.2)) {
             switch step {
             case .amount(let instrument):
-                step = .typeList(instrument.category)
+                step = Self.singleType(of: instrument.category) == nil ? .typeList(instrument.category) : .category
             case .typeList:
                 step = .category
             case .category:
@@ -285,7 +315,8 @@ struct AddAssetSheet: View {
             $0.name.searchMatches(searchText) || $0.symbol.searchMatches(searchText)
         }
         return VStack(spacing: 0) {
-            searchBar(for: category)
+            // Birkaç sabit seçenekte arama kutusu gürültü.
+            if !category.isManual { searchBar(for: category) }
             if category == .fund { fundSearchHint }
             ScrollView {
                 LazyVStack(spacing: 10) {
@@ -313,15 +344,7 @@ struct AddAssetSheet: View {
                     }
                     ForEach(items, id: \.self) { instrument in
                         Button {
-                            amount = ""
-                            purchasePrice = ""
-                            markStep("amount")
-                            FirebaseAnalyticsHelper.shared.logAddAssetInstrumentSelected(
-                                category: String(describing: instrument.category),
-                                symbol: instrument.symbol,
-                                source: flowSource
-                            )
-                            withAnimation(.easeInOut(duration: 0.2)) { step = .amount(instrument) }
+                            selectInstrument(instrument)
                         } label: {
                             HStack(spacing: 12) {
                                 AssetIconTile(
@@ -450,6 +473,7 @@ struct AddAssetSheet: View {
     }
 
     private func priceLabel(for instrument: Instrument) -> String {
+        if instrument.type.isManual { return "Değerini sen gir" }
         let price = currentMarketPrice(for: instrument)
         guard price > 0 else { return instrument.unit }
         // Locale'e uygun biçim: "%.2f" tüm listede nokta ayraç yazıyordu.
@@ -488,8 +512,9 @@ struct AddAssetSheet: View {
                     // Miktar — sistem klavyesi (decimalPad). Klavye yalnızca alana
                     // dokunulunca açılıyor; kapalıyken grafik ve tüm alanlar tek
                     // ekranda görünüyor.
+                    // Elle girilen varlıklarda alan miktar değil, TL değer.
                     VStack(spacing: 4) {
-                        Text("Miktar")
+                        Text(instrument.type.isManual ? "Güncel Değer" : "Miktar")
                             .font(.system(size: 14))
                             .foregroundColor(.secondary)
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -499,13 +524,20 @@ struct AddAssetSheet: View {
                                 .font(.system(size: 44, weight: .heavy))
                                 .fixedSize()
                                 .focused($focusedField, equals: .amount)
-                            Text(instrument.unit)
+                            Text(instrument.type.isManual ? "₺" : instrument.unit)
                                 .font(.system(size: 20, weight: .medium))
                                 .foregroundColor(.secondary)
                         }
                         Rectangle()
                             .fill(focusedField == .amount ? Color.accentColor : Color.secondary.opacity(0.25))
                             .frame(width: 120, height: 2)
+                        // Büyük ham sayılar ("5000000") tek bakışta okunmuyor.
+                        if instrument.type.isManual, let value = parsedAmount, value > 0 {
+                            Text(value.formatAsCurrency())
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(.secondary)
+                                .padding(.top, 2)
+                        }
                     }
                     .frame(maxWidth: .infinity)
                     .contentShape(Rectangle())
@@ -513,11 +545,19 @@ struct AddAssetSheet: View {
 
                     portfolioPicker
 
-                    // Türk Lirası has no purchase rate (it's the base currency).
-                    if instrument.symbol != "TRY" {
+                    if instrument.type.isManual {
+                        ManualNameField(name: $customName, example: instrument.type.manualNameExample)
                         purchasePriceField(for: instrument)
-                        liveValuePreview(for: instrument, showsUnitPrice: !instrument.category.isDynamic)
                         profitLossPreview(for: instrument)
+                    } else {
+                        LocationPicker(location: $location, suggestions: instrument.category.locationSuggestions)
+
+                        // Türk Lirası has no purchase rate (it's the base currency).
+                        if instrument.symbol != "TRY" {
+                            purchasePriceField(for: instrument)
+                            liveValuePreview(for: instrument, showsUnitPrice: !instrument.category.isDynamic)
+                            profitLossPreview(for: instrument)
+                        }
                     }
                 }
                 .padding(.horizontal, 20)
@@ -570,7 +610,8 @@ struct AddAssetSheet: View {
     // Optional cost-basis input. For stocks/crypto/funds it's the "average cost";
     // for gold/FX it's the "purchased rate". Left empty -> current price is used.
     private func purchasePriceField(for instrument: Instrument) -> some View {
-        let label = instrument.category.isDynamic ? "Ortalama Maliyet" : "Satın Alınan Kur"
+        let label = instrument.type.isManual ? instrument.type.manualCostLabel
+            : (instrument.category.isDynamic ? "Ortalama Maliyet" : "Satın Alınan Kur")
         return VStack(alignment: .leading, spacing: 6) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
@@ -590,7 +631,7 @@ struct AddAssetSheet: View {
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(.primary)
                     }
-                    TextField("Güncel fiyat", text: $purchasePrice)
+                    TextField(instrument.type.isManual ? "Güncel değer" : "Güncel fiyat", text: $purchasePrice)
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
                         .font(.system(size: 16, weight: purchasePrice.isEmpty ? .regular : .semibold))
@@ -613,7 +654,9 @@ struct AddAssetSheet: View {
                 Image(systemName: "info.circle")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
-                Text("Belirtmezseniz güncel fiyattan alınmış kabul edilir.")
+                Text(instrument.type.isManual
+                     ? "Belirtmezseniz kâr/zarar hesaplanmaz."
+                     : "Belirtmezseniz güncel fiyattan alınmış kabul edilir.")
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
             }
@@ -739,13 +782,24 @@ struct AddAssetSheet: View {
         return marketData.tryPrice(forSymbol: instrument.symbol) ?? 0.0
     }
 
+    private var parsedAmount: Double? {
+        Double(amount.replacingOccurrences(of: ",", with: "."))
+    }
+
+    /// Kaydedilecek miktar ve birim fiyat. Elle girilen varlıklarda alan TL
+    /// değeri tutuyor: 1 adet × girilen değer.
+    private func quantityAndPrice(for instrument: Instrument) -> (qty: Double, price: Double)? {
+        guard let entered = parsedAmount, entered > 0 else { return nil }
+        if instrument.type.isManual { return (1, entered) }
+        return (entered, currentMarketPrice(for: instrument))
+    }
+
     /// Live profit/loss estimate from the entered purchase rate vs the current market rate.
     private func estimatedProfitLoss(for instrument: Instrument) -> (value: Double, percent: Double)? {
-        guard let amountValue = Double(amount.replacingOccurrences(of: ",", with: ".")), amountValue > 0,
-              let purchase = Double(purchasePrice.replacingOccurrences(of: ",", with: ".")), purchase > 0
+        guard let (amountValue, current) = quantityAndPrice(for: instrument),
+              let purchase = Double(purchasePrice.replacingOccurrences(of: ",", with: ".")), purchase > 0,
+              current > 0
         else { return nil }
-        let current = currentMarketPrice(for: instrument)
-        guard current > 0 else { return nil }
         let value = (current - purchase) * amountValue
         let percent = (current - purchase) / purchase * 100.0
         return (value, percent)
@@ -754,8 +808,8 @@ struct AddAssetSheet: View {
     // MARK: - Save
 
     private func save(instrument: Instrument) {
-        guard let amountValue = Double(amount.replacingOccurrences(of: ",", with: ".")), amountValue > 0 else {
-            alertMessage = "Lütfen geçerli bir miktar girin."
+        guard let (amountValue, currentPrice) = quantityAndPrice(for: instrument) else {
+            alertMessage = instrument.type.isManual ? "Lütfen geçerli bir değer girin." : "Lütfen geçerli bir miktar girin."
             showAlert = true
             return
         }
@@ -765,14 +819,17 @@ struct AddAssetSheet: View {
             return
         }
 
-        let currentPrice = currentMarketPrice(for: instrument)
-
         // Use the entered purchase rate as the cost basis when provided; otherwise the current rate.
         let enteredPurchase = Double(purchasePrice.replacingOccurrences(of: ",", with: "."))
         let costBasis = (enteredPurchase != nil && enteredPurchase! > 0) ? enteredPurchase! : currentPrice
 
-        // Merge into an existing holding of the same instrument (by symbol) in this portfolio.
-        let existing = (portfolio.assets ?? []).first(where: { $0.symbol == instrument.symbol })
+        // Merge into an existing holding of the same instrument *at the same place*
+        // in this portfolio — "evde 10 gram" ile "bankada 20 gram" ayrı varlıklar.
+        // Elle girilenler hiç birleşmez: her ev/araba ayrı bir varlık.
+        let place = LocationPicker.normalized(location)
+        let existing = instrument.type.isManual ? nil : (portfolio.assets ?? []).first(where: {
+            $0.symbol == instrument.symbol && $0.location == place
+        })
 
         if let existing {
             let oldAmount = existing.amount
@@ -789,7 +846,7 @@ struct AddAssetSheet: View {
 
             AssetHistoryManager.shared.recordDailySnapshot(for: existing, modelContext: modelContext)
             AssetHistoryManager.shared.recordTransaction(
-                symbol: existing.symbol, assetType: existing.type, transactionType: .add,
+                for: existing, transactionType: .add,
                 amount: amountValue, totalAmount: existing.amount,
                 price: costBasis, context: modelContext
             )
@@ -800,13 +857,27 @@ struct AddAssetSheet: View {
                 amount: amountValue, currentRate: 0.0, currentPrice: currentPrice
             )
             newAsset.portfolio = portfolio
+            if instrument.type.isManual {
+                newAsset.symbol = AssetType.manualSymbol(for: newAsset.id)
+                let name = customName.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !name.isEmpty { newAsset.name = String(name.prefix(40)) }
+            } else {
+                newAsset.location = place
+            }
             PortfolioManager.shared.storePurchasePrice(for: newAsset.id, price: costBasis)
             modelContext.insert(newAsset)
             try? modelContext.save()
 
-            AssetHistoryManager.shared.createInitialSnapshot(for: newAsset, purchasePrice: costBasis, modelContext: modelContext)
+            // Elle girilende bu geçmiş "değer" geçmişi — Analiz'in yeniden kurması
+            // onu okuyor; ilk nokta alış fiyatı olursa bugün eksik değerlenirdi.
+            // Alış fiyatı zaten maliyet olarak saklanıyor.
+            AssetHistoryManager.shared.createInitialSnapshot(
+                for: newAsset,
+                purchasePrice: instrument.type.isManual ? currentPrice : costBasis,
+                modelContext: modelContext
+            )
             AssetHistoryManager.shared.recordTransaction(
-                symbol: newAsset.symbol, assetType: newAsset.type, transactionType: .initial,
+                for: newAsset, transactionType: .initial,
                 amount: amountValue, totalAmount: amountValue,
                 price: costBasis, context: modelContext
             )

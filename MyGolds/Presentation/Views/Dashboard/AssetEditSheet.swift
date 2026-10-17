@@ -26,7 +26,10 @@ struct AssetEditSheet: View {
 
     @State private var amountText: String = ""
     @State private var costText: String = ""
+    @State private var locationText: String = ""
+    @State private var nameText: String = ""
     @State private var showDeleteConfirm = false
+    @State private var showingHistory = false
 
     private var parsedAmount: Double? {
         Double(amountText.replacingOccurrences(of: ",", with: "."))
@@ -39,31 +42,59 @@ struct AssetEditSheet: View {
     /// Türk Lirası is the base currency — it has no editable cost.
     private var isTRY: Bool { asset.symbol == "TRY" }
 
+    /// Ev/araba gibi elle girilen varlık: "Miktar" alanı TL değeri tutuyor,
+    /// miktar hep 1.
+    private var isManual: Bool { asset.type.isManual }
+
     private var currentPrice: Double {
         if asset.symbol == "TRY" { return 1 }
+        if isManual { return parsedAmount ?? asset.currentPrice }
         return marketData.tryPrice(forSymbol: asset.symbol) ?? asset.currentPrice
     }
 
+    /// Kaydedilecek miktar — elle girilenlerde hep 1.
+    private var editedQuantity: Double { isManual ? 1 : (parsedAmount ?? 0) }
+
     var body: some View {
-        VStack(spacing: 18) {
-            Text("Varlığı Düzenle")
-                .font(.system(size: 17, weight: .bold))
-                .frame(maxWidth: .infinity)
-                .padding(.top, 12)
-            header
-            amountField
-            if !isTRY { costField }
-            valuePreview
-            Spacer(minLength: 8)
-            saveButton
-            deleteButton
+        ScrollView {
+            VStack(spacing: 18) {
+                Text("Varlığı Düzenle")
+                    .font(.system(size: 17, weight: .bold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 12)
+                header
+                amountField
+                if isManual {
+                    ManualNameField(name: $nameText, example: asset.type.manualNameExample)
+                }
+                if !isTRY { costField }
+                if !isManual {
+                    LocationPicker(location: $locationText, suggestions: asset.type.category.locationSuggestions)
+                }
+                valuePreview
+                historyButton
+                deleteButton
+            }
+            .padding(20)
         }
-        .padding(20)
+        .scrollDismissesKeyboard(.interactively)
+        // Küçük ekranda / klavye açıkken Kaydet kaydırmanın dibinde kaybolmasın.
+        .safeAreaInset(edge: .bottom) {
+            saveButton
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+                .padding(.bottom, 12)
+                .background(Color(.systemGroupedBackground).ignoresSafeArea(edges: .bottom))
+        }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .onAppear {
-            amountText = Self.format(asset.amount)
+            amountText = isManual ? Self.formatPrice(asset.currentPrice) : Self.format(asset.amount)
             costText = averageCost.map { Self.formatPrice($0) } ?? ""
+            locationText = asset.location
+            // Tür adıyla aynıysa isim verilmemiş demektir; alan boş açılsın.
+            nameText = asset.name == asset.type.displayName ? "" : asset.name
         }
+        .fullScreenCover(isPresented: $showingHistory) { AssetHistoryView(asset: asset) }
         .alert("Varlığı Sil", isPresented: $showDeleteConfirm) {
             Button("Sil", role: .destructive) {
                 onDeleted(asset)
@@ -93,7 +124,7 @@ struct AssetEditSheet: View {
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
-                Text("Güncel: \(Self.format(asset.amount)) \(asset.unit)")
+                Text(isManual ? asset.type.displayName : "Güncel: \(Self.format(asset.amount)) \(asset.unit)")
                     .font(.system(size: 13)).foregroundColor(.secondary)
             }
             Spacer(minLength: 0)
@@ -103,16 +134,16 @@ struct AssetEditSheet: View {
 
     private var amountField: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Miktar").font(.system(size: 14)).foregroundColor(.secondary)
+            Text(isManual ? "Güncel Değer" : "Miktar").font(.system(size: 14)).foregroundColor(.secondary)
             HStack {
                 TextField("0", text: $amountText)
                     .keyboardType(.decimalPad)
                     .font(.system(size: 28, weight: .bold))
                     .onChange(of: amountText) { _, new in
-                        let clean = new.sanitizedDecimal(maxDecimals: 8)
+                        let clean = new.sanitizedDecimal(maxDecimals: isManual ? 2 : 8)
                         if clean != new { amountText = clean }
                     }
-                Text(asset.unit).foregroundColor(.secondary)
+                Text(isManual ? "₺" : asset.unit).foregroundColor(.secondary)
             }
             .padding(.horizontal, 14).padding(.vertical, 12)
             .background(Color(.secondarySystemGroupedBackground))
@@ -127,7 +158,8 @@ struct AssetEditSheet: View {
 
     /// Label differs by asset class: stocks/crypto/funds = "cost", gold/FX = "rate".
     private var costLabel: String {
-        asset.type.category.isDynamic ? "Ortalama Maliyet" : "Ortalama Alış Kuru"
+        if isManual { return asset.type.manualCostLabel }
+        return asset.type.category.isDynamic ? "Ortalama Maliyet" : "Ortalama Alış Kuru"
     }
 
     /// Editable weighted-average cost / buy rate per unit.
@@ -151,7 +183,7 @@ struct AssetEditSheet: View {
     }
 
     private var valuePreview: some View {
-        let amount = parsedAmount ?? 0
+        let amount = editedQuantity
         let value = amount * currentPrice
         // Profit/loss vs the (edited) average cost.
         let cost = parsedCost ?? averageCost
@@ -191,6 +223,32 @@ struct AssetEditSheet: View {
         .padding(.horizontal, 16).padding(.vertical, 12)
     }
 
+    // MARK: - History
+
+    private var historyButton: some View {
+        Button { showingHistory = true } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "clock.arrow.circlepath")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.accentColor)
+                Text("İşlem Geçmişi")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.primary)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.secondary.opacity(0.6))
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color(.secondarySystemGroupedBackground))
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
     private var saveButton: some View {
         Button(action: save) {
             Text("Kaydet")
@@ -215,12 +273,19 @@ struct AssetEditSheet: View {
     // MARK: - Actions
 
     private func save() {
-        guard let newAmount = parsedAmount, newAmount > 0 else { return }
+        guard (parsedAmount ?? 0) > 0 else { return }
+        let newAmount = editedQuantity
         let oldAmount = asset.amount
         let price = currentPrice
         let delta = newAmount - oldAmount
 
         asset.amount = newAmount
+        if isManual {
+            let name = nameText.trimmingCharacters(in: .whitespacesAndNewlines)
+            asset.name = name.isEmpty ? asset.type.displayName : String(name.prefix(ManualNameField.maxLength))
+        } else {
+            asset.location = LocationPicker.normalized(locationText)
+        }
         asset.currentPrice = price
         asset.lastUpdated = Date()
 
@@ -234,7 +299,7 @@ struct AssetEditSheet: View {
         let txnType: AssetTransactionHistory.TransactionType =
             delta > 0 ? .add : (delta < 0 ? .remove : .edit)
         AssetHistoryManager.shared.recordTransaction(
-            symbol: asset.symbol, assetType: asset.type, transactionType: txnType,
+            for: asset, transactionType: txnType,
             amount: abs(delta), totalAmount: newAmount, price: price, context: modelContext
         )
         AssetHistoryManager.shared.recordDailySnapshot(for: asset, modelContext: modelContext)

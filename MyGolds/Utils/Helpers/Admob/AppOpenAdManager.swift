@@ -11,10 +11,10 @@ import UIKit
 
 // MARK: - App Open Ad Manager
 
-class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate {
+class AppOpenAdManager: NSObject, ObservableObject, FullScreenContentDelegate {
     static let shared = AppOpenAdManager()
     
-    private var appOpenAd: GADAppOpenAd?
+    private var appOpenAd: AppOpenAd?
     private var loadTime = Date()
     /// Ardışık yükleme hatası sayacı. Sabit 30 sn'lik yeniden deneme, dolum
     /// olmayan bir oturumda saatlerce dönüp `app_open_ad_load_failed`'ı tek
@@ -176,7 +176,7 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
         isLoadingAd = true
         Logger.log("📱 App Open Ad: Loading...")
         
-        let request = GADRequest()
+        let request = Request()
         
         // Use test ID in debug, production ID in release
         #if DEBUG
@@ -187,7 +187,7 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
         Logger.log("📱 App Open Ad: Using production ad unit ID")
         #endif
         
-        GADAppOpenAd.load(withAdUnitID: adID, request: request) { [weak self] ad, error in
+        AppOpenAd.load(with: adID, request: request) { [weak self] ad, error in
             DispatchQueue.main.async {
                 self?.isLoadingAd = false
                 
@@ -317,7 +317,7 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
         isAdShowing = true
         lastAdShowTime = Date()
         FullScreenAdGate.shared.recordShown()
-        appOpenAd?.present(fromRootViewController: rootViewController)
+        appOpenAd?.present(from: rootViewController)
     }
     
     // MARK: - Helper Methods
@@ -351,9 +351,9 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
          showAdIfAvailable()
      }
     
-    // MARK: - GADFullScreenContentDelegate
+    // MARK: - FullScreenContentDelegate
     
-    func adWillPresentFullScreenContent(_ ad: GADFullScreenPresentingAd) {
+    func adWillPresentFullScreenContent(_ ad: FullScreenPresentingAd) {
         Logger.log("📱 App Open Ad: Will present")
         FirebaseAnalyticsHelper.shared.logAppOpenAdWillPresent()
         DispatchQueue.main.async {
@@ -366,7 +366,7 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
         }
     }
     
-    func adDidRecordImpression(_ ad: GADFullScreenPresentingAd) {
+    func adDidRecordImpression(_ ad: FullScreenPresentingAd) {
         FirebaseAnalyticsHelper.shared.logAppOpenAdDidPresent()
     }
 
@@ -374,11 +374,11 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
     /// açınca kullanıcı reklamı kapattıktan sonra açılış ekranını bir süre daha
     /// görüyordu. Burada açınca içerik, reklamın kendi kapanma animasyonunun
     /// altında ortaya çıkıyor — geçiş görünmüyor.
-    func adWillDismissFullScreenContent(_ ad: GADFullScreenPresentingAd) {
+    func adWillDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
         DispatchQueue.main.async { self.openColdStartGate() }
     }
 
-    func adDidDismissFullScreenContent(_ ad: GADFullScreenPresentingAd) {
+    func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
         Logger.log("📱 App Open Ad: Did dismiss")
         // Buradaki olay eskiden `banner_ad_did_dismiss_screen` idi; app-open
         // kapanışları banner metriklerine karışıyordu.
@@ -401,7 +401,7 @@ class AppOpenAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate
         }
     }
     
-    func ad(_ ad: GADFullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
+    func ad(_ ad: FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
         Logger.log("📱 App Open Ad: Failed to present - \(error.localizedDescription)")
         FirebaseAnalyticsHelper.shared.logAppOpenAdPresentFailed(error: error.localizedDescription)
         DispatchQueue.main.async {
