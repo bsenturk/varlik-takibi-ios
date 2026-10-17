@@ -199,3 +199,62 @@ select cron.schedule(
 
 > TR has no DST, so `07:00–10:45 UTC` is a stable `10:00–13:45` window. To also
 > check at exactly 14:00, change the hours to `7-11` (last tick 14:45 TR).
+
+---
+
+# Instagram story'leri (ig_queue + ig-bot)
+
+Hafta içi iki story otomatik hazırlanıyor: altın 10:00, döviz 17:30.
+
+```
+GitHub Actions (09:15 / 16:45)          ig-bot (pg_cron, 5 dk'da bir)            Telegram
+scripts/ig_story.py ──► ig-media bucket ──► ig_queue 'draft' ──► önizleme + ✅ 📱 ❌ ──► sen
+                                              │ ✅ approved
+                                              └─► publish_at gelince Instagram STORIES
+```
+
+- Görsel `assets_prices`'tan üretilir. Fiyatlar 3 saatten eskiyse script hiç üretmez.
+- Onaylanmayan ya da publish_at'ten 2 saat sonra hâlâ bekleyen satır `expired` olur, yani eski fiyat paylaşılmaz.
+- API'den atılan story'ye sticker eklenemez. Sticker'lı bir gün için 📱 Manuel'e bas, görseli Telegram'dan kaydedip kendin at.
+- Yerelde görseli denemek için: `SUPABASE_KEY=<anon> python3 scripts/ig_story.py altin`
+
+## Kurulum (bir kerelik)
+
+```bash
+# 1. Tablo + bucket
+supabase db push
+
+# 2. Instagram kullanıcı ID'si (IG_TOKEN = uzun ömürlü token)
+curl "https://graph.instagram.com/v23.0/me?fields=user_id,username&access_token=$IG_TOKEN"
+
+# 3. Telegram kullanıcı ID'si: bota bir mesaj at, sonra
+curl "https://api.telegram.org/bot$TG_BOT_TOKEN/getUpdates"   # result[0].message.from.id
+
+# 4. Secrets (TG_WEBHOOK_SECRET: rastgele bir değer, ör. `openssl rand -hex 24`)
+supabase secrets set IG_TOKEN=... IG_USER_ID=... TG_BOT_TOKEN=... TG_OWNER_ID=... TG_WEBHOOK_SECRET=...
+
+# 5. Deploy + Telegram webhook
+supabase functions deploy ig-bot
+curl "https://api.telegram.org/bot$TG_BOT_TOKEN/setWebhook" \
+  -d url=https://bpiclzhpxkmnqxqvlnmu.functions.supabase.co/ig-bot \
+  -d secret_token=$TG_WEBHOOK_SECRET -d 'allowed_updates=["callback_query"]'
+```
+
+6. GitHub → Settings → Secrets → Actions: `SUPABASE_SERVICE_ROLE_KEY` ekle.
+7. SQL Editor'de tick'i zamanla:
+
+```sql
+select cron.schedule(
+  'ig-bot-tick',
+  '*/5 * * * *',
+  $$
+  select net.http_post(
+    url     := 'https://bpiclzhpxkmnqxqvlnmu.functions.supabase.co/ig-bot',
+    headers := jsonb_build_object('x-sync-secret', '<the-SYNC_SECRET>')
+  );
+  $$
+);
+```
+
+**Token yenileme:** Instagram token'ı 60 gün geçerli. Süresi dolunca yayınlar `failed` olur ve Telegram'a hata mesajı düşer. Yenilemek için:
+`curl "https://graph.instagram.com/refresh_access_token?grant_type=ig_refresh_token&access_token=$IG_TOKEN"` → yeni token'la `supabase secrets set IG_TOKEN=...`

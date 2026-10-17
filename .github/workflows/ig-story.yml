@@ -1,0 +1,28 @@
+# Hafta içi günlük piyasa story'leri: görseli üretir, ig_queue'ya taslak ekler.
+# Telegram onayı ve yayınlama Supabase'deki ig-bot'ta (supabase/README.md → Instagram story'leri).
+# Not: GitHub zamanlanmış workflow'ları yalnızca varsayılan dalda (main) çalıştırır.
+name: Instagram günlük story
+
+on:
+  schedule:
+    - cron: "15 6 * * 1-5"   # 09:15 TR → altın, 10:00'da yayın
+    - cron: "45 13 * * 1-5"  # 16:45 TR → döviz, 17:30'da yayın
+  workflow_dispatch:
+    inputs:
+      kind:
+        type: choice
+        options: [altin, doviz]
+        default: altin
+
+jobs:
+  story:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get install -y -qq fonts-noto-color-emoji
+      - run: python3 scripts/ig_story.py "$KIND" --queue
+        env:
+          KIND: ${{ inputs.kind || (github.event.schedule == '15 6 * * 1-5' && 'altin' || 'doviz') }}
+          CHROME: google-chrome
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

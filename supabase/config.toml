@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.market-alert]
 verify_jwt = false
+
+[functions.ig-bot]
+verify_jwt = false
