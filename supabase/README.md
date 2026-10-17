@@ -233,11 +233,8 @@ curl "https://api.telegram.org/bot$TG_BOT_TOKEN/getUpdates"   # result[0].messag
 # 4. Secrets (TG_WEBHOOK_SECRET: rastgele bir değer, ör. `openssl rand -hex 24`)
 supabase secrets set IG_TOKEN=... IG_USER_ID=... TG_BOT_TOKEN=... TG_OWNER_ID=... TG_WEBHOOK_SECRET=...
 
-# 5. Deploy + Telegram webhook
+# 5. Deploy. Telegram webhook'unu ig-bot ilk tick'te TG_WEBHOOK_SECRET ile kendisi kurar.
 supabase functions deploy ig-bot
-curl "https://api.telegram.org/bot$TG_BOT_TOKEN/setWebhook" \
-  -d url=https://bpiclzhpxkmnqxqvlnmu.functions.supabase.co/ig-bot \
-  -d secret_token=$TG_WEBHOOK_SECRET -d 'allowed_updates=["callback_query"]'
 ```
 
 6. GitHub → Settings → Secrets → Actions: `SUPABASE_SERVICE_ROLE_KEY` ekle.

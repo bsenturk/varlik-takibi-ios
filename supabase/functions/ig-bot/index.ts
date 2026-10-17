@@ -119,7 +119,22 @@ async function publish(row: Row) {
   }
 }
 
+// Webhook'u her instance'ta bir kez, Supabase'deki secret'la kur. Böylece Telegram
+// tarafındaki secret, TG_WEBHOOK_SECRET değişse bile hep onunla aynı kalır.
+let webhookSet = false;
+async function ensureWebhook() {
+  if (webhookSet) return;
+  await tg("setWebhook", {
+    url: `${env("SUPABASE_URL").replace(".supabase.co", ".functions.supabase.co")}/ig-bot`,
+    secret_token: env("TG_WEBHOOK_SECRET"),
+    allowed_updates: ["callback_query"],
+  });
+  webhookSet = true;
+}
+
 async function tick() {
+  await ensureWebhook().catch((e) => console.error("ig-bot setWebhook:", e));
+
   // 1. Yeni taslakları onaya yolla.
   const { data: drafts } = await db.from("ig_queue").select("*")
     .eq("status", "draft").is("tg_message_id", null).order("id");
